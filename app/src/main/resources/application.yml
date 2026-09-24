@@ -1,0 +1,106 @@
+# =============================================================================
+# 건설·부동산 위험 모니터 app — 기본 프로필: API + (선택) 스케줄러. batch-only 프로필: 지정 Job 만 실행 후 종료
+# =============================================================================
+server:
+  port: 8410
+  shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: application/json,application/geo+json
+    min-response-size: 2048
+
+spring:
+  application:
+    name: buildrisk-radar
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:5472/buildrisk}
+    username: ${DATABASE_USER:buildrisk}
+    password: ${DATABASE_PASSWORD:buildrisk}
+    hikari:
+      maximum-pool-size: 12
+  flyway:
+    schemas: public
+    locations: classpath:db/migration
+  data:
+    redis:
+      url: ${REDIS_URL:redis://127.0.0.1:6419}
+      timeout: 500ms
+  batch:
+    job:
+      enabled: false          # Boot 기본 러너 대신 BatchLauncher 가 실행
+    jdbc:
+      initialize-schema: never   # Flyway V2 가 ops.BATCH_* 생성
+      table-prefix: ops.BATCH_
+  jackson:
+    default-property-inclusion: non_null
+  web:
+    locale: ko_KR
+    locale-resolver: fixed
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+  api-docs:
+    path: /v3/api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+buildrisk:
+  seed-dir: ${SEED_DIR:../seed}
+  admin-token: ${ADMIN_TOKEN:}
+  dart:
+    base-url: ${DART_BASE_URL:https://opendart.fss.or.kr}
+    api-key: ${DART_API_KEY:}
+    daily-call-limit: ${DART_DAILY_CALL_LIMIT:15000}
+    min-interval-ms: ${DART_MIN_INTERVAL_MS:200}
+    from-year: ${FS_FROM_YEAR:2021}
+  kosis:
+    base-url: ${KOSIS_BASE_URL:https://kosis.kr}
+    api-key: ${KOSIS_API_KEY:}
+    months: 36
+  rone:
+    base-url: ${RONE_BASE_URL:https://www.reb.or.kr}
+    api-key: ${REB_API_KEY:}
+    months: 36
+    min-interval-ms: 150
+  sgis:
+    base-url: ${SGIS_BASE_URL:https://sgisapi.mods.go.kr/OpenAPI3}
+    consumer-key: ${SGIS_CONSUMER_KEY:}
+    consumer-secret: ${SGIS_CONSUMER_SECRET:}
+  vworld:
+    base-url: ${VWORLD_BASE_URL:https://api.vworld.kr}
+    api-key: ${VWORLD_API_KEY:}
+    domain: ${VWORLD_DOMAIN:http://localhost:3400}
+    data-id: LT_C_ADSIGG_INFO
+  batch:
+    scheduling-enabled: ${BATCH_SCHEDULING_ENABLED:false}
+    company-window-quarters: 8
+    region-window-months: 12
+    run-jobs: ${BATCH_RUN_JOBS:}
+    stale-minutes: ${BATCH_STALE_MINUTES:10}   # 하트비트가 이만큼 멈춘 STARTED 실행은 죽은 것으로 보고 정리
+
+logging:
+  level:
+    root: INFO
+    com.buildrisk: INFO
+    org.springframework.batch: INFO
+  pattern:
+    level: "%5p [%X{traceId:-}]"
+---
+spring:
+  config:
+    activate:
+      on-profile: batch-only
+  main:
+    web-application-type: none

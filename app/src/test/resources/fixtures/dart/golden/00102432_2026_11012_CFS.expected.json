@@ -1,0 +1,31 @@
+{
+  "missing" : [ ],
+  "sources" : {
+    "BONDS" : "BS:회사채",
+    "CURRENT_ASSETS" : "BS:유동자산",
+    "CURRENT_LIABILITIES" : "BS:유동부채",
+    "INTEREST_EXPENSE" : "CF:이자의 지급",
+    "LONG_BORROWINGS" : "BS:장기차입금",
+    "OPERATING_CASH_FLOW" : "CF:영업활동으로 인한 현금흐름",
+    "OPERATING_INCOME" : "CIS:영업이익(손실)",
+    "REVENUE" : "CIS:매출액",
+    "SHORT_BORROWINGS" : "BS:단기차입금 + 유동성장기차입금",
+    "TOTAL_ASSETS" : "BS:자산총계",
+    "TOTAL_EQUITY" : "BS:자본총계",
+    "TOTAL_LIABILITIES" : "BS:부채총계"
+  },
+  "values" : {
+    "BONDS" : 102000000000,
+    "CURRENT_ASSETS" : 2316695525099,
+    "CURRENT_LIABILITIES" : 1698741928811,
+    "INTEREST_EXPENSE" : 20196305551,
+    "LONG_BORROWINGS" : 505393964889,
+    "OPERATING_CASH_FLOW" : 43313967158,
+    "OPERATING_INCOME" : 109801648114,
+    "REVENUE" : 1510781958190,
+    "SHORT_BORROWINGS" : 653024968380,
+    "TOTAL_ASSETS" : 3467986072094,
+    "TOTAL_EQUITY" : 1043078569434,
+    "TOTAL_LIABILITIES" : 2424907502660
+  }
+}
