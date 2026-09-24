@@ -37,6 +37,7 @@
 | 3 | 상장폐지 회사(건영·대아건설 등)가 유니버스에 포함될 뻔함 | corpCode.xml 은 상장폐지 회사에도 종목코드를 남김 (기업개황 corp_cls = E) | 유니버스 조건에 `corp_cls ∈ {Y, K}` 추가 | `ClassifierAndUniverseTest` |
 | 4 | KOSIS 미분양 Job 실패 (err 31) | 한 요청 4만 셀 제한 — 36개월 한 번에 요청 | 6개월씩 나눠 요청 | 실데이터 재실행 |
 | 5 | R-ONE Job NPE | 응답에 이름 없는 집계 행 3건 (`CLS_NM`·`CLS_FULLNM` null) | 이름 없는 행 건너뜀 | 실데이터 재실행 (FAILED → restart → COMPLETED) |
+| 6a | 배치 모니터에 이미 해결된 FAILED(#7 강제 종료 검증, #15 R-ONE NPE)가 그대로 빨간색으로 남아 조치가 필요한지 알 수 없음 | 실행 이력은 감사 기록이라 지우면 안 되는데, 화면이 '같은 JobInstance 가 restart 로 완료됐는지'를 보여 주지 않음. 실패 메시지도 'Unable to process chunk' 뿐이라 원인이 안 보임 | 실행 이력 API 에 `resolvedBy`(이후 완료된 실행 번호) 추가 → "→ #9 재시작으로 해결" 표시, 실패 시 종료 메시지 맨 앞에 근본 원인 한 줄(`원인: DartApiException — …`), 정리된 실행에 정리 사유 기록 | `FinancialStatementJobIT` · `StaleExecutionIT` |
 | 6 | 경계 파생 Step 실패 | PostGIS 의 GEOS 3.11 에 `ST_CoverageSimplify` 없음, 실패 후 대체 쿼리도 aborted 트랜잭션에서 실패 | GEOS 버전을 먼저 확인해 함수 선택 | restart 로 파생 Step 만 재실행 확인 |
 
 ### 회계 표준화 (골든 테스트로 발견)

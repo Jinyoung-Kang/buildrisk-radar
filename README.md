@@ -139,8 +139,8 @@ sequenceDiagram
 | 애플리케이션 | Java 21 · **Spring Boot 4.1.1** · Spring Batch 6 · JdbcClient · Flyway · springdoc | 3.4 는 OSS 지원 종료 → 4.1 (U-5, [ADR-009](docs/adr/009-boot41-jdbcclient.md)) |
 | 저장 | PostgreSQL 16 + PostGIS 3.6 | 경계 저장 · `ST_Transform` · 단순화 · GeoJSON 생성 |
 | 캐시 | Redis 7 | 세대 키 `br:gen` INCR 한 번으로 calc_run 단위 무효화 |
-| 화면 | Next.js 15 (Pages Router) · React 18 · TypeScript · Tailwind · Recharts 3 · 카카오 지도 | 카카오 실패 시 SVG 단계구분도 대체 |
-| 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright | 백엔드 82개 (실제 DART 응답 골든 6건 포함) · E2E 4개 |
+| 화면 | Next.js 15 (Pages Router) · React 18 · TypeScript · Tailwind · Recharts 3 · 카카오 지도 | 카카오 실패 시 SVG 단계구분도 대체 · 시스템/라이트/다크 테마 전환(상단 바 오른쪽, 브라우저에 저장) |
+| 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright | 백엔드 82개 (실제 DART 응답 골든 6건 포함) · E2E 5개 |
 | 도구 | Python 3.11 (표준 라이브러리) | 외부 API 키 스모크 · 골든 fixture 캡처 (`tools/smoke.py`) |
 | 운영 | Docker Compose · Makefile · GitHub Actions | 모든 포트 127.0.0.1 바인딩 |
 | 도입하지 않음 | Kafka/CDC · ClickHouse · Kubernetes | 이유와 도입 조건: [ADR-011](docs/adr/011-out-of-scope-infra.md) |
@@ -232,7 +232,7 @@ R-R01 의 `minUnsoldUnits` 는 구현 중 추가한 파라미터입니다 — �
 
 ```bash
 make test   # 백엔드 82개 (단위·골든 + Testcontainers 통합) + 웹 타입 검사
-make e2e    # Playwright 4개 (스택이 떠 있어야 함)
+make e2e    # Playwright 5개 (스택이 떠 있어야 함)
 ```
 
 | 층 | 대상 | 내용 |
@@ -242,7 +242,7 @@ make e2e    # Playwright 4개 (스택이 떠 있어야 함)
 | 배치 통합 | `financialStatementJob` · `companyProfileJob` · 좀비 실행 | 청크 도중 실패 → restart 중복 0 · 013 → OFS · 020 → STOPPED → 이어감 · 일일 상한 · restart 누락 0 · 하트비트 복구 |
 | 규칙 통합 | `ruleEvalJob` | 재평가 멱등 · ACK 유지 · 자동 RESOLVED · 규칙 버전 변경 시 RULE_CHANGED |
 | API | MockMvc + 시드 DB | 400·401·404·405·415 오류 형식 · traceId · 규칙 새 버전 · 202 실행 · 지역 수동 매핑 · 근거 없는 경보 DB 거부 |
-| E2E | Playwright | 대시보드 고지 · 지도 · 경보 근거 · 배치 모니터 |
+| E2E | Playwright | 대시보드 고지 · 지도 · 경보 근거 · 배치 모니터 · 테마 전환 유지 |
 
 | 측정 (NFR-06, 로컬 M 시리즈 맥, 실데이터 2026-09-24) | 결과 | 목표 |
 |---|---|---|

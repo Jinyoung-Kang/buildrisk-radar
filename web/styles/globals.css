@@ -18,8 +18,9 @@
   --warn: 250 178 25;
   --good: 12 163 12;
 }
+/* 테마: data-theme 이 없으면 OS 설정을 따르고, 사용자가 고르면 data-theme="light|dark" 가 이깁니다 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
     --page: 13 13 13;
     --surface: 26 26 25;
@@ -30,6 +31,17 @@
     --line: 44 44 42;
     --accent: 109 167 236;
   }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: 13 13 13;
+  --surface: 26 26 25;
+  --raised: 34 34 32;
+  --ink: 255 255 255;
+  --ink2: 195 194 183;
+  --muted: 150 148 141;
+  --line: 44 44 42;
+  --accent: 109 167 236;
 }
 
 html { scrollbar-gutter: stable; }

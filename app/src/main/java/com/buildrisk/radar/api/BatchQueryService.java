@@ -42,7 +42,10 @@ public class BatchQueryService {
                    (SELECT coalesce(sum(s.filter_count), 0) FROM ops.batch_step_execution s WHERE s.job_execution_id = e.job_execution_id) AS "filterCount",
                    (SELECT coalesce(sum(s.commit_count), 0) FROM ops.batch_step_execution s WHERE s.job_execution_id = e.job_execution_id) AS "commitCount",
                    (SELECT count(*) FROM ops.skip_log k WHERE k.job_execution_id = e.job_execution_id) AS "skipLogCount",
-                   i.job_instance_id AS "jobInstanceId"
+                   i.job_instance_id AS "jobInstanceId",
+                   (SELECT min(x.job_execution_id) FROM ops.batch_job_execution x
+                     WHERE x.job_instance_id = e.job_instance_id AND x.job_execution_id > e.job_execution_id
+                       AND x.status = 'COMPLETED') AS "resolvedBy"
             FROM ops.batch_job_execution e JOIN ops.batch_job_instance i ON i.job_instance_id = e.job_instance_id
             """;
 

@@ -48,6 +48,7 @@ public class RunRecorder {
 
             @Override
             public void afterJob(JobExecution je) {
+                describeFailure(je);
                 jdbc.sql("""
                         UPDATE ops.collect_run SET finished_at = now(), status = :st, stats = cast(:stats AS jsonb)
                         WHERE collect_run_id = :id""")
@@ -76,12 +77,29 @@ public class RunRecorder {
 
             @Override
             public void afterJob(JobExecution je) {
+                describeFailure(je);
                 jdbc.sql("UPDATE ops.calc_run SET finished_at = now(), stats = cast(:stats AS jsonb) WHERE calc_run_id = :id")
                         .param("stats", stats(je))
                         .param("id", UUID.fromString(je.getExecutionContext().getString(BatchKeys.CALC_RUN_ID))).update();
                 if (je.getStatus() == BatchStatus.COMPLETED && onComplete != null) onComplete.run();
             }
         };
+    }
+
+    /**
+     * 실패하면 종료 메시지 맨 앞에 근본 원인 한 줄을 붙입니다. Spring Batch 기본 메시지는
+     * 'FatalStepExecutionException: Unable to process chunk' + 스택 트레이스라 원인이 잘려 보이지 않습니다.
+     */
+    static void describeFailure(JobExecution je) {
+        if (je.getStatus() != BatchStatus.FAILED || je.getAllFailureExceptions().isEmpty()) return;
+        Throwable root = je.getAllFailureExceptions().get(0);
+        while (root.getCause() != null && root.getCause() != root) root = root.getCause();
+        StackTraceElement at = root.getStackTrace().length > 0 ? root.getStackTrace()[0] : null;
+        String cause = "원인: " + root.getClass().getSimpleName() + (root.getMessage() == null ? "" : " — " + root.getMessage())
+                + (at == null ? "" : " (" + at.getClassName().replaceAll(".*\\.", "") + ":" + at.getLineNumber() + ")");
+        String old = je.getExitStatus().getExitDescription();
+        je.setExitStatus(new org.springframework.batch.core.ExitStatus(je.getExitStatus().getExitCode(),
+                com.buildrisk.radar.common.KeyMasker.mask(cause) + (old == null || old.isBlank() ? "" : "\n" + old)));
     }
 
     private String status(JobExecution je) {

@@ -73,11 +73,17 @@ export function MetricStatus({ status }: { status?: string }) {
   return <span className="text-[11px] text-muted border border-line rounded px-1 ml-1">{STATUS_LABEL[status] ?? status}</span>;
 }
 
-export function JobStatus({ s }: { s?: string | null }) {
-  const color = s === "COMPLETED" ? "text-good" : s === "FAILED" ? "text-crit" : s === "STOPPED" ? "text-serious"
+export function JobStatus({ s, resolvedBy }: { s?: string | null; resolvedBy?: number | null }) {
+  // 나중에 같은 JobInstance 가 restart 로 완료된 실패·정지는 '해결됨'으로 흐리게 표시
+  const resolved = !!resolvedBy && (s === "FAILED" || s === "STOPPED");
+  const color = resolved ? "text-muted" : s === "COMPLETED" ? "text-good" : s === "FAILED" ? "text-crit" : s === "STOPPED" ? "text-serious"
     : s === "STARTED" || s === "STARTING" ? "text-accent" : "text-muted";
   const icon = s === "COMPLETED" ? "✓" : s === "FAILED" ? "✕" : s === "STOPPED" ? "■" : s ? "…" : "–";
-  return <span className={`text-xs font-medium whitespace-nowrap ${color}`}>{icon} {s ?? "실행 전"}</span>;
+  return (
+    <span className={`text-xs font-medium whitespace-nowrap ${color}`}>{icon} {s ?? "실행 전"}
+      {resolved && <span className="block text-[11px] font-normal text-good">→ #{resolvedBy} 재시작으로 해결</span>}
+    </span>
+  );
 }
 
 export function Empty({ children }: { children: ReactNode }) {

@@ -40,9 +40,11 @@ public class BatchLauncher {
     private final FsRepository fs;
     private final ApiQuotaService quota;
     private final AppProperties props;
+    private final org.springframework.jdbc.core.simple.JdbcClient jdbc;
 
     public BatchLauncher(JobOperator operator, JobRepository repository, List<Job> jobList, FsRepository fs,
-                         ApiQuotaService quota, AppProperties props) {
+                         ApiQuotaService quota, AppProperties props, org.springframework.jdbc.core.simple.JdbcClient jdbc) {
+        this.jdbc = jdbc;
         this.operator = operator;
         this.repository = repository;
         this.jobs = new java.util.LinkedHashMap<>();
@@ -83,6 +85,7 @@ public class BatchLauncher {
             if (force || stale(je)) {
                 log.warn("{} 실행 {} 정리 (하트비트 {}) → FAILED", jobName, je.getId(), heartbeat(je));
                 operator.recover(je);
+                noteRecovered(je.getId(), "하트비트 " + heartbeat(je) + " 이후 멈춤 — 자동 정리");
                 out.add(je.getId());
             }
         }
@@ -94,6 +97,7 @@ public class BatchLauncher {
         if (je == null) throw new ApiException(ErrorCode.NOT_FOUND, "실행 이력이 없습니다: " + executionId);
         if (!je.isRunning()) throw new ApiException(ErrorCode.VALIDATION_ERROR, "실행 중 상태가 아닙니다: " + je.getStatus());
         operator.recover(je);
+        noteRecovered(executionId, "관리자가 수동 정리 (마지막 하트비트 " + heartbeat(je) + ")");
         return List.of(executionId);
     }
 
@@ -178,6 +182,15 @@ public class BatchLauncher {
             je = repository.getJobExecution(l.jobExecutionId());
         } while (je != null && je.isRunning());
         return je;
+    }
+
+    /** 정리된 실행의 종료 메시지에 사유를 남김 — 배치 모니터에서 '왜 FAILED 인지' 보이도록 */
+    private void noteRecovered(long executionId, String why) {
+        jdbc.sql("""
+                UPDATE ops.batch_job_execution SET exit_message = :m || coalesce(E'\n' || nullif(exit_message, ''), '')
+                WHERE job_execution_id = :id""")
+                .param("m", "원인: 프로세스 비정상 종료로 STARTED 에 남은 실행을 정리함 · " + why + ". 다음 실행이 같은 JobInstance 를 restart 합니다.")
+                .param("id", executionId).update();
     }
 
     public JobExecution lastExecution(String jobName) {

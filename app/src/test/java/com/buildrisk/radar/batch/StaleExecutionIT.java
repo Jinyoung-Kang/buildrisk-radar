@@ -41,6 +41,8 @@ class StaleExecutionIT extends IntegrationTest {
         assertThat(jdbc.queryForObject("SELECT status FROM ops.batch_job_execution WHERE job_execution_id = ?", String.class, id))
                 .isEqualTo("FAILED");
         assertThat(next.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        assertThat(jdbc.queryForObject("SELECT exit_message FROM ops.batch_job_execution WHERE job_execution_id = ?", String.class, id))
+                .startsWith("원인: 프로세스 비정상 종료");
         assertThat(next.getJobInstance().getInstanceId()).isEqualTo(
                 jdbc.queryForObject("SELECT job_instance_id FROM ops.batch_job_execution WHERE job_execution_id = ?", Long.class, id));
     }

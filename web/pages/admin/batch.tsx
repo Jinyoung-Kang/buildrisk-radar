@@ -18,10 +18,21 @@ function ExecutionDetail({ id }: { id: number }) {
   return (
     <div className="space-y-4 text-sm">
       <div className="flex flex-wrap gap-3 items-center">
-        <b>#{data.jobExecutionId} {data.jobName}</b><JobStatus s={data.status} />
+        <b>#{data.jobExecutionId} {data.jobName}</b><JobStatus s={data.status} resolvedBy={data.resolvedBy} />
         <span className="text-xs text-muted">{data.durationSec}s · {data.params}</span>
       </div>
-      {data.exitMessage && <pre className="text-[11px] bg-page rounded p-2 overflow-x-auto max-h-32">{data.exitMessage}</pre>}
+      {data.resolvedBy && (data.status === "FAILED" || data.status === "STOPPED") && (
+        <div className="rounded-lg border border-good/40 bg-good/5 px-3 py-2 text-xs">
+          ✓ 이 실행은 같은 JobInstance 의 <b>#{data.resolvedBy}</b> 가 마지막 커밋 이후부터 이어받아 완료했습니다.
+          실행 이력은 감사 기록이라 지우지 않고 남겨 둡니다 — 조치할 필요 없음.
+        </div>
+      )}
+      {data.exitMessage && (
+        <details className="text-[11px]" open={!data.resolvedBy}>
+          <summary className="cursor-pointer text-ink2">종료 메시지</summary>
+          <pre className="bg-page rounded p-2 mt-1 overflow-x-auto max-h-40 whitespace-pre-wrap">{data.exitMessage}</pre>
+        </details>
+      )}
       <div>
         <div className="section-label">Step 실행</div>
         <div className="table-wrap">
@@ -143,7 +154,7 @@ export default function Batch() {
                 <tbody>{execs.data.map((e) => (
                   <tr key={e.jobExecutionId} onClick={() => setSel(e.jobExecutionId)}
                     className={`clickable ${sel === e.jobExecutionId ? "selected" : ""}`}>
-                    <td className="num text-muted">{e.jobExecutionId}</td><td className="font-medium">{e.jobName}</td><td><JobStatus s={e.status} /></td>
+                    <td className="num text-muted">{e.jobExecutionId}</td><td className="font-medium">{e.jobName}</td><td><JobStatus s={e.status} resolvedBy={e.resolvedBy} /></td>
                     <td className="num">{int(e.readCount)}</td><td className="num">{int(e.writeCount)}</td><td className="num">{int(e.skipLogCount)}</td>
                     <td className="whitespace-nowrap text-ink2">{dt(e.startTime)}</td><td className="num">{e.durationSec}</td>
                   </tr>))}</tbody>

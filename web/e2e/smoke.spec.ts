@@ -31,3 +31,18 @@ test("배치 모니터: Job 10개와 실행 이력", async ({ page }) => {
   await expect(page.getByText("financialStatementJob · 매일 03:00")).toBeVisible();
   await expect(page.getByText("ruleEvalJob · 지표 Job 완료 후")).toBeVisible();
 });
+
+test("테마 전환: 다크·라이트 선택이 새로고침 뒤에도 유지되고 시스템으로 되돌릴 수 있다", async ({ page }) => {
+  await page.goto("/");
+  const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  await page.getByRole("radio", { name: "다크 모드" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  const dark = await bg();
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("radio", { name: "라이트 모드" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  expect(await bg()).not.toBe(dark);
+  await page.getByRole("radio", { name: "시스템 설정" }).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);
+});

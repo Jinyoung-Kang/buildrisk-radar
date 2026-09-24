@@ -2,6 +2,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import type { ReactNode } from "react";
+import ThemeToggle from "./ThemeToggle";
 
 const NAV = [
   { href: "/", label: "대시보드" },
@@ -32,7 +33,7 @@ export default function Layout({ title, children }: { title: string; children: R
               <img src="/favicon.svg" alt="" className="w-6 h-6" />
               <span className="font-semibold tracking-tight">건설·부동산 위험 모니터</span>
             </Link>
-            <nav className="flex gap-1 overflow-x-auto text-sm" aria-label="주 메뉴">
+            <nav className="flex gap-1 overflow-x-auto text-sm flex-1" aria-label="주 메뉴">
               {NAV.map((n) => (
                 <Link key={n.href} href={n.href} aria-current={active(n.href) ? "page" : undefined}
                   className={`px-3 py-1.5 rounded-md whitespace-nowrap focus-ring ${active(n.href)
@@ -41,6 +42,7 @@ export default function Layout({ title, children }: { title: string; children: R
                 </Link>
               ))}
             </nav>
+            <ThemeToggle />
           </div>
         </header>
         <main className={`flex-1 w-full max-w-[1440px] mx-auto px-6 py-6`}>{children}</main>

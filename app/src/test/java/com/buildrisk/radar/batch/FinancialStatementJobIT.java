@@ -29,6 +29,8 @@ class FinancialStatementJobIT extends IntegrationTest {
 
     @Autowired
     BatchLauncher launcher;
+    @Autowired
+    com.buildrisk.radar.api.BatchQueryService batchQuery;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -60,11 +62,16 @@ class FinancialStatementJobIT extends IntegrationTest {
         var first = launcher.runAndWait("financialStatementJob", RUN);
         assertThat(first.getStatus()).isEqualTo(BatchStatus.FAILED);
         assertThat(count("SELECT count(*) FROM dart.fs_fetch")).isEqualTo(20);        // 첫 청크(20)만 커밋
+        assertThat(jdbc.queryForObject("SELECT exit_message FROM ops.batch_job_execution WHERE job_execution_id = ?",
+                String.class, first.getId())).startsWith("원인: DartApiException — DART 100");   // 근본 원인이 맨 앞
 
         clearOverrides();
         var second = launcher.runAndWait("financialStatementJob", Map.of());           // 같은 JobInstance restart
         assertThat(second.getStatus()).isEqualTo(BatchStatus.COMPLETED);
         assertThat(second.getJobInstance().getInstanceId()).isEqualTo(first.getJobInstance().getInstanceId());
+        assertThat(batchQuery.executions("financialStatementJob", 5).stream()
+                .filter(e -> ((Number) e.get("jobExecutionId")).longValue() == first.getId()).findFirst().orElseThrow()
+                .get("resolvedBy")).isEqualTo(second.getId());                           // 화면: 재시작으로 해결
         assertThat(count("SELECT count(*) FROM dart.fs_fetch WHERE status = 'OK'")).isEqualTo(24);
         assertThat(count("SELECT count(*) FROM dart.fs_raw")).isEqualTo(24 * ROWS_PER_REPORT);   // 중복 0
         assertThat(count("""
