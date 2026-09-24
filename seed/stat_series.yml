@@ -1,0 +1,42 @@
+# 지역 통계 시리즈 (mkt.stat_series). U-1·U-2 는 2026-09-24 실제 API 로 확인했습니다.
+series:
+  - id: KOSIS_UNSOLD
+    source: KOSIS
+    table: DT_MLTM_2082            # 국토교통부 「시·군·구별 미분양현황」 (orgId 116)
+    item: 13103871087T1            # 미분양현황 (호)
+    statCode: UNSOLD
+    name: 미분양 주택
+    unit: 호
+    cycle: MM
+    agg: SUM
+    params: { orgId: "116", objL1: ALL, objL2: ALL, totalName: 계 }
+  - id: RONE_APT_SALE_IDX
+    source: RONE
+    table: A_2024_00045            # (월) 매매가격지수_아파트
+    item: "100001"                 # 지수
+    statCode: SALE_IDX
+    name: 아파트 매매가격지수
+    unit: 지수
+    cycle: MM
+    agg: MEAN
+    params: {}
+  - id: RONE_APT_JEONSE_IDX
+    source: RONE
+    table: A_2024_00050            # (월) 전세가격지수_아파트
+    item: "100001"
+    statCode: JEONSE_IDX
+    name: 아파트 전세가격지수
+    unit: 지수
+    cycle: MM
+    agg: MEAN
+    params: {}
+  - id: SGIS_HOUSEHOLDS
+    source: SGIS
+    table: population.json         # 총조사 주요지표
+    item: tot_family               # 총가구
+    statCode: HOUSEHOLDS
+    name: 총가구
+    unit: 가구
+    cycle: YY
+    agg: SUM
+    params: { year: 2024 }

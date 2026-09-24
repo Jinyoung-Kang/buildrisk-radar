@@ -1,0 +1,35 @@
+std_code,sj_div,match_type,pattern,priority,abs_value,note,section
+# priority 낮을수록 우선. 50 이상은 대체 규칙 — SUM 계정은 본 규칙(50 미만)에 걸린 행이 하나도 없을 때만 씀
+# section 이 있으면 재무상태표의 그 부채 구간(유동부채 CURRENT · 비유동부채 NONCURRENT 제목 아래) 행에만 적용
+TOTAL_ASSETS,BS,ACCOUNT_ID,ifrs-full_Assets,10,false,,
+TOTAL_ASSETS,BS,NAME_EXACT,자산총계,20,false,,
+CURRENT_ASSETS,BS,ACCOUNT_ID,ifrs-full_CurrentAssets,10,false,,
+CURRENT_ASSETS,BS,NAME_EXACT,유동자산,20,false,,
+TOTAL_LIABILITIES,BS,ACCOUNT_ID,ifrs-full_Liabilities,10,false,,
+TOTAL_LIABILITIES,BS,NAME_EXACT,부채총계,20,false,,
+CURRENT_LIABILITIES,BS,ACCOUNT_ID,ifrs-full_CurrentLiabilities,10,false,,
+CURRENT_LIABILITIES,BS,NAME_EXACT,유동부채,20,false,,
+TOTAL_EQUITY,BS,ACCOUNT_ID,ifrs-full_Equity,10,false,,
+TOTAL_EQUITY,BS,NAME_EXACT,자본총계,20,false,,
+SHORT_BORROWINGS,BS,ACCOUNT_ID,ifrs-full_ShorttermBorrowings,10,false,,
+SHORT_BORROWINGS,BS,NAME_REGEX,^단기차입(금|부채)$,20,false,,
+SHORT_BORROWINGS,BS,NAME_REGEX,^유동성장기(차입금|부채)$,20,false,,
+LONG_BORROWINGS,BS,ACCOUNT_ID,ifrs-full_LongtermBorrowings,10,false,,
+LONG_BORROWINGS,BS,NAME_REGEX,^장기차입(금|부채)$,20,false,,
+SHORT_BORROWINGS,BS,NAME_REGEX,^단기금융부채$,50,false,대체: 본문에 차입금이 없고 금융부채(차입금·사채·리스 포함)로 묶어 공시한 경우,
+LONG_BORROWINGS,BS,NAME_REGEX,^장기금융부채$,50,false,대체: 본문에 차입금이 없고 금융부채(차입금·사채·리스 포함)로 묶어 공시한 경우,
+BONDS,BS,NAME_REGEX,^(유동성)?(장기)?(회)?사채$,20,false,,
+BONDS,BS,NAME_REGEX,^(유동성)?(전환|신주인수권부|교환|영구)사채$,20,false,,
+REVENUE,,ACCOUNT_ID,ifrs-full_Revenue,10,false,,
+REVENUE,,NAME_REGEX,^(매출액|매출|영업수익|수익\(매출액\)|매출액\(수익\))$,20,false,,
+OPERATING_INCOME,,ACCOUNT_ID,dart_OperatingIncomeLoss,10,false,,
+OPERATING_INCOME,,NAME_REGEX,^영업(이익|손실|이익\(손실\)|손익)$,20,false,,
+INTEREST_EXPENSE,,NAME_REGEX,^이자비용$,10,false,손익계산서 본문,
+INTEREST_EXPENSE,CF,ACCOUNT_ID,ifrs-full_InterestPaidClassifiedAsOperatingActivities,50,true,현금흐름표 이자의 지급(대체),
+INTEREST_EXPENSE,CF,ACCOUNT_ID,ifrs-full_InterestPaidClassifiedAsFinancingActivities,50,true,현금흐름표 이자의 지급(대체),
+INTEREST_EXPENSE,CF,NAME_REGEX,^이자(의)?지급(액)?$,60,true,현금흐름표 이자의 지급(대체),
+OPERATING_CASH_FLOW,CF,ACCOUNT_ID,ifrs-full_CashFlowsFromUsedInOperatingActivities,10,false,,
+OPERATING_CASH_FLOW,CF,NAME_REGEX,^영업활동(으로인한|에서의|으로부터의)?(순)?현금흐름$,20,false,,
+SHORT_BORROWINGS,BS,NAME_REGEX,^.*차입(금|부채).*$,30,false,유동부채 구간의 차입금 표기 변형 (단기차입금및유동성장기부채 · 유동 차입금(사채 포함) · 차입금등(유동) …),CURRENT
+LONG_BORROWINGS,BS,NAME_REGEX,^.*차입(금|부채).*$,30,false,비유동부채 구간의 차입금 표기 변형 (장기차입금(사채 포함) · 차입금등(비유동) · 비유동차입금및사채 …),NONCURRENT
+BONDS,BS,NAME_REGEX,^(장기)?사채의(비)?유동성(대체)?부분$,30,false,장기 사채의 (비)유동성 부분

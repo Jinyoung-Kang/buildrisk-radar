@@ -1,0 +1,40 @@
+# 초기 규칙 (7-3). 임계값은 업계 공식 기준이 아니라 탐색용 기본값입니다.
+# 규칙 로직은 Java 클래스(domain/rule/*), 여기서는 버전 1의 파라미터·심각도만 정합니다.
+# DB 에 규칙이 없을 때만 적재하고, 이후 변경은 PUT /api/v1/rules/{ruleCode} 로 새 버전을 만듭니다.
+rules:
+  - code: R-C01
+    target: COMPANY
+    name: 부채비율 급등
+    description: 부채비율이 임계값을 넘고 전년 같은 분기보다 크게 오른 경우
+    severity: MEDIUM
+    params: { debtRatioThreshold: 300, yoyIncreasePp: 50 }
+  - code: R-C02
+    target: COMPANY
+    name: 이자보상배율 1 미만 연속
+    description: 분기 영업이익으로 분기 이자비용을 감당하지 못하는 상태가 연속된 경우
+    severity: HIGH
+    params: { threshold: 1.0, consecutive: 2 }
+  - code: R-C03
+    target: COMPANY
+    name: 영업현금흐름 적자 연속
+    description: 분기 영업활동현금흐름(누적 차분)이 연속으로 음수인 경우
+    severity: MEDIUM
+    params: { consecutive: 3 }
+  - code: R-C04
+    target: COMPANY
+    name: 중대 공시 발생
+    description: 최근 기간 안에 감사의견·부도·거래정지·회생 유형 공시가 있는 경우
+    severity: HIGH
+    params: { eventTypes: [AUDIT_OPINION, DEFAULT, SUSPENSION, REHAB], windowDays: 30 }
+  - code: R-R01
+    target: REGION
+    name: 미분양 급증
+    description: 미분양이 3개월 전보다 크게 늘고 가구당 미분양도 높은 지역
+    severity: MEDIUM
+    params: { unsold3mChgPct: 50, unsoldPer1kHh: 2, minUnsoldUnits: 100 }
+  - code: R-R02
+    target: REGION
+    name: 가격 하락 지속 + 미분양 증가
+    description: 아파트 매매가격지수 3개월 변화가 연속으로 음수이고 미분양이 늘어난 지역
+    severity: LOW
+    params: { consecutive: 3 }

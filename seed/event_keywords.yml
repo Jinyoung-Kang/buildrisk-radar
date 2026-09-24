@@ -1,0 +1,35 @@
+# 공시 이벤트 분류 사전 (FR-302). 보고서명(report_nm)에서 [기재정정] 같은 머리말과 공백을 지운 뒤
+# 위에서부터 차례로 검사해 처음 걸린 유형을 씁니다. 어디에도 걸리지 않으면 OTHER.
+# R-C04 는 AUDIT_OPINION · DEFAULT · SUSPENSION · REHAB 을 경보 대상으로 봅니다.
+#
+# neutral_keywords: 위험 유형 키워드와 함께 나와도 실제로는 해소·기술적 절차인 공시 → 먼저 OTHER 로 분류
+#   예) '주권매매거래정지해제(액면병합 주권 변경상장)' 는 '매매거래정지'를 포함하지만 거래 재개 안내 (2026-09 실제 오탐)
+neutral_keywords: [정지해제, 지정해제, 사유해소, 액면병합, 액면분할, 주식병합, 변경상장, 추가상장]
+event_types:
+  - code: REHAB
+    name: 회생·구조조정
+    keywords: [회생절차, 파산, 기업구조개선, 워크아웃, 기업개선작업, 채권금융기관, 공동관리절차]
+  - code: DEFAULT
+    name: 부도·채무불이행
+    keywords: [부도발생, 은행거래정지, 채무불이행, 기한의이익상실, 원리금미지급, 원리금지급불이행, 만기미상환]
+  - code: SUSPENSION
+    name: 거래정지·상장폐지
+    keywords: [매매거래정지, 상장폐지, 관리종목지정, 상장적격성실질심사, 투자주의환기종목]
+  - code: AUDIT_OPINION
+    name: 감사의견 비적정
+    keywords: [감사의견거절, 의견거절, 부적정의견, 한정의견, 감사범위제한, 비적정, 계속기업가정불확실]
+  - code: GUARANTEE
+    name: 채무보증
+    keywords: [채무보증, 채무인수약정, 자금보충약정, 책임준공]
+  - code: LITIGATION
+    name: 소송
+    keywords: [소송등의제기, 소송등의판결, 소송]
+  - code: FUNDING
+    name: 자금조달
+    keywords: [유상증자, 전환사채권발행, 신주인수권부사채권발행, 교환사채권발행, 사채권발행, 단기차입금증가]
+  - code: CONTRACT
+    name: 수주·공급계약
+    keywords: [단일판매ㆍ공급계약, 단일판매·공급계약, 단일판매공급계약, 공급계약체결]
+  - code: PERIODIC
+    name: 정기공시
+    keywords: [사업보고서, 반기보고서, 분기보고서, 감사보고서제출]
