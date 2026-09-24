@@ -1,0 +1,158 @@
+import { useEffect, useState } from "react";
+import AdminToken from "@/components/AdminToken";
+import Layout from "@/components/Layout";
+import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle } from "@/components/ui";
+import { adminApi, qs, type Row } from "@/lib/api";
+import { dt, int } from "@/lib/format";
+import { useApi } from "@/lib/useApi";
+
+function ExecutionDetail({ id }: { id: number }) {
+  const { data } = useApi<Row>(`/batch/executions/${id}`);
+  if (!data) return <Loading />;
+  let changed: Record<string, number> = {};
+  try {
+    const st = data.runStats ? JSON.parse(data.runStats).steps ?? {} : {};
+    changed = Object.fromEntries(Object.entries(st).filter(([, v]) => (v as Row).changedRows != null)
+      .map(([k, v]) => [k, (v as Row).changedRows as number]));
+  } catch { /* 통계 없음 */ }
+  return (
+    <div className="space-y-4 text-sm">
+      <div className="flex flex-wrap gap-3 items-center">
+        <b>#{data.jobExecutionId} {data.jobName}</b><JobStatus s={data.status} />
+        <span className="text-xs text-muted">{data.durationSec}s · {data.params}</span>
+      </div>
+      {data.exitMessage && <pre className="text-[11px] bg-page rounded p-2 overflow-x-auto max-h-32">{data.exitMessage}</pre>}
+      <div>
+        <div className="section-label">Step 실행</div>
+        <div className="table-wrap">
+          <table className="data-table compact">
+            <thead><tr><th>Step</th><th>상태</th><th className="num">읽음</th><th className="num">씀</th><th className="num">필터</th>
+              <th className="num">스킵</th><th className="num">커밋</th><th className="num">롤백</th></tr></thead>
+            <tbody>{(data.steps as Row[]).map((s) => (
+              <tr key={s.stepName}>
+                <td className="font-medium">{s.stepName}</td><td><JobStatus s={s.status} /></td>
+                <td className="num">{int(s.readCount)}</td><td className="num">{int(s.writeCount)}</td><td className="num">{int(s.filterCount)}</td>
+                <td className="num">{int(s.skipCount)}</td><td className="num">{int(s.commitCount)}</td><td className="num">{int(s.rollbackCount)}</td>
+              </tr>))}</tbody>
+          </table>
+        </div>
+      </div>
+      {Object.keys(changed).length > 0 && (
+        <div className="text-xs text-ink2">실제로 바뀐 행: {Object.entries(changed).map(([k, v]) => `${k} ${int(v)}건`).join(" · ")}
+          <span className="text-muted"> (write 는 처리한 전체 건수, 변경분만 UPSERT)</span></div>
+      )}
+      <div>
+        <div className="section-label">같은 JobInstance 실행 (restart 이력)</div>
+        <div className="flex gap-2 flex-wrap text-xs">{(data.sameInstance as Row[]).map((x) => (
+          <span key={x.jobExecutionId} className="border border-line rounded-md px-2.5 py-1 bg-page">#{x.jobExecutionId} <JobStatus s={x.status} /></span>))}</div>
+      </div>
+      <div>
+        <div className="section-label">스킵·보류 목록 ({(data.skips as Row[]).length})</div>
+        {(data.skips as Row[]).length === 0 ? <div className="text-xs text-muted">없음</div> : (
+          <div className="table-wrap max-h-80">
+            <table className="data-table compact">
+              <thead><tr><th>사유</th><th>항목</th><th>Step</th><th>메시지</th></tr></thead>
+              <tbody>{(data.skips as Row[]).map((k, i) => (
+                <tr key={i}><td className="whitespace-nowrap font-medium">{k.reasonCode}</td><td className="tabular whitespace-nowrap">{k.itemKey}</td>
+                  <td className="whitespace-nowrap text-ink2">{k.stepName}</td><td className="text-ink2">{k.message}</td></tr>))}</tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function Batch() {
+  const jobs = useApi<Row>("/batch/jobs");
+  const [filter, setFilter] = useState("");
+  const execs = useApi<Row[]>(`/batch/executions${qs({ jobName: filter, limit: 60 })}`);
+  const [sel, setSel] = useState<number | null>(null);
+  const [err, setErr] = useState<Error | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const anyRunning = (jobs.data?.jobs as Row[] | undefined)?.some((j) => j.running);
+  useEffect(() => {
+    if (!anyRunning) return;
+    const t = setInterval(() => { jobs.reload(); execs.reload(); }, 3000);
+    return () => clearInterval(t);
+  }, [anyRunning, jobs, execs]);
+  const launch = async (name: string, fresh = false) => {
+    setErr(null); setMsg(null);
+    try {
+      const r = await adminApi<Row>(`/batch/jobs/${name}/launch`, "POST", fresh ? { restart: false } : {});
+      setMsg(`${name} ${r.restarted ? "재시작" : "시작"} — 실행 #${r.jobExecutionId}${r.plannedCalls != null ? ` · 미수집 조합 ${r.plannedCalls}건` : ""}${r.warning ? ` · ${r.warning}` : ""}`);
+      setSel(r.jobExecutionId); jobs.reload(); execs.reload();
+    } catch (e) { setErr(e as Error); }
+  };
+  const recover = async (execId: number) => {
+    setErr(null); setMsg(null);
+    try {
+      await adminApi<Row>(`/batch/executions/${execId}/recover`, "POST");
+      setMsg(`실행 #${execId} 을 FAILED 로 정리했습니다. 다시 실행하면 마지막 커밋 이후부터 이어갑니다.`);
+      jobs.reload(); execs.reload();
+    } catch (e) { setErr(e as Error); }
+  };
+  const quota = Object.fromEntries(((jobs.data?.quota as Row[]) ?? []).map((q) => [q.provider, q.calls]));
+  return (
+    <Layout title="배치 모니터">
+      <PageTitle title="배치 모니터" sub="Spring Batch JobRepository(ops.BATCH_*) 기반. STOPPED·FAILED 인 Job 을 다시 실행하면 같은 JobInstance 를 restart 해 마지막 커밋 이후부터 이어갑니다."
+        right={<AdminToken />} />
+      <ErrorBox error={err ?? jobs.error} />
+      {msg && <div className="text-sm text-good mb-3">{msg}</div>}
+      <div className="text-xs text-ink2 mb-3">오늘 DART 호출 {int(quota.DART ?? 0)} / 상한 {int(jobs.data?.dartDailyLimit)} · 스케줄러 {jobs.data?.schedulingEnabled ? "켜짐" : "꺼짐 (수동 실행)"}</div>
+      <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-3 mb-5">
+        {((jobs.data?.jobs as Row[]) ?? []).map((j, i) => (
+          <div key={j.name} className="bg-raised rounded-xl shadow-card p-3 flex flex-col gap-1.5">
+            <div className="text-[11px] text-muted">{i + 1}. {j.source} · {j.requirement}</div>
+            <div className="text-sm font-medium">{j.title}</div>
+            <div className="text-[11px] text-muted tabular">{j.name} · {j.schedule}</div>
+            <div className="flex items-center justify-between mt-auto pt-1">
+              {j.running ? (
+                <span className="flex flex-col">
+                  <button className="text-left" onClick={() => j.last && setSel(j.last.jobExecutionId)}><JobStatus s="STARTED" /></button>
+                  {j.heartbeat && <span className={`text-[10px] ${j.stale ? "text-crit" : "text-muted"}`}>
+                    하트비트 {dt(j.heartbeat)}{j.stale ? " · 멈춤" : ""}</span>}
+                </span>
+              ) : <button className="text-left" onClick={() => j.last && setSel(j.last.jobExecutionId)}><JobStatus s={j.last?.status} /></button>}
+              {j.running && j.last ? (
+                <button onClick={() => recover(j.last.jobExecutionId)} title="프로세스가 죽어 STARTED 로 남은 실행을 FAILED 로 정리"
+                  className={`text-[11px] px-2 py-1 rounded border focus-ring ${j.stale ? "border-crit text-crit" : "border-line text-muted"}`}>
+                  멈춘 실행 정리</button>
+              ) : !j.keyConfigured ? <span className="text-[11px] text-serious" title={`.env 에 ${j.envKey} 필요`}>키 없음</span> : (
+                <span className="flex gap-1">
+                  {(j.last?.status === "STOPPED" || j.last?.status === "FAILED") && (
+                    <button disabled={j.running} onClick={() => launch(j.name, true)} className="text-[11px] px-2 py-1 rounded border border-line focus-ring disabled:opacity-40">새로</button>)}
+                  <button disabled={j.running} onClick={() => launch(j.name)}
+                    className="text-[11px] px-2 py-1 rounded bg-accent text-white focus-ring disabled:opacity-40">
+                    {j.last?.status === "STOPPED" || j.last?.status === "FAILED" ? "이어서 실행" : "실행"}</button>
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-4 items-start">
+        <Card title="실행 이력" right={<select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Job 필터"
+          className="text-xs bg-raised border border-line rounded px-1.5 py-1"><option value="">전체 Job</option>
+          {((jobs.data?.jobs as Row[]) ?? []).map((j) => <option key={j.name} value={j.name}>{j.name}</option>)}</select>} pad={false}>
+          {!execs.data ? <Loading /> : execs.data.length === 0 ? <Empty>실행 이력이 없습니다.</Empty> : (
+            <div className="max-h-[70vh] overflow-auto">
+              <table className="data-table">
+                <thead><tr><th className="num">#</th><th>Job</th><th>상태</th><th className="num">읽음</th><th className="num">씀</th>
+                  <th className="num">스킵</th><th>시작</th><th className="num">소요(초)</th></tr></thead>
+                <tbody>{execs.data.map((e) => (
+                  <tr key={e.jobExecutionId} onClick={() => setSel(e.jobExecutionId)}
+                    className={`clickable ${sel === e.jobExecutionId ? "selected" : ""}`}>
+                    <td className="num text-muted">{e.jobExecutionId}</td><td className="font-medium">{e.jobName}</td><td><JobStatus s={e.status} /></td>
+                    <td className="num">{int(e.readCount)}</td><td className="num">{int(e.writeCount)}</td><td className="num">{int(e.skipLogCount)}</td>
+                    <td className="whitespace-nowrap text-ink2">{dt(e.startTime)}</td><td className="num">{e.durationSec}</td>
+                  </tr>))}</tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+        <Card title="실행 상세">{sel ? <ExecutionDetail key={sel} id={sel} /> : <Empty>실행을 고르면 Step·스킵 목록이 보입니다.</Empty>}</Card>
+      </div>
+    </Layout>
+  );
+}
