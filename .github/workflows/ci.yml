@@ -1,0 +1,53 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  app:
+    name: Spring Boot · 단위·통합 테스트 (Testcontainers)
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: app } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: gradle/actions/setup-gradle@v4
+      - name: 테스트 (PostGIS·Redis 컨테이너 + WireMock)
+        run: ./gradlew test --no-daemon
+      - name: 테스트 리포트
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: app-test-report, path: app/build/reports/tests/test }
+      - name: bootJar
+        run: ./gradlew bootJar -x test --no-daemon
+
+  web:
+    name: Next.js · 타입 검사·빌드
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+
+  tools:
+    name: Python 스모크 도구 문법 검사
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: python -m py_compile tools/smoke.py && python tools/smoke.py --help > /dev/null
+
+  images:
+    name: Docker 이미지 빌드
+    runs-on: ubuntu-24.04
+    needs: [app, web]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - run: docker compose build app web

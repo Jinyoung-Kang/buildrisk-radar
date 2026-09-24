@@ -1,0 +1,11 @@
+**/node_modules
+web
+**/build
+**/.gradle
+**/.next
+.env
+.env.*
+!.env.example
+fixtures
+docs
+.git

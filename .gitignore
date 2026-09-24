@@ -1,0 +1,22 @@
+# 비밀값
+.env
+.env.*
+!.env.example
+web/.env.local
+
+# 빌드 산출물
+app/build/
+app/.gradle/
+app/bin/
+web/node_modules/
+web/.next/
+web/tsconfig.tsbuildinfo
+web/test-results/
+web/playwright-report/
+
+# 로컬 도구
+.idea/
+.vscode/
+*.iml
+.DS_Store
+__pycache__/

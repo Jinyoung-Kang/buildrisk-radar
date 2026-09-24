@@ -1,0 +1,114 @@
+# =============================================================================
+# 건설·부동산 위험 모니터 로컬 스택 (NFR-10: docker compose 원커맨드, Apple Silicon)
+#
+#   db     PostgreSQL 16 + PostGIS 3.6 (arm64 네이티브 이미지) — Flyway 가 스키마 생성
+#   redis  조회 캐시 (calc_run 단위 무효화, 영속화 끔)
+#   app    Spring Boot 4.1 :8410 — API + (선택) 스케줄러
+#   batch  같은 이미지, batch-only 프로필 — make batch-all / make job JOB=… (profile: batch)
+#   web    Next.js 15 :3400
+#
+# 모든 포트는 127.0.0.1 에만 바인딩합니다 (NFR-07). 다른 로컬 프로젝트와 겹치지 않는 번호를 씁니다.
+# =============================================================================
+
+x-app-env: &app-env
+  DATABASE_URL: jdbc:postgresql://db:5432/buildrisk
+  DATABASE_USER: buildrisk
+  DATABASE_PASSWORD: buildrisk
+  REDIS_URL: redis://redis:6379
+  DART_API_KEY: ${DART_API_KEY:-}
+  KOSIS_API_KEY: ${KOSIS_API_KEY:-}
+  REB_API_KEY: ${REB_API_KEY:-}
+  SGIS_CONSUMER_KEY: ${SGIS_CONSUMER_KEY:-}
+  SGIS_CONSUMER_SECRET: ${SGIS_CONSUMER_SECRET:-}
+  VWORLD_API_KEY: ${VWORLD_API_KEY:-}
+  VWORLD_DOMAIN: ${VWORLD_DOMAIN:-http://localhost:3400}
+  ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+  DART_DAILY_CALL_LIMIT: ${DART_DAILY_CALL_LIMIT:-15000}
+  FS_FROM_YEAR: ${FS_FROM_YEAR:-2021}
+  TZ: Asia/Seoul
+
+services:
+  db:
+    restart: unless-stopped
+    # arm64 네이티브. 공식 이미지로 바꾸려면: image: postgis/postgis:16-3.5 + platform: linux/amd64
+    image: imresamu/postgis:16-3.6-bookworm
+    environment:
+      POSTGRES_USER: buildrisk
+      POSTGRES_PASSWORD: buildrisk
+      POSTGRES_DB: buildrisk
+      LANG: C.UTF-8
+      TZ: Asia/Seoul
+    command: ["postgres", "-c", "shared_buffers=256MB", "-c", "work_mem=32MB"]
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5472:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U buildrisk -d buildrisk"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    restart: unless-stopped
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "127.0.0.1:6419:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    image: buildrisk-radar-app
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      <<: *app-env
+      BATCH_SCHEDULING_ENABLED: ${BATCH_SCHEDULING_ENABLED:-false}
+    volumes:
+      - ./seed:/app/seed:ro
+    ports:
+      - "127.0.0.1:8410:8410"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8410 && printf \"GET /actuator/health HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q UP <&3'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  batch:
+    profiles: ["batch"]
+    image: buildrisk-radar-app
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      <<: *app-env
+      SPRING_PROFILES_ACTIVE: batch-only
+      BATCH_RUN_JOBS: ${JOBS:-all}
+    volumes:
+      - ./seed:/app/seed:ro
+
+  web:
+    restart: unless-stopped
+    build:
+      context: ./web
+      args:
+        API_INTERNAL_BASE: http://app:8410
+    depends_on:
+      app: { condition: service_healthy }
+    environment:
+      NEXT_PUBLIC_KAKAO_JS_KEY: ${NEXT_PUBLIC_KAKAO_JS_KEY:-}
+    ports:
+      - "127.0.0.1:3400:3400"
+
+volumes:
+  db-data:
