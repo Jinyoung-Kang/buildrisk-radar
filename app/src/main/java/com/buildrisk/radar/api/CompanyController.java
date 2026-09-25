@@ -19,12 +19,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import com.buildrisk.radar.common.role.ApiRole;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 
 @RestController
+@ApiRole
 @RequestMapping("/api/v1/companies")
 @Tag(name = "기업", description = "유니버스 · 재무 · 지표 · 공시 (FR-601)")
 @Validated

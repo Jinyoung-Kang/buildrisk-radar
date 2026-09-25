@@ -16,11 +16,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import com.buildrisk.radar.common.role.ApiRole;
 
 import java.time.Duration;
 import java.util.List;
 
 @RestController
+@ApiRole
 @RequestMapping("/api/v1/regions")
 @Tag(name = "지역", description = "시군구 지표 · 단계구분도 · 통계 시계열 (FR-602)")
 @Validated

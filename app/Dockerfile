@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
-# Spring Boot 4.1 (Java 21) — 빌드 컨텍스트는 저장소 루트 (seed/ 를 이미지에 함께 넣기 위해)
-FROM eclipse-temurin:21-jdk AS build
+# Spring Boot 4.1 (Java 25) — 빌드 컨텍스트는 저장소 루트 (seed/ 를 이미지에 함께 넣기 위해)
+FROM eclipse-temurin:25-jdk AS build
 WORKDIR /src
 COPY app/gradlew app/settings.gradle.kts app/build.gradle.kts ./
 COPY app/gradle ./gradle
@@ -8,7 +8,7 @@ RUN --mount=type=cache,target=/root/.gradle ./gradlew --no-daemon -q dependencie
 COPY app/src ./src
 RUN --mount=type=cache,target=/root/.gradle ./gradlew --no-daemon -q bootJar -x test
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 WORKDIR /app
 RUN groupadd -r app && useradd -r -g app app
 COPY --from=build /src/build/libs/buildrisk-app.jar /app/app.jar

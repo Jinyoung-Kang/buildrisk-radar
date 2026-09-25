@@ -8,12 +8,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.buildrisk.radar.common.role.ApiRole;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
+@ApiRole
 @RequestMapping("/api/v1")
 @Tag(name = "메타", description = "대시보드 · 지표 정의 · 출처 · 고지")
 public class MetaController {

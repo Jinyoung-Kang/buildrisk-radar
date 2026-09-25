@@ -26,7 +26,10 @@ public class RunRecorder {
         this.mapper = mapper;
     }
 
-    public JobExecutionListener collect(String source) {
+    public JobExecutionListener collect(String source) { return collect(source, () -> { }); }
+
+    /** onFinish: 끝나면(성공·중단 모두 — 일부라도 저장됐을 수 있음) 조회 캐시 무효화 등 */
+    public JobExecutionListener collect(String source, Runnable onFinish) {
         return new JobExecutionListener() {
             @Override
             public void beforeJob(JobExecution je) {
@@ -55,6 +58,7 @@ public class RunRecorder {
                         .param("st", status(je)).param("stats", stats(je))
                         .param("id", UUID.fromString(je.getExecutionContext().getString(BatchKeys.COLLECT_RUN_ID)))
                         .update();
+                onFinish.run();
             }
         };
     }

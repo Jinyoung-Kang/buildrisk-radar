@@ -4,8 +4,11 @@ import com.buildrisk.radar.domain.rule.rules.RC01DebtRatioSurge;
 import com.buildrisk.radar.domain.rule.rules.RC02InterestCoverage;
 import com.buildrisk.radar.domain.rule.rules.RC03NegativeOcf;
 import com.buildrisk.radar.domain.rule.rules.RC04MaterialDisclosure;
+import com.buildrisk.radar.domain.rule.rules.RC05GuaranteeBalance;
+import com.buildrisk.radar.domain.rule.rules.RX01RiskRegionContracts;
 import com.buildrisk.radar.domain.rule.rules.RR01UnsoldSurge;
 import com.buildrisk.radar.domain.rule.rules.RR02PriceDeclineUnsold;
+import com.buildrisk.radar.domain.rule.rules.RR03TradeCliffUnsold;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -20,7 +23,8 @@ public class RuleRegistry {
 
     public RuleRegistry() {
         List.of(new RC01DebtRatioSurge(), new RC02InterestCoverage(), new RC03NegativeOcf(),
-                new RC04MaterialDisclosure(), new RR01UnsoldSurge(), new RR02PriceDeclineUnsold())
+                new RC04MaterialDisclosure(), new RR01UnsoldSurge(), new RR02PriceDeclineUnsold(),
+                new RR03TradeCliffUnsold(), new RC05GuaranteeBalance(), new RX01RiskRegionContracts())
                 .forEach(r -> byCode.put(r.code(), r));
     }
 

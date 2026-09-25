@@ -12,10 +12,13 @@ public final class JobCatalog {
             new Def("companyProfileJob", "상장사 기업개황 · 유니버스", "DART", "매주 월 02:30", "FR-102~103", "DART_API_KEY"),
             new Def("financialStatementJob", "재무제표 수집 (미수집분)", "DART", "매일 03:00", "FR-201~203", "DART_API_KEY"),
             new Def("disclosureSyncJob", "공시 수집 · 이벤트 분류", "DART", "매일 03:30", "FR-301~302", "DART_API_KEY"),
+            new Def("filingParseJob", "수주·보증 공시 원문 구조화", "DART", "매일 03:45", "FR-303", "DART_API_KEY"),
             new Def("boundaryLoadJob", "시군구 경계 적재", "V-World (없으면 SGIS)", "최초 1회", "FR-404", null),
             new Def("sgisHouseholdJob", "시군구 총가구", "SGIS", "매년 1월 15일", "FR-403", "SGIS_CONSUMER_KEY"),
             new Def("kosisUnsoldJob", "시군구 미분양 (월)", "KOSIS", "매월 20일 04:00", "FR-401", "KOSIS_API_KEY"),
             new Def("roneIndexJob", "아파트 매매·전세 가격지수 (월)", "R-ONE", "매주 금 04:10", "FR-402", "REB_API_KEY"),
+            new Def("aptTradeJob", "아파트 매매 실거래 (월)", "국토부 RTMS", "매주 금 04:30", "FR-406", "DATA_GO_KR_KEY"),
+            new Def("stockPriceJob", "상장사 일별 주가 (백테스트)", "금융위 주식시세", "평일 18:30", "FR-601", "DATA_GO_KR_KEY"),
             new Def("standardizeMetricJob", "표준화 · 기업/지역 지표", "내부", "매일 05:00", "FR-204~205, 501", null),
             new Def("ruleEvalJob", "규칙 평가 · 경보", "내부", "지표 Job 완료 후", "FR-502~504", null));
 

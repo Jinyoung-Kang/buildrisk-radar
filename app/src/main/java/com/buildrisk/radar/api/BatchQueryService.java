@@ -23,7 +23,11 @@ public class BatchQueryService {
     private final Environment env;
     private final AppProperties props;
 
-    public BatchQueryService(JdbcClient jdbc, BatchLauncher launcher, Environment env, AppProperties props) {
+    private final com.buildrisk.radar.batch.queue.WorkerRegistry workers;
+
+    public BatchQueryService(JdbcClient jdbc, BatchLauncher launcher, Environment env, AppProperties props,
+                             com.buildrisk.radar.batch.queue.WorkerRegistry workers) {
+        this.workers = workers;
         this.jdbc = jdbc;
         this.launcher = launcher;
         this.env = env;
@@ -82,6 +86,7 @@ public class BatchQueryService {
 
     public Map<String, Object> jobs() {
         List<Map<String, Object>> jobs = new ArrayList<>();
+        Map<String, Boolean> liveKeys = workers.liveKeyStatus();   // API 는 키가 없으므로 살아 있는 worker 의 보고로
         for (JobCatalog.Def d : JobCatalog.JOBS) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("name", d.name());
@@ -89,9 +94,12 @@ public class BatchQueryService {
             m.put("source", d.source());
             m.put("schedule", d.schedule());
             m.put("requirement", d.requirement());
-            m.put("keyConfigured", d.envKey() == null || !blank(env.getProperty(d.envKey())));
+            m.put("keyConfigured", d.envKey() == null || (liveKeys != null ? liveKeys.getOrDefault(d.envKey(), false)
+                    : !blank(env.getProperty(d.envKey()))));
             m.put("envKey", d.envKey());
             m.put("running", launcher.running(d.name()));
+            m.put("queued", jdbc.sql("SELECT request_id FROM ops.job_request WHERE job_name = :j AND status = 'QUEUED'")
+                    .param("j", d.name()).query(Long.class).optional().orElse(null));
             var last = launcher.lastExecution(d.name());
             if (last != null && last.isRunning()) {
                 m.put("heartbeat", String.valueOf(launcher.heartbeat(last)));
@@ -103,6 +111,7 @@ public class BatchQueryService {
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("jobs", jobs);
+        out.put("workers", workers.list());
         out.put("quota", jdbc.sql("SELECT provider, calls FROM ops.api_quota WHERE day = :d ORDER BY provider")
                 .param("d", ApiQuotaService.today()).query().listOfRows());
         out.put("dartDailyLimit", props.dart().dailyCallLimit());

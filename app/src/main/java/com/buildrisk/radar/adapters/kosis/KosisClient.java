@@ -30,7 +30,10 @@ public class KosisClient {
     private final RestClient http;
     private final ObjectMapper mapper;
 
-    public KosisClient(AppProperties props, ObjectMapper mapper) {
+    private final com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics;
+
+    public KosisClient(AppProperties props, ObjectMapper mapper, com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics) {
+        this.metrics = metrics;
         this.cfg = props.kosis();
         this.http = HttpSupport.client(cfg.baseUrl(), Duration.ofSeconds(90));
         this.mapper = mapper;
@@ -39,7 +42,7 @@ public class KosisClient {
     public List<Row> data(String orgId, String tblId, String itmId, Map<String, String> objL, String prdSe,
                           String startPrdDe, String endPrdDe) {
         if (HttpSupport.blank(cfg.apiKey())) throw new ApiKeyMissingException("KOSIS_API_KEY");
-        String body = HttpSupport.retry(3, () -> {
+        String body = HttpSupport.retry(3, () -> metrics.time(PROVIDER, "statisticsParameterData", () -> {
             try {
                 return http.get().uri(u -> {
                     u.path("/openapi/Param/statisticsParameterData.do")
@@ -53,7 +56,7 @@ public class KosisClient {
             } catch (RestClientException e) {
                 throw new UpstreamException(PROVIDER, e.getMessage(), e);
             }
-        });
+        }));
         JsonNode root = mapper.readTree(body == null ? "[]" : body);
         if (root.isObject()) {
             String err = Json.text(root, "err");

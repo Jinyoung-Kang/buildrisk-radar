@@ -47,8 +47,11 @@ public class DartClient {
     private final ObjectMapper mapper;
     private final ApiQuotaService quota;
     private final Throttle throttle;
+    private final com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics;
 
-    public DartClient(AppProperties props, ObjectMapper mapper, ApiQuotaService quota) {
+    public DartClient(AppProperties props, ObjectMapper mapper, ApiQuotaService quota,
+                      com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics) {
+        this.metrics = metrics;
         this.cfg = props.dart();
         this.http = HttpSupport.client(cfg.baseUrl(), Duration.ofSeconds(60));
         this.mapper = mapper;
@@ -60,6 +63,10 @@ public class DartClient {
 
     /** corpCode.xml(Zip) 을 받아 CORPCODE.xml 을 dir 에 풀고 경로를 돌려줍니다 (FR-101). */
     public Path downloadCorpCodeXml(Path dir) {
+        return metrics.time(PROVIDER, "corpCode", () -> downloadCorpCodeXml0(dir));
+    }
+
+    private Path downloadCorpCodeXml0(Path dir) {
         byte[] body = call("/api/corpCode.xml", u -> u);
         if (body.length < 4 || body[0] != 'P' || body[1] != 'K') {
             // Zip 이 아니면 오류 응답(XML/JSON)
@@ -88,6 +95,58 @@ public class DartClient {
             throw new UpstreamException(PROVIDER, "corpCode Zip 해제 실패: " + ex.getMessage(), ex);
         }
         throw new UpstreamException(PROVIDER, "corpCode Zip 안에 XML 이 없습니다.");
+    }
+
+    /** document.xml — 공시서류 원본(Zip 안 HTML). 파일 없음(013·014)이면 empty. 압축 해제는 5MB 상한(zip bomb 방지) */
+    public java.util.Optional<String> document(String rceptNo) {
+        return metrics.time(PROVIDER, "document", () -> document0(rceptNo));
+    }
+
+    private static final int DOC_LIMIT = 5 * 1024 * 1024;
+
+    private java.util.Optional<String> document0(String rceptNo) {
+        byte[] body = call("/api/document.xml", u -> u.queryParam("rcept_no", rceptNo));
+        if (body.length < 4 || body[0] != 'P' || body[1] != 'K') {
+            String text = new String(body, StandardCharsets.UTF_8);
+            String status = between(text, "<status>", "</status>");
+            String message = between(text, "<message>", "</message>");
+            if (status == null) {
+                try {
+                    JsonNode n = mapper.readTree(text);
+                    status = Json.text(n, "status");
+                    message = Json.text(n, "message");
+                } catch (RuntimeException ignored) {
+                    // 형식을 모르는 응답
+                }
+            }
+            if (DartStatus.NO_DATA.equals(status) || "014".equals(status)) return java.util.Optional.empty();
+            checkStatus(status, message);
+            throw new UpstreamException(PROVIDER, "document.xml 응답이 Zip 이 아닙니다.");
+        }
+        byte[] best = null;
+        try (ZipInputStream zip = new ZipInputStream(new java.io.ByteArrayInputStream(body))) {
+            ZipEntry e;
+            while ((e = zip.getNextEntry()) != null) {
+                byte[] data = zip.readNBytes(DOC_LIMIT + 1);
+                if (data.length > DOC_LIMIT) throw new UpstreamException(PROVIDER, "document.xml 압축 해제 크기 상한 초과: " + rceptNo);
+                if (e.getName().startsWith(rceptNo) || best == null) best = data;   // 본문 = 접수번호 파일
+                if (e.getName().startsWith(rceptNo)) break;
+            }
+        } catch (IOException ex) {
+            throw new UpstreamException(PROVIDER, "document Zip 해제 실패: " + ex.getMessage(), ex);
+        }
+        return best == null ? java.util.Optional.empty() : java.util.Optional.of(decode(best));
+    }
+
+    /** 원문은 대부분 UTF-8, 오래된 서식은 EUC-KR(MS949) */
+    static String decode(byte[] b) {
+        try {
+            return StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .decode(java.nio.ByteBuffer.wrap(b)).toString();
+        } catch (java.nio.charset.CharacterCodingException e) {
+            return new String(b, java.nio.charset.Charset.forName("MS949"));
+        }
     }
 
     /** company.json — 013 이면 null */
@@ -144,6 +203,10 @@ public class DartClient {
     // ---------------------------------------------------------------------
 
     private JsonNode json(String path, java.util.function.UnaryOperator<org.springframework.web.util.UriBuilder> q) {
+        return metrics.time(PROVIDER, path.replace("/api/", "").replace(".json", ""), () -> json0(path, q));
+    }
+
+    private JsonNode json0(String path, java.util.function.UnaryOperator<org.springframework.web.util.UriBuilder> q) {
         byte[] body = call(path, q);
         JsonNode n;
         try {

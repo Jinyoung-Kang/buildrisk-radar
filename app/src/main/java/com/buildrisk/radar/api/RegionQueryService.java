@@ -132,6 +132,9 @@ public class RegionQueryService {
             add(statSeries, stats, "SALE_IDX", "아파트 매매가격지수", "지수", "R-ONE A_2024_00045", assembled.sale());
             add(statSeries, stats, "JEONSE_IDX", "아파트 전세가격지수", "지수", "R-ONE A_2024_00050", assembled.jeonse());
             add(statSeries, stats, "HOUSEHOLDS", "총가구", "가구", "SGIS 총조사 주요지표", assembled.households());
+            add(statSeries, stats, "TRADE_CNT", "아파트 매매 거래", "건", "국토부 실거래 RTMSDataSvcAptTrade", assembled.trades());
+            add(statSeries, stats, "CANCEL_CNT", "아파트 매매 계약 해제", "건", "국토부 실거래 RTMSDataSvcAptTrade", assembled.cancels());
+            add(statSeries, stats, "PRICE_M2", "㎡당 중위 매매가", "만원/㎡", "국토부 실거래 RTMSDataSvcAptTrade", assembled.priceM2());
         }
         record M(String code, String p, BigDecimal v, String st, String comp) {}
         List<M> ms = jdbc.sql("""

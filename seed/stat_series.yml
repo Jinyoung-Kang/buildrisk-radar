@@ -40,3 +40,34 @@ series:
     cycle: YY
     agg: SUM
     params: { year: 2024 }
+  # 국토부 아파트 매매 실거래 — aptTradeJob 이 원천 거래를 화면 단위 시군구로 직접 집계해 넣습니다 (agg 미사용)
+  - id: RTMS_TRADE_CNT
+    source: RTMS
+    table: RTMSDataSvcAptTrade
+    item: trades
+    statCode: TRADE_CNT
+    name: 아파트 매매 거래
+    unit: 건
+    cycle: MM
+    agg: SUM
+    params: {}
+  - id: RTMS_CANCEL_CNT
+    source: RTMS
+    table: RTMSDataSvcAptTrade
+    item: cancelled
+    statCode: CANCEL_CNT
+    name: 아파트 매매 계약 해제
+    unit: 건
+    cycle: MM
+    agg: SUM
+    params: {}
+  - id: RTMS_PRICE_M2
+    source: RTMS
+    table: RTMSDataSvcAptTrade
+    item: median_price_per_m2
+    statCode: PRICE_M2
+    name: 아파트 ㎡당 중위 매매가
+    unit: 만원/㎡
+    cycle: MM
+    agg: MEAN
+    params: {}

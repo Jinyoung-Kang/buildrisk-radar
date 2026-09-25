@@ -20,6 +20,10 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 @SpringBootTest
 public abstract class IntegrationTest {
     public static final String ADMIN = "test-admin-token";
+    public static final String APP_ROLE = "buildrisk_app";
+    public static final String APP_ROLE_PASSWORD = "test-app-role-password";
+    public static final String ADMIN_PASSWORD = "test-admin-password";
+    public static final String ANALYST_PASSWORD = "test-analyst-password";
     static final PostgreSQLContainer PG = new PostgreSQLContainer(
             DockerImageName.parse(System.getProperty("test.pg.image", "imresamu/postgis:16-3.6-bookworm"))
                     .asCompatibleSubstituteFor("postgres"));
@@ -38,7 +42,12 @@ public abstract class IntegrationTest {
         r.add("spring.datasource.username", PG::getUsername);
         r.add("spring.datasource.password", PG::getPassword);
         r.add("spring.data.redis.url", () -> "redis://" + REDIS.getHost() + ":" + REDIS.getMappedPort(6379));
+        r.add("spring.flyway.placeholders.approle", () -> APP_ROLE);
+        r.add("spring.flyway.placeholders.approlepassword", () -> APP_ROLE_PASSWORD);
         r.add("buildrisk.admin-token", () -> ADMIN);
+        r.add("buildrisk.security.admin-password", () -> ADMIN_PASSWORD);
+        r.add("buildrisk.security.analyst-password", () -> ANALYST_PASSWORD);
+        r.add("buildrisk.security.rate-limit-per-minute", () -> 0);
         r.add("buildrisk.dart.base-url", WM::baseUrl);
         r.add("buildrisk.dart.api-key", () -> "test-dart-key");
         r.add("buildrisk.dart.min-interval-ms", () -> 0);
@@ -47,10 +56,15 @@ public abstract class IntegrationTest {
         r.add("buildrisk.rone.base-url", WM::baseUrl);
         r.add("buildrisk.sgis.base-url", WM::baseUrl);
         r.add("buildrisk.vworld.base-url", WM::baseUrl);
+        r.add("buildrisk.data-go-kr.base-url", WM::baseUrl);
+        r.add("buildrisk.data-go-kr.service-key", () -> "test-data-key");
+        r.add("buildrisk.data-go-kr.min-interval-ms", () -> 0);
     }
 
     @Autowired
     protected JdbcTemplate jdbc;
+
+    protected static String jdbcUrl() { return PG.getJdbcUrl(); }
 
     /** 테스트 사이 데이터 초기화 (seed 테이블·배치 메타는 유지) */
     @BeforeEach

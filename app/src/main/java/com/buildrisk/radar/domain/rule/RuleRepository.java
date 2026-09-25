@@ -25,9 +25,9 @@ public class RuleRepository {
         this.mapper = mapper;
     }
 
-    public record Version(RuleDefinition def, String changeNote, OffsetDateTime createdAt) {}
+    public record Version(RuleDefinition def, String changeNote, String createdBy, OffsetDateTime createdAt) {}
 
-    private static final String COLS = "rule_code, version, target_type, name_ko, description, params::text, severity, enabled, change_note, created_at";
+    private static final String COLS = "rule_code, version, target_type, name_ko, description, params::text, severity, enabled, change_note, created_by, created_at";
 
     /** 규칙 코드별 최신 버전 */
     public List<Version> latest() {
@@ -52,21 +52,22 @@ public class RuleRepository {
     }
 
     /** 파라미터·심각도·사용 여부가 바뀌면 새 버전 (FR-502) — 이전 경보는 이전 버전 번호를 유지 */
-    public int insertVersion(RuleDefinition base, Map<String, Object> params, String severity, boolean enabled, String note) {
+    public int insertVersion(RuleDefinition base, Map<String, Object> params, String severity, boolean enabled, String note,
+                             String actor) {
         int next = base.version() + 1;
         jdbc.sql("""
-                INSERT INTO risk.rule (rule_code, version, target_type, name_ko, description, params, severity, enabled, change_note)
-                VALUES (:c, :v, :t, :n, :d, cast(:p AS jsonb), :s, :e, :note)""")
+                INSERT INTO risk.rule (rule_code, version, target_type, name_ko, description, params, severity, enabled, change_note, created_by)
+                VALUES (:c, :v, :t, :n, :d, cast(:p AS jsonb), :s, :e, :note, :by)""")
                 .param("c", base.code()).param("v", next).param("t", base.targetType().name())
                 .param("n", base.nameKo()).param("d", base.description())
                 .param("p", mapper.writeValueAsString(params)).param("s", severity).param("e", enabled)
-                .param("note", note).update();
+                .param("note", note).param("by", actor).update();
         return next;
     }
 
     private Version row(ResultSet rs, int i) throws SQLException {
         RuleDefinition d = new RuleDefinition(rs.getString(1), rs.getInt(2), TargetType.valueOf(rs.getString(3)),
                 rs.getString(4), rs.getString(5), mapper.readValue(rs.getString(6), MAP), rs.getString(7), rs.getBoolean(8));
-        return new Version(d, rs.getString(9), rs.getObject(10, OffsetDateTime.class));
+        return new Version(d, rs.getString(9), rs.getString(10), rs.getObject(11, OffsetDateTime.class));
     }
 }

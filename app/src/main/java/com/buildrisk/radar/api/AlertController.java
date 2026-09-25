@@ -18,10 +18,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import com.buildrisk.radar.common.role.ApiRole;
 
 import java.time.OffsetDateTime;
 
 @RestController
+@ApiRole
 @RequestMapping("/api/v1/alerts")
 @Tag(name = "경보", description = "규칙 평가 결과와 근거 (FR-503~504)")
 @Validated
@@ -52,9 +54,9 @@ public class AlertController {
     public AlertDetail detail(@PathVariable long alertId) { return svc.detail(alertId); }
 
     @PatchMapping("/{alertId}")
-    @Operation(summary = "⑪ 상태 변경 (ACK · OPEN)")
-    public AlertDetail patch(@PathVariable long alertId, @RequestBody StatusChange body) {
-        AlertDetail d = svc.changeStatus(alertId, body.status());
+    @Operation(summary = "⑪ 상태 변경 (ACK · OPEN) — ANALYST 이상")
+    public AlertDetail patch(@PathVariable long alertId, @RequestBody StatusChange body, java.security.Principal principal) {
+        AlertDetail d = svc.changeStatus(alertId, body.status(), principal == null ? "anonymous" : principal.getName());
         cache.invalidateAll();
         return d;
     }

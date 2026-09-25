@@ -24,7 +24,12 @@ public final class MetricCatalog {
             new Def("UNSOLD_3M_CHG", "REGION", "미분양 3개월 증감률", "%", "(당월 − 3개월 전) / 3개월 전 × 100", true, "KOSIS"),
             new Def("PRICE_IDX_3M_CHG", "REGION", "매매가격지수 3개월 변화", "pt", "당월 지수 − 3개월 전 지수 (아파트)", false, "R-ONE"),
             new Def("JEONSE_IDX_3M_CHG", "REGION", "전세가격지수 3개월 변화", "pt", "당월 지수 − 3개월 전 지수 (아파트)", false, "R-ONE"),
-            new Def("JEONSE_SALE_GAP", "REGION", "전세·매매 지수 괴리", "pt", "전세지수 3개월 변화 − 매매지수 3개월 변화", false, "R-ONE"));
+            new Def("JEONSE_SALE_GAP", "REGION", "전세·매매 지수 괴리", "pt", "전세지수 3개월 변화 − 매매지수 3개월 변화", false, "R-ONE"),
+            new Def("TRADE_COUNT", "REGION", "아파트 매매 거래", "건", "계약월 기준 매매 신고 건수 (해제 제외)", false, "국토부 실거래"),
+            new Def("TRADE_YOY", "REGION", "거래량 전년 동월 대비", "%", "(당월 거래 − 전년 같은 달) / 전년 같은 달 × 100", false, "국토부 실거래"),
+            new Def("CANCEL_RATE", "REGION", "계약 해제 비율", "%", "해제 건수 / (거래 + 해제) × 100", true, "국토부 실거래"),
+            new Def("PRICE_M2_MEDIAN", "REGION", "㎡당 중위 매매가", "만원/㎡", "거래금액 / 전용면적 의 중앙값 (해제 제외)", false, "국토부 실거래"),
+            new Def("PRICE_M2_YOY", "REGION", "㎡당 중위가 전년 동월 대비", "%", "(당월 중위가 − 전년 같은 달) / 전년 같은 달 × 100", false, "국토부 실거래"));
 
     private static final Map<String, Def> BY_CODE = new LinkedHashMap<>();
 

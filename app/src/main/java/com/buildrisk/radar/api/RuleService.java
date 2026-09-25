@@ -41,7 +41,7 @@ public class RuleService {
 
     /** 파라미터·심각도·사용 여부를 바꾸면 새 버전 (FR-502). 값이 같으면 버전을 올리지 않습니다. */
     @Transactional
-    public RuleView update(String code, RuleUpdate req) {
+    public RuleView update(String code, RuleUpdate req, String actor) {
         RuleRepository.Version cur = rules.latest(code)
                 .orElseThrow(() -> ApiException.notFound(ErrorCode.RULE_NOT_FOUND, "규칙 " + code));
         RuleEvaluator ev = registry.get(code);
@@ -66,7 +66,7 @@ public class RuleService {
             return view(cur);
         }
         rules.insertVersion(cur.def(), params, severity, enabled,
-                req.changeNote() == null || req.changeNote().isBlank() ? "API 로 변경" : req.changeNote());
+                req.changeNote() == null || req.changeNote().isBlank() ? "API 로 변경" : req.changeNote(), actor);
         return view(rules.latest(code).orElseThrow());
     }
 
@@ -81,6 +81,6 @@ public class RuleService {
         long open = jdbc.sql("SELECT count(*) FROM risk.alert WHERE rule_code = :c AND rule_version = :v AND status IN ('OPEN','ACK')")
                 .param("c", d.code()).param("v", d.version()).query(Long.class).single();
         return new RuleView(d.code(), d.version(), d.targetType().name(), d.nameKo(), d.description(), d.params(),
-                d.severity(), d.enabled(), cond, v.changeNote(), v.createdAt(), open);
+                d.severity(), d.enabled(), cond, v.changeNote(), v.createdBy(), v.createdAt(), open);
     }
 }

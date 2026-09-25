@@ -19,6 +19,9 @@ import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.stereotype.Service;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -41,10 +44,18 @@ public class BatchLauncher {
     private final ApiQuotaService quota;
     private final AppProperties props;
     private final org.springframework.jdbc.core.simple.JdbcClient jdbc;
+    private final DataSource dataSource;
+    private final com.buildrisk.radar.domain.market.AptTradeRepository trades;
+    private final com.buildrisk.radar.domain.filing.FilingRepository filings;
 
     public BatchLauncher(JobOperator operator, JobRepository repository, List<Job> jobList, FsRepository fs,
-                         ApiQuotaService quota, AppProperties props, org.springframework.jdbc.core.simple.JdbcClient jdbc) {
+                         ApiQuotaService quota, AppProperties props, org.springframework.jdbc.core.simple.JdbcClient jdbc,
+                         DataSource dataSource, com.buildrisk.radar.domain.market.AptTradeRepository trades,
+                         com.buildrisk.radar.domain.filing.FilingRepository filings) {
+        this.trades = trades;
+        this.filings = filings;
         this.jdbc = jdbc;
+        this.dataSource = dataSource;
         this.operator = operator;
         this.repository = repository;
         this.jobs = new java.util.LinkedHashMap<>();
@@ -101,23 +112,17 @@ public class BatchLauncher {
         return List.of(executionId);
     }
 
-    public Launch launch(String jobName, Map<String, Object> body) {
-        Job job = jobs.get(jobName);
-        if (job == null) throw new ApiException(ErrorCode.JOB_NOT_FOUND, "Job 이 없습니다: " + jobName);
-        recover(jobName, false);
-        if (running(jobName)) throw new ApiException(ErrorCode.JOB_ALREADY_RUNNING, jobName + " 이(가) 이미 실행 중입니다.");
+    /** 실행 전 검증·계획 — 잘못된 파라미터는 큐에 넣기 전에 400 으로 거절 (API 역할에서 호출) */
+    public record Plan(JobParameters params, Integer plannedCalls, Integer dailyLimitHint, Integer usedToday, String warning,
+                       boolean allowRestart) {}
+
+    public Plan plan(String jobName, Map<String, Object> body) {
+        if (!jobs.containsKey(jobName)) throw new ApiException(ErrorCode.JOB_NOT_FOUND, "Job 이 없습니다: " + jobName);
         Map<String, Object> b = body == null ? Map.of() : body;
+        JobParametersBuilder pb = new JobParametersBuilder().addLong(BatchKeys.RUN_AT, System.currentTimeMillis());
+        Integer planned = null, limit = null, used = null;
+        String warning = null;
         try {
-            JobExecution last = lastExecution(jobName);
-            boolean wantRestart = !Boolean.FALSE.equals(b.get("restart"));
-            if (last != null && wantRestart && (last.getStatus() == BatchStatus.STOPPED || last.getStatus() == BatchStatus.FAILED)) {
-                JobExecution je = operator.restart(last);
-                log.info("{} 재시작: 이전 실행 {} ({}) → {}", jobName, last.getId(), last.getStatus(), je.getId());
-                return new Launch(je.getId(), je.getStatus().name(), true, null, null, null, null);
-            }
-            JobParametersBuilder pb = new JobParametersBuilder().addLong(BatchKeys.RUN_AT, System.currentTimeMillis());
-            Integer planned = null, limit = null, used = null;
-            String warning = null;
             switch (jobName) {
                 case "financialStatementJob" -> {
                     int from = props.dart().fromYear(), to = ApiQuotaService.today().getYear();
@@ -145,25 +150,127 @@ public class BatchLauncher {
                     }
                     if (max != null) pb.addLong("maxCalls", max);
                 }
+                case "aptTradeJob" -> {
+                    int months = b.get("months") == null ? props.dataGoKr().tradeMonths() : Integer.parseInt(String.valueOf(b.get("months")));
+                    if (months < 13 || months > 120) throw new ApiException(ErrorCode.VALIDATION_ERROR, "months 는 13~120");
+                    var w = com.buildrisk.radar.domain.market.TradeWindow.of(java.time.YearMonth.now(ApiQuotaService.KST), months);
+                    planned = trades.pending(w.fromYm(), w.toYm(), w.refreshFromYm(), ApiQuotaService.today()).size();
+                    limit = props.dataGoKr().dailyCallLimit();
+                    used = quota.used(com.buildrisk.radar.adapters.datagokr.RtmsClient.PROVIDER);
+                    pb.addLong("months", (long) months);
+                    Long max = b.get("maxCalls") == null ? null : Long.parseLong(String.valueOf(b.get("maxCalls")));
+                    int remaining = Math.max(0, limit - used);
+                    if (planned > remaining) {
+                        warning = "수집 대상 " + planned + "건이 오늘 남은 실거래 API 호출 " + remaining
+                                + "건보다 많아 상한까지만 받고 STOPPED 로 멈춥니다. 다음 실행에서 이어갑니다(최근 달부터 채움).";
+                        max = max == null ? remaining : Math.min(max, remaining);
+                    }
+                    if (max != null) pb.addLong("maxCalls", max);
+                }
+                case "filingParseJob" -> {
+                    long days = b.get("days") == null ? 400L : Long.parseLong(String.valueOf(b.get("days")));
+                    if (days < 1 || days > 3650) throw new ApiException(ErrorCode.VALIDATION_ERROR, "days 는 1~3650");
+                    planned = filings.pending(ApiQuotaService.today().minusDays(days)).size();
+                    limit = props.dart().dailyCallLimit();
+                    used = quota.used(DartClient.PROVIDER);
+                    pb.addLong("days", days);
+                    Long max = b.get("maxCalls") == null ? null : Long.parseLong(String.valueOf(b.get("maxCalls")));
+                    int remaining = Math.max(0, limit - used);
+                    if (planned > remaining) {
+                        warning = "원문 " + planned + "건이 오늘 남은 DART 호출 " + remaining + "건보다 많아 상한까지만 받습니다.";
+                        max = max == null ? remaining : Math.min(max, remaining);
+                    }
+                    if (max != null) pb.addLong("maxCalls", max);
+                }
+                case "stockPriceJob" -> {
+                    if (b.get("years") != null) {
+                        long years = Long.parseLong(String.valueOf(b.get("years")));
+                        if (years < 1 || years > 10) throw new ApiException(ErrorCode.VALIDATION_ERROR, "years 는 1~10");
+                        pb.addLong("years", years);
+                    }
+                    limit = props.dataGoKr().dailyCallLimit();
+                    used = quota.used(com.buildrisk.radar.adapters.datagokr.StockPriceClient.PROVIDER);
+                }
                 case "disclosureSyncJob" -> pb.addLong("days", b.get("days") == null ? 7L : Long.parseLong(String.valueOf(b.get("days"))));
                 case "sgisHouseholdJob" -> {
                     if (b.get("year") != null) pb.addLong("year", Long.parseLong(String.valueOf(b.get("year"))));
                 }
                 case "boundaryLoadJob" -> {
-                    if (b.get("source") != null) pb.addString("source", String.valueOf(b.get("source")).toUpperCase());
+                    if (b.get("source") != null) {
+                        String src = String.valueOf(b.get("source")).toUpperCase();
+                        if (!List.of("VWORLD", "SGIS").contains(src)) throw new ApiException(ErrorCode.VALIDATION_ERROR, "source 는 VWORLD · SGIS");
+                        pb.addString("source", src);
+                    }
                     if (b.get("year") != null) pb.addLong("year", Long.parseLong(String.valueOf(b.get("year"))));
                 }
                 default -> { }
             }
-            JobParameters params = pb.toJobParameters();
-            JobExecution je = operator.start(job, params);
-            return new Launch(je.getId(), je.getStatus().name(), false, planned, limit, used, warning);
+        } catch (NumberFormatException e) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "숫자 파라미터 형식이 올바르지 않습니다: " + e.getMessage());
+        }
+        return new Plan(pb.toJobParameters(), planned, limit, used, warning, !Boolean.FALSE.equals(b.get("restart")));
+    }
+
+    /**
+     * 실행 — 프로세스 간 중복 실행을 PostgreSQL advisory lock 으로 막습니다 (worker · CLI 가 동시에 같은 Job 을 시작하는 경쟁).
+     * 잠금 구간: 멈춘 실행 정리 → 실행 중 확인 → start/restart(실행 레코드 생성) 까지. 실행 자체는 잠금 밖에서 비동기로 진행.
+     */
+    public Launch launch(String jobName, Map<String, Object> body) {
+        Plan plan = plan(jobName, body);
+        Job job = jobs.get(jobName);
+        long key = ("buildrisk:batch:" + jobName).hashCode();
+        try (Connection c = dataSource.getConnection()) {
+            if (!tryLock(c, key)) throw new ApiException(ErrorCode.JOB_ALREADY_RUNNING, jobName + " 을(를) 다른 프로세스가 시작하는 중입니다.");
+            try {
+                recover(jobName, false);
+                if (running(jobName)) throw new ApiException(ErrorCode.JOB_ALREADY_RUNNING, jobName + " 이(가) 이미 실행 중입니다.");
+                JobExecution last = lastExecution(jobName);
+                if (last != null && plan.allowRestart() && (last.getStatus() == BatchStatus.STOPPED || last.getStatus() == BatchStatus.FAILED)) {
+                    JobExecution je = withConflictRetry(() -> operator.restart(last));
+                    log.info("{} 재시작: 이전 실행 {} ({}) → {}", jobName, last.getId(), last.getStatus(), je.getId());
+                    return new Launch(je.getId(), je.getStatus().name(), true, null, null, null, null);
+                }
+                JobExecution je = withConflictRetry(() -> operator.start(job, plan.params()));
+                return new Launch(je.getId(), je.getStatus().name(), false, plan.plannedCalls(), plan.dailyLimitHint(),
+                        plan.usedToday(), plan.warning());
+            } finally {
+                unlock(c, key);
+            }
         } catch (ApiException e) {
             throw e;
         } catch (org.springframework.batch.core.launch.JobExecutionAlreadyRunningException e) {
             throw new ApiException(ErrorCode.JOB_ALREADY_RUNNING, jobName + " 이(가) 이미 실행 중입니다.");
         } catch (Exception e) {
             throw new ApiException(ErrorCode.INTERNAL_ERROR, jobName + " 실행 실패: " + e.getMessage());
+        }
+    }
+
+    interface Starter { JobExecution start() throws Exception; }
+
+    /** JobRepository 메타 테이블의 동시성 충돌(직렬화 실패·교착)은 짧게 물러났다가 최대 3번 */
+    static JobExecution withConflictRetry(Starter s) throws Exception {
+        for (int attempt = 1; ; attempt++) {
+            try {
+                return s.start();
+            } catch (org.springframework.dao.ConcurrencyFailureException e) {
+                if (attempt >= 3) throw e;
+                log.warn("Job 실행 레코드 생성 충돌 — {}번째 재시도: {}", attempt, e.getMostSpecificCause().getMessage());
+                Thread.sleep(100L * attempt + java.util.concurrent.ThreadLocalRandom.current().nextLong(100));
+            }
+        }
+    }
+
+    private static boolean tryLock(Connection c, long key) throws java.sql.SQLException {
+        try (var ps = c.prepareStatement("SELECT pg_try_advisory_lock(?)")) {
+            ps.setLong(1, key);
+            try (var rs = ps.executeQuery()) { return rs.next() && rs.getBoolean(1); }
+        }
+    }
+
+    private static void unlock(Connection c, long key) throws java.sql.SQLException {
+        try (var ps = c.prepareStatement("SELECT pg_advisory_unlock(?)")) {
+            ps.setLong(1, key);
+            ps.execute();
         }
     }
 

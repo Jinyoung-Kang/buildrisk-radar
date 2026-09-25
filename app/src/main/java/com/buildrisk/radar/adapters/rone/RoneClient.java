@@ -35,7 +35,10 @@ public class RoneClient {
     private final ObjectMapper mapper;
     private final Throttle throttle;
 
-    public RoneClient(AppProperties props, ObjectMapper mapper) {
+    private final com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics;
+
+    public RoneClient(AppProperties props, ObjectMapper mapper, com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics) {
+        this.metrics = metrics;
         this.cfg = props.rone();
         this.http = HttpSupport.client(cfg.baseUrl(), Duration.ofSeconds(60));
         this.mapper = mapper;
@@ -45,7 +48,7 @@ public class RoneClient {
     /** SttsApiTblData.do — 한 시점(WRTTIME_IDTFR_ID)의 한 페이지 */
     public Page data(String statblId, String cycle, String period, int pIndex, int pSize) {
         if (HttpSupport.blank(cfg.apiKey())) throw new ApiKeyMissingException("REB_API_KEY");
-        String body = HttpSupport.retry(3, () -> {
+        String body = HttpSupport.retry(3, () -> metrics.time(PROVIDER, "SttsApiTblData", () -> {
             throttle.acquire();
             try {
                 return http.get().uri(u -> u.path("/r-one/openapi/SttsApiTblData.do")
@@ -56,7 +59,7 @@ public class RoneClient {
             } catch (RestClientException e) {
                 throw new UpstreamException(PROVIDER, e.getMessage(), e);
             }
-        });
+        }));
         JsonNode root = mapper.readTree(body == null ? "{}" : body);
         JsonNode sections = root.path("SttsApiTblData");
         if (!sections.isArray()) {

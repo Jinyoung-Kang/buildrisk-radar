@@ -4,6 +4,12 @@
 server:
   port: 8410
   shutdown: graceful
+  forward-headers-strategy: native     # web(Next) 프록시의 X-Forwarded-For 로 실제 클라이언트 IP (레이트리밋·감사 로그)
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        name: BR_SESSION     # 속성(HttpOnly · SameSite=Strict · Secure)은 SecurityConfig.cookieSerializer
   compression:
     enabled: true
     mime-types: application/json,application/geo+json
@@ -24,16 +30,28 @@ spring:
   flyway:
     schemas: public
     locations: classpath:db/migration
+    # 마이그레이션은 소유자 계정, 런타임은 최소 권한 계정 (ADR-014). FLYWAY_USER 가 없으면 같은 계정 하나로
+    user: ${FLYWAY_USER:${spring.datasource.username}}
+    password: ${FLYWAY_PASSWORD:${spring.datasource.password}}
+    placeholders:
+      approle: ${DB_APP_USER:}
+      approlepassword: ${DB_APP_PASSWORD:}
   data:
     redis:
       url: ${REDIS_URL:redis://127.0.0.1:6419}
       timeout: 500ms
+  session:
+    redis:
+      namespace: br:session
   batch:
     job:
       enabled: false          # Boot 기본 러너 대신 BatchLauncher 가 실행
     jdbc:
       initialize-schema: never   # Flyway V2 가 ops.BATCH_* 생성
       table-prefix: ops.BATCH_
+      # 기본 SERIALIZABLE 은 worker 가 서로 다른 Job 을 동시에 시작할 때 직렬화 충돌로 한쪽을 실패시킴(실측).
+      # 같은 Job 의 중복 시작은 큐 부분 유니크 인덱스 + advisory lock 이 막으므로 READ_COMMITTED 로 충분 (ADR-012)
+      isolation-level-for-create: read_committed
   jackson:
     default-property-inclusion: non_null
   web:
@@ -47,18 +65,38 @@ springdoc:
     path: /v3/api-docs
 
 management:
+  server:
+    port: ${MANAGEMENT_PORT:8411}      # 액추에이터는 별도 포트 — 호스트에 노출하지 않고 내부(프로메테우스)만
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus,metrics
+  metrics:
+    tags:
+      application: buildrisk
+      role: ${buildrisk.role}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        spring.batch.job: true
   endpoint:
     health:
       probes:
         enabled: true
 
 buildrisk:
+  role: ${BUILDRISK_ROLE:api}          # api(REST) · worker(요청 큐 소비·스케줄) · cli(batch-only 일회성 실행)
   seed-dir: ${SEED_DIR:../seed}
-  admin-token: ${ADMIN_TOKEN:}
+  admin-token: ${ADMIN_TOKEN:}          # 서비스 토큰 (스크립트·자동화용, X-Admin-Token)
+  security:
+    admin-username: ${ADMIN_USERNAME:admin}
+    admin-password: ${ADMIN_PASSWORD:}
+    analyst-username: ${ANALYST_USERNAME:analyst}
+    analyst-password: ${ANALYST_PASSWORD:}
+    cookie-secure: ${COOKIE_SECURE:false}          # HTTPS 뒤에서는 true
+    rate-limit-per-minute: ${RATE_LIMIT_PER_MINUTE:1200}   # IP 당 API 요청 (0 = 끔)
+    login-max-failures: 5
+    login-lock-minutes: 15
   dart:
     base-url: ${DART_BASE_URL:https://opendart.fss.or.kr}
     api-key: ${DART_API_KEY:}
@@ -83,12 +121,20 @@ buildrisk:
     api-key: ${VWORLD_API_KEY:}
     domain: ${VWORLD_DOMAIN:http://localhost:3400}
     data-id: LT_C_ADSIGG_INFO
+  data-go-kr:
+    base-url: https://apis.data.go.kr
+    service-key: ${DATA_GO_KR_KEY:}
+    daily-call-limit: ${DATA_GO_KR_DAILY_CALL_LIMIT:9000}   # API 별 자체 상한 — data.go.kr 마이페이지의 상세기능별 일일 트래픽보다 낮게
+    min-interval-ms: 60
+    trade-months: 25          # 실거래: 전년 동월 비교용 24개월 + 1
+    stock-years: 3            # 주가: 백테스트 3년
   batch:
     scheduling-enabled: ${BATCH_SCHEDULING_ENABLED:false}
     company-window-quarters: 8
     region-window-months: 12
     run-jobs: ${BATCH_RUN_JOBS:}
     stale-minutes: ${BATCH_STALE_MINUTES:10}   # 하트비트가 이만큼 멈춘 STARTED 실행은 죽은 것으로 보고 정리
+    api-concurrency: ${BATCH_API_CONCURRENCY:4}   # 외부 API Step 청크 안 동시 처리 (1 = 순차)
 
 logging:
   level:
@@ -104,3 +150,5 @@ spring:
       on-profile: batch-only
   main:
     web-application-type: none
+buildrisk:
+  role: cli

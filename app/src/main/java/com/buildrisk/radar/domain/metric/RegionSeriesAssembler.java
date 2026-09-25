@@ -39,9 +39,17 @@ public final class RegionSeriesAssembler {
             List<String> kids = children.getOrDefault(d.regionCd(), List.of());
             out.put(d.regionCd(), new RegionMetricCalculator.Series(
                     pick(by, aggOf, "UNSOLD", d.regionCd(), kids), pick(by, aggOf, "SALE_IDX", d.regionCd(), kids),
-                    pick(by, aggOf, "JEONSE_IDX", d.regionCd(), kids), pick(by, aggOf, "HOUSEHOLDS", d.regionCd(), kids)));
+                    pick(by, aggOf, "JEONSE_IDX", d.regionCd(), kids), pick(by, aggOf, "HOUSEHOLDS", d.regionCd(), kids),
+                    // 실거래는 aptTradeJob 이 화면 단위로 직접 집계해 넣으므로 자기 행만 (중위값은 하위 구 평균으로 만들 수 없음)
+                    own(by, "TRADE_CNT", d.regionCd()), own(by, "CANCEL_CNT", d.regionCd()), own(by, "PRICE_M2", d.regionCd())));
         }
         return out;
+    }
+
+    private static NavigableMap<String, BigDecimal> own(Map<String, Map<String, NavigableMap<String, BigDecimal>>> by,
+                                                         String stat, String region) {
+        NavigableMap<String, BigDecimal> m = by.getOrDefault(stat, Map.of()).get(region);
+        return m == null ? new TreeMap<>() : m;
     }
 
     private static NavigableMap<String, BigDecimal> pick(Map<String, Map<String, NavigableMap<String, BigDecimal>>> by,

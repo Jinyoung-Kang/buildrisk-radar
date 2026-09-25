@@ -7,10 +7,21 @@ group = "com.buildrisk"
 version = "0.1.0"
 
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
 }
 
 repositories { mavenCentral() }
+
+// Trivy 가 찾은 Tomcat 11.0.24 CRITICAL 3건(CVE-2026-65182 · 65905 · 68525) — 고친 버전으로.
+// Boot BOM 이 Gradle platform 이라 버전 속성 대신 해석 규칙으로 올림 (Boot 가 따라오면 이 블록 삭제)
+configurations.all {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.apache.tomcat.embed") {
+            useVersion("11.0.25")
+            because("CVE-2026-65182 · CVE-2026-65905 · CVE-2026-68525")
+        }
+    }
+}
 
 dependencies {
     implementation(platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES))
@@ -18,6 +29,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("io.micrometer:micrometer-registry-prometheus")
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.jsoup:jsoup:1.21.2")   // DART 공시 원문(HTML 서식) 구조화
+    implementation("org.springframework.boot:spring-boot-starter-session-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-restclient")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-batch-jdbc")
@@ -31,6 +46,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-batch-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")

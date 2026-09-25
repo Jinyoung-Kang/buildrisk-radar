@@ -32,7 +32,10 @@ public class SgisClient {
     private String token;
     private long tokenExpiresAt;
 
-    public SgisClient(AppProperties props, ObjectMapper mapper) {
+    private final com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics;
+
+    public SgisClient(AppProperties props, ObjectMapper mapper, com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics) {
+        this.metrics = metrics;
         this.cfg = props.sgis();
         this.http = HttpSupport.client(cfg.baseUrl(), Duration.ofSeconds(60));
         this.mapper = mapper;
@@ -66,14 +69,14 @@ public class SgisClient {
 
     private JsonNode get(String path, int year, String admCd, boolean retryAuth) {
         String tok = token();
-        String body = HttpSupport.retry(3, () -> {
+        String body = HttpSupport.retry(3, () -> metrics.time(PROVIDER, path.substring(path.lastIndexOf('/') + 1), () -> {
             try {
                 return http.get().uri(u -> u.path(path).queryParam("accessToken", tok).queryParam("year", year)
                         .queryParam("adm_cd", admCd).queryParam("low_search", 1).build()).retrieve().body(String.class);
             } catch (RestClientException e) {
                 throw new UpstreamException(PROVIDER, e.getMessage(), e);
             }
-        });
+        }));
         JsonNode n = mapper.readTree(body);
         String err = Json.text(n, "errCd");
         if ("-401".equals(err) && retryAuth) {

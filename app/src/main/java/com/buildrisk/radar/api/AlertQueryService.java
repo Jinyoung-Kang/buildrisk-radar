@@ -61,7 +61,7 @@ public class AlertQueryService {
     public AlertDetail detail(long id) {
         return jdbc.sql("SELECT a.alert_id, a.rule_code, a.rule_version, r.name_ko, r.description, a.severity, a.target_type, "
                         + "a.target_key, " + TARGET_NAME + ", a.as_of, a.title, a.message, a.status, a.close_reason, "
-                        + "a.evidence::text, a.first_seen_at, a.last_evaluated_at, a.acked_at, a.closed_at, a.calc_run_id::text "
+                        + "a.evidence::text, a.first_seen_at, a.last_evaluated_at, a.acked_at, a.closed_at, a.calc_run_id::text, a.acked_by "
                         + "FROM risk.alert a JOIN risk.rule r ON r.rule_code = a.rule_code AND r.version = a.rule_version "
                         + "WHERE a.alert_id = :id")
                 .param("id", id)
@@ -69,13 +69,13 @@ public class AlertQueryService {
                         rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8), rs.getString(9),
                         rs.getString(10), rs.getString(11), rs.getString(12), rs.getString(13), rs.getString(14),
                         mapper.readValue(rs.getString(15), MAP), rs.getObject(16, OffsetDateTime.class),
-                        rs.getObject(17, OffsetDateTime.class), rs.getObject(18, OffsetDateTime.class),
+                        rs.getObject(17, OffsetDateTime.class), rs.getObject(18, OffsetDateTime.class), rs.getString(21),
                         rs.getObject(19, OffsetDateTime.class), rs.getString(20), Disclaimer.TEXT))
                 .optional().orElseThrow(() -> ApiException.notFound(ErrorCode.ALERT_NOT_FOUND, "경보 " + id));
     }
 
     /** FR-504 — 사람이 바꿀 수 있는 상태는 ACK(확인)와 OPEN(확인 취소). CLOSED 는 규칙 평가가 정합니다. */
-    public AlertDetail changeStatus(long id, String status) {
+    public AlertDetail changeStatus(long id, String status, String actor) {
         if (status == null || !Set.of("ACK", "OPEN").contains(status)) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "status 는 ACK 또는 OPEN 만 바꿀 수 있습니다.");
         }
@@ -83,8 +83,11 @@ public class AlertQueryService {
         if ("CLOSED".equals(cur.status())) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "이미 닫힌 경보입니다 (" + cur.closeReason() + ").");
         }
-        jdbc.sql("UPDATE risk.alert SET status = :s, acked_at = CASE WHEN :s = 'ACK' THEN now() END WHERE alert_id = :id")
-                .param("s", status).param("id", id).update();
+        jdbc.sql("""
+                UPDATE risk.alert SET status = :s, acked_at = CASE WHEN :s = 'ACK' THEN now() END,
+                       acked_by = CASE WHEN :s = 'ACK' THEN :actor END
+                 WHERE alert_id = :id""")
+                .param("s", status).param("actor", actor).param("id", id).update();
         return detail(id);
     }
 }

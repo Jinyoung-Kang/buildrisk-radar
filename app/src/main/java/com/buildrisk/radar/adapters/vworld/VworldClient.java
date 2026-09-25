@@ -33,7 +33,10 @@ public class VworldClient {
     private final RestClient http;
     private final ObjectMapper mapper;
 
-    public VworldClient(AppProperties props, ObjectMapper mapper) {
+    private final com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics;
+
+    public VworldClient(AppProperties props, ObjectMapper mapper, com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics) {
+        this.metrics = metrics;
         this.cfg = props.vworld();
         this.http = HttpSupport.client(cfg.baseUrl(), Duration.ofSeconds(120));
         this.mapper = mapper;
@@ -43,7 +46,7 @@ public class VworldClient {
 
     public Page page(int page, int size) {
         if (HttpSupport.blank(cfg.apiKey())) throw new ApiKeyMissingException("VWORLD_API_KEY");
-        String body = HttpSupport.retry(3, () -> {
+        String body = HttpSupport.retry(3, () -> metrics.time(PROVIDER, "GetFeature", () -> {
             try {
                 return http.get().uri(u -> u.path("/req/data").queryParam("service", "data")
                         .queryParam("version", "2.0").queryParam("request", "GetFeature")
@@ -55,7 +58,7 @@ public class VworldClient {
             } catch (RestClientException e) {
                 throw new UpstreamException(PROVIDER, e.getMessage(), e);
             }
-        });
+        }));
         JsonNode res = mapper.readTree(body).path("response");
         String status = Json.text(res, "status");
         if ("NOT_FOUND".equals(status)) return new Page(page, 0, 0, List.of());

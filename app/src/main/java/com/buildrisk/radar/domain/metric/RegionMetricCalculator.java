@@ -18,9 +18,20 @@ public final class RegionMetricCalculator {
     private static final MathContext MC = new MathContext(20, RoundingMode.HALF_UP);
     private static final DateTimeFormatter YM = DateTimeFormatter.ofPattern("yyyyMM");
 
-    /** unsold/sale/jeonse: YYYYMM → 값, households: YYYY → 값 */
+    /** unsold/sale/jeonse/trades/cancels/priceM2: YYYYMM → 값, households: YYYY → 값 */
     public record Series(NavigableMap<String, BigDecimal> unsold, NavigableMap<String, BigDecimal> sale,
-                         NavigableMap<String, BigDecimal> jeonse, NavigableMap<String, BigDecimal> households) {}
+                         NavigableMap<String, BigDecimal> jeonse, NavigableMap<String, BigDecimal> households,
+                         NavigableMap<String, BigDecimal> trades, NavigableMap<String, BigDecimal> cancels,
+                         NavigableMap<String, BigDecimal> priceM2) {
+        /** 실거래 없이 (기존 시계열만) */
+        public Series(NavigableMap<String, BigDecimal> unsold, NavigableMap<String, BigDecimal> sale,
+                      NavigableMap<String, BigDecimal> jeonse, NavigableMap<String, BigDecimal> households) {
+            this(unsold, sale, jeonse, households, new TreeMap<>(), new TreeMap<>(), new TreeMap<>());
+        }
+    }
+
+    private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
+    private static final String RTMS = "국토부 아파트 매매 실거래 (RTMSDataSvcAptTrade)";
 
     private RegionMetricCalculator() {}
 
@@ -28,6 +39,7 @@ public final class RegionMetricCalculator {
         TreeSet<String> periods = new TreeSet<>();
         periods.addAll(s.unsold().keySet());
         periods.addAll(s.sale().keySet());
+        periods.addAll(s.trades().keySet());
         List<MetricValue> out = new ArrayList<>();
         for (String p : periods) {
             String p3 = shift(p, -3);
@@ -78,8 +90,40 @@ public final class RegionMetricCalculator {
                 out.add(of(regionCd, p, "JEONSE_SALE_GAP", gap, gap == null ? "MISSING" : MetricValue.OK,
                         Map.of("saleChg3m", nz(dSale), "jeonseChg3m", nz(dJeonse))));
             }
+            if (s.trades().containsKey(p)) trade(regionCd, p, s, out);
         }
         return out;
+    }
+
+    /** 실거래 지표 (ADR-015): 거래 건수 · 전년 동월 대비 · 해제율 · ㎡당 중위가 · 전년 동월 대비 */
+    private static void trade(String regionCd, String p, Series s, List<MetricValue> out) {
+        String p12 = shift(p, -12);
+        BigDecimal n = s.trades().get(p), n12 = s.trades().get(p12), c = s.cancels().get(p);
+        out.add(of(regionCd, p, "TRADE_COUNT", n, MetricValue.OK,
+                Map.of("trades", nz(n), "cancelled", nz(c), "source", RTMS)));
+        Map<String, Object> cy = Map.of("trades", nz(n), "trades12mAgo", nz(n12), "period12mAgo", p12);
+        out.add(pctChange(regionCd, p, "TRADE_YOY", n, n12, cy));
+        BigDecimal total = c == null ? null : n.add(c);
+        Map<String, Object> cc = Map.of("cancelled", nz(c), "trades", nz(n));
+        if (total == null) {
+            out.add(of(regionCd, p, "CANCEL_RATE", null, "MISSING", cc));
+        } else if (total.signum() == 0) {
+            out.add(of(regionCd, p, "CANCEL_RATE", null, "ZERO_DENOM", cc));
+        } else {
+            out.add(of(regionCd, p, "CANCEL_RATE", c.multiply(HUNDRED).divide(total, MC), MetricValue.OK, cc));
+        }
+        BigDecimal m = s.priceM2().get(p), m12 = s.priceM2().get(p12);
+        out.add(of(regionCd, p, "PRICE_M2_MEDIAN", m, m == null ? "MISSING" : MetricValue.OK,
+                Map.of("trades", nz(n), "source", RTMS)));
+        out.add(pctChange(regionCd, p, "PRICE_M2_YOY", m, m12,
+                Map.of("priceM2", nz(m), "priceM2_12mAgo", nz(m12), "period12mAgo", p12)));
+    }
+
+    private static MetricValue pctChange(String r, String p, String code, BigDecimal v, BigDecimal base, Map<String, Object> c) {
+        if (v == null || base == null) return of(r, p, code, null, "MISSING", c);
+        if (base.signum() == 0) return v.signum() == 0 ? of(r, p, code, BigDecimal.ZERO, MetricValue.OK, c)
+                : of(r, p, code, null, "ZERO_DENOM", c);
+        return of(r, p, code, v.subtract(base).divide(base, MC).multiply(HUNDRED), MetricValue.OK, c);
     }
 
     public static String shift(String yyyymm, int months) {

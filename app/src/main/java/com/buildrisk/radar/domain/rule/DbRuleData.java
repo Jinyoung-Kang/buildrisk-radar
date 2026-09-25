@@ -19,8 +19,11 @@ public class DbRuleData implements RuleData {
     private final MetricRepository metrics;
     private final DisclosureRepository disclosures;
     private final AppProperties.Batch cfg;
+    private final com.buildrisk.radar.domain.filing.ExposureRepository exposure;
 
-    public DbRuleData(MetricRepository metrics, DisclosureRepository disclosures, AppProperties props) {
+    public DbRuleData(MetricRepository metrics, DisclosureRepository disclosures, AppProperties props,
+                      com.buildrisk.radar.domain.filing.ExposureRepository exposure) {
+        this.exposure = exposure;
         this.metrics = metrics;
         this.disclosures = disclosures;
         this.cfg = props.batch();
@@ -38,6 +41,12 @@ public class DbRuleData implements RuleData {
 
     @Override
     public List<DisclosureEvent> disclosures(String corpCode, LocalDate since) { return disclosures.events(corpCode, since); }
+
+    @Override
+    public List<RuleModels.ContractFact> contracts(String corpCode, LocalDate since) { return exposure.contracts(corpCode, since); }
+
+    @Override
+    public List<RuleModels.GuaranteeFact> guarantees(String corpCode, LocalDate since) { return exposure.guarantees(corpCode, since); }
 
     @Override
     public int windowSize(TargetType type) {

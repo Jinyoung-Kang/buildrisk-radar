@@ -51,6 +51,7 @@ class ApiIT extends IntegrationTest {
         mvc.perform(put("/api/v1/rules/R-C02").header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.version").value(2))
+                .andExpect(jsonPath("$.createdBy").value("service-token"))
                 .andExpect(jsonPath("$.params.threshold").value(0.9))
                 .andExpect(jsonPath("$.params.consecutive").value(2));
         mvc.perform(get("/api/v1/rules/R-C02")).andExpect(jsonPath("$.versions", hasSize(2)));
@@ -66,10 +67,18 @@ class ApiIT extends IntegrationTest {
     void 배치_실행은_202_와_실행_ID_없는_Job_은_404() throws Exception {
         mvc.perform(post("/api/v1/batch/jobs/nope/launch").header("X-Admin-Token", ADMIN))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("JOB_NOT_FOUND"));
+        jdbc.update("DELETE FROM ops.job_request");
         mvc.perform(post("/api/v1/batch/jobs/ruleEvalJob/launch").header("X-Admin-Token", ADMIN)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"restart\":false}"))
-                .andExpect(status().isAccepted()).andExpect(jsonPath("$.jobExecutionId", notNullValue()));
-        mvc.perform(get("/api/v1/batch/jobs")).andExpect(jsonPath("$.jobs", hasSize(10)));
+                .andExpect(status().isAccepted()).andExpect(jsonPath("$.requestId", notNullValue()))
+                .andExpect(jsonPath("$.status").value("QUEUED"));
+        mvc.perform(post("/api/v1/batch/jobs/ruleEvalJob/launch").header("X-Admin-Token", ADMIN))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("JOB_ALREADY_RUNNING"));   // 대기 중 중복
+        mvc.perform(post("/api/v1/batch/jobs/boundaryLoadJob/launch").header("X-Admin-Token", ADMIN)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"source\":\"NOPE\"}"))
+                .andExpect(status().isBadRequest());                                                   // 큐에 넣기 전 검증
+        jdbc.update("DELETE FROM ops.job_request");
+        mvc.perform(get("/api/v1/batch/jobs")).andExpect(jsonPath("$.jobs", hasSize(13)));
     }
 
     @Test
@@ -79,10 +88,13 @@ class ApiIT extends IntegrationTest {
                 INSERT INTO risk.alert (rule_code, rule_version, target_type, target_key, as_of, severity, title, message, evidence, status)
                 VALUES ('R-C02', 1, 'COMPANY', '00000008', '2026Q2', 'HIGH', 't', 'm', '{"condition":"x"}', 'OPEN') RETURNING alert_id""", Long.class);
         mvc.perform(patch("/api/v1/alerts/" + id).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"ACK\"}"))
+                .andExpect(status().isUnauthorized());                                              // 익명은 ACK 불가
+        mvc.perform(patch("/api/v1/alerts/" + id).header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"ACK\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACK"))
+                .andExpect(jsonPath("$.ackedBy").value("service-token"))
                 .andExpect(jsonPath("$.evidence.condition").value("x"));
         jdbc.update("UPDATE risk.alert SET status = 'CLOSED', close_reason = 'RESOLVED' WHERE alert_id = ?", id);
-        mvc.perform(patch("/api/v1/alerts/" + id).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"OPEN\"}"))
+        mvc.perform(patch("/api/v1/alerts/" + id).header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"OPEN\"}"))
                 .andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/alerts/424242")).andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ALERT_NOT_FOUND"));
@@ -90,11 +102,11 @@ class ApiIT extends IntegrationTest {
 
     @Test
     void 잘못된_요청은_500_이_아니라_4xx() throws Exception {
-        mvc.perform(patch("/api/v1/alerts/1").contentType(MediaType.APPLICATION_JSON).content("not json"))
+        mvc.perform(patch("/api/v1/alerts/1").header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON).content("not json"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
-        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/alerts/1"))
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/alerts/1").header("X-Admin-Token", ADMIN))
                 .andExpect(status().isMethodNotAllowed()).andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"));
-        mvc.perform(patch("/api/v1/alerts/1").contentType(MediaType.TEXT_PLAIN).content("x"))
+        mvc.perform(patch("/api/v1/alerts/1").header("X-Admin-Token", ADMIN).contentType(MediaType.TEXT_PLAIN).content("x"))
                 .andExpect(status().isUnsupportedMediaType());
         mvc.perform(get("/api/v1/batch/executions").param("limit", "-1")).andExpect(status().isOk());
         mvc.perform(get("/api/v1/batch/executions").param("limit", "abc")).andExpect(status().isBadRequest())

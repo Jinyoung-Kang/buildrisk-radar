@@ -15,13 +15,13 @@ public final class AlertDtos {
                               String severity, String targetType, String targetKey, String targetName, String asOf,
                               String title, String message, String status, String closeReason, Map<String, Object> evidence,
                               OffsetDateTime firstSeenAt, OffsetDateTime lastEvaluatedAt, OffsetDateTime ackedAt,
-                              OffsetDateTime closedAt, String calcRunId, String disclaimer) {}
+                              String ackedBy, OffsetDateTime closedAt, String calcRunId, String disclaimer) {}
 
     public record StatusChange(String status) {}
 
     public record RuleView(String ruleCode, int version, String targetType, String nameKo, String description,
                            Map<String, Object> params, String severity, boolean enabled, String condition,
-                           String changeNote, OffsetDateTime createdAt, long openAlerts) {}
+                           String changeNote, String createdBy, OffsetDateTime createdAt, long openAlerts) {}
 
     public record RuleHistory(String ruleCode, List<RuleView> versions) {}
 
