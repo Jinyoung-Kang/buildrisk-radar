@@ -55,12 +55,12 @@ API · worker 를 나눈 **DB 큐 기반 배치 아키텍처**, 세션 + CSRF ·
 | **설명 가능한 규칙 엔진** | 로직 = Java 클래스, 임계값 = DB 버전. 경보 멱등키(규칙·버전·대상·시점), 근거 JSON, 자동 CLOSED(RESOLVED·SUPERSEDED·RULE_CHANGED·EXPIRED) | `RuleEvaluatorTest` · `RuleEvalJobIT` |
 | **추적성** | 지표·경보 → 표준계정 → 원천 행 → DART 접수번호 / 통계표 ID → 수집 run(`collect_run`) · 계산 run(`calc_run`) | 경보 근거의 `sources` · `calcRunId` |
 | **API · worker 분리, DB 실행 요청 큐** ([ADR-012](docs/adr/012-api-worker-queue.md)) | API 는 요청만 넣고(202), worker 가 `FOR UPDATE SKIP LOCKED` 로 가져가 실행. 부분 유니크 인덱스로 중복 요청 409, advisory lock 으로 프로세스 간 중복 시작 차단, worker 등록부(하트비트)로 죽은 worker 의 요청만 정리. API 컨테이너에는 외부 API 키가 없음 | `JobRequestQueueIT` — 동시 claim 정확히 1회 · 요청 체인 · **서로 다른 Job 동시 시작(실데이터에서 발견한 SERIALIZABLE 충돌 재현 → 수정)** |
-| **보안** ([ADR-013](docs/adr/013-security.md) · [014](docs/adr/014-db-least-privilege.md)) | 세션(Redis, HttpOnly·SameSite=Strict) + CSRF(`csrf.spa()`), 역할(ANALYST·ADMIN), 스크립트용 서비스 토큰, 로그인 잠금, IP 레이트리밋, **거부된 시도까지 남는 감사 로그**, CSP 등 보안 헤더, 단일 진입점(web), **DML 전용 DB 계정 · 추가 전용 감사 테이블**, 읽기 전용 컨테이너 · capability 제거 | `SecurityIT` · `LeastPrivilegeIT` · E2E · k6 로 429 확인 · CI 의 gitleaks · CodeQL · Trivy |
+| **보안** ([ADR-013](docs/adr/013-security.md) · [014](docs/adr/014-db-least-privilege.md)) | 세션(Redis, HttpOnly·SameSite=Strict) + CSRF(`csrf.spa()`), 역할(ANALYST·ADMIN), 스크립트용 서비스 토큰, 로그인 잠금, IP 레이트리밋, **거부된 시도까지 남는 감사 로그**, CSP 등 보안 헤더, 단일 진입점(edge — X-Forwarded-For 덮어쓰기), **DML 전용 DB 계정 · 추가 전용 감사 테이블**, 읽기 전용 컨테이너 · capability 제거 | `SecurityIT` · `LeastPrivilegeIT` · E2E · k6 로 429 확인 · CI 의 gitleaks · CodeQL · Trivy |
 | **공시 원문 구조화** ([ADR-016](docs/adr/016-filing-structuring.md)) | document.xml 원문을 그대로 보관 + 파서 버전 → 서식이 다른 유가·코스닥·자율공시·정정·해지를 '항목 경로'로 파싱. 파서를 고치면 **API 호출 0건으로 1,313건 재파싱(3.8초)** | 실제 원문 7건 `FilingParserTest` · `FilingJobIT` |
 | **기업 × 지역 교차 신호** | 공사 지역 주소 → 시군구(정확 대조만, 추정 없음) → 그 지역 미분양과 결합해 R-X01, 채무보증 잔액으로 R-C05, 실거래 거래량 급감 + 미분양 증가로 R-R03 | `ExposureRulesTest` · `AddressRegionMatcherTest` |
 | **경보의 사후 검증** ([ADR-017](docs/adr/017-stock-backtest.md)) | 경보 근거 공시가 공개된 날 다음 거래일부터 20·60·120거래일 업종 대비 초과수익률. 수정주가가 아닌 원천 종가 → 주식수 변동 구간 제외, 겹침 제외, 비교 기준 분포 · t 값 · 한계 표시 | `EventStudyTest` |
-| **성능 · 관측** ([ADR-018](docs/adr/018-observability.md)) | 외부 API Step 청크 안 가상 스레드 동시 처리(호출 간격·일일 상한은 스레드 안전하게 유지), 실거래 월 파티션, Redis 캐시. Prometheus 지표(외부 API 제공기관별 지연·결과) · ECS 로그 · Grafana | k6 50 VU: **445 req/s · API p95 176 ms · 오류 0** |
-| **실데이터 검증** | 8개 출처 실데이터로 전체 배치를 돌리고 문제 40건을 재현 → 수정 → 회귀 테스트로 고정 (재시작 누락, 좀비 실행, 순액·액면 이중 공시, 공시 오탐, 동시 시작 직렬화 충돌, 자율공시 서식 …) | [docs/VERIFICATION.md](docs/VERIFICATION.md) |
+| **성능 · 관측** ([ADR-018](docs/adr/018-observability.md)) | 외부 API Step 청크 안 가상 스레드 동시 처리(호출 간격·일일 상한은 스레드 안전하게 유지), 실거래 월 파티션, Redis 캐시. Prometheus 지표(외부 API 제공기관별 지연·결과) · ECS 로그 · Grafana | k6 50 VU: **766 req/s · API p95 177 ms · 오류 0** |
+| **실데이터 검증** | 8개 출처 실데이터로 전체 배치를 돌리고 문제 41건을 재현 → 수정 → 회귀 테스트로 고정 (재시작 누락, 좀비 실행, 순액·액면 이중 공시, 공시 오탐, 동시 시작 직렬화 충돌, 자율공시 서식 …) | [docs/VERIFICATION.md](docs/VERIFICATION.md) |
 
 ---
 
@@ -70,7 +70,7 @@ API · worker 를 나눈 **DB 큐 기반 배치 아키텍처**, 세션 + CSRF ·
 cd ~/Projects/buildrisk-radar
 cp .env.example .env      # 외부 API 키 입력 — 비밀값(ADMIN_PASSWORD · DB · Redis · Grafana)은 make 가 무작위로 채움
 make smoke                # 키가 실제로 동작하는지 확인
-make up                   # db · redis · api · worker · web 기동 (처음 빌드 약 3~4분)
+make up                   # db · redis · api · worker · web · edge 기동 (처음 빌드 약 3~4분)
 make regions              # 지역: 경계 → 총가구 → 미분양 → 가격지수 → 실거래 → 지표 → 규칙
 make batch-all            # 전체: DART 고유번호 → 기업개황 → 재무제표 → 공시 → 원문 구조화 → … → 주가 (처음 1~2시간)
 open http://localhost:3400   # 조회는 로그인 없이, 변경은 admin / .env 의 ADMIN_PASSWORD
@@ -96,8 +96,8 @@ make obs                  # (선택) Prometheus :9490 · Grafana :3401
 
 | 주소 | 내용 |
 |---|---|
-| http://localhost:3400 | 화면 — **유일한 외부 진입점** (api 포트는 열지 않음) |
-| http://localhost:3400/swagger-ui/index.html | API 문서 (springdoc, web 프록시 경유) |
+| http://localhost:3400 | edge(nginx) — **유일한 외부 진입점**. 화면은 web, `/api/v1` · Swagger 는 api 로 (둘 다 포트 미공개) |
+| http://localhost:3400/swagger-ui/index.html | API 문서 (springdoc, edge 경유) |
 | http://localhost:3401 · :9490 | Grafana · Prometheus (`make obs`) |
 
 ---
@@ -107,10 +107,11 @@ make obs                  # (선택) Prometheus :9490 · Grafana :3401
 ```mermaid
 flowchart TB
   user["브라우저"]
-  subgraph edge["외부 공개: 127.0.0.1:3400 하나"]
-    web["web · Next.js 15 (React 18 · Tailwind · Recharts · 카카오 지도)<br/>CSP · /api · /swagger-ui 프록시"]
+  subgraph edgezone["외부 공개: 127.0.0.1:3400 하나"]
+    edge["edge · nginx<br/>X-Forwarded-For = 실제 접속 주소로 덮어씀"]
   end
   subgraph internal["내부망 (포트 미공개)"]
+    web["web · Next.js 15 (React 18 · Tailwind · Recharts · 카카오 지도)<br/>CSP"]
     api["api · Spring Boot 4.1 / Java 25<br/>REST · Spring Security(세션+CSRF · 역할 · 토큰)<br/>레이트리밋 · 감사 로그 · 외부 API 키 없음"]
     worker["worker · 같은 이미지<br/>요청 큐 소비(SKIP LOCKED) · 스케줄러<br/>Spring Batch Job 13개 · 외부 API 호출"]
     pg[("PostgreSQL 16 + PostGIS<br/>ref · dart · mkt · risk · ops + BATCH_*<br/>런타임 계정 buildrisk_app = DML 전용")]
@@ -120,9 +121,10 @@ flowchart TB
   ext["Open DART · KOSIS · R-ONE · SGIS · V-World<br/>국토부 실거래가 · 금융위 주식시세"]
   kakao["카카오 지도 JS"]
 
-  user --> web
+  user --> edge
   user -.-> kakao
-  web -- "X-Forwarded-For" --> api
+  edge -- "화면" --> web
+  edge -- "/api/v1 · Swagger (edge IP 만 신뢰)" --> api
   api -- "실행 요청 INSERT (202)" --> pg
   worker -- "claim · JobRepository · 적재" --> pg
   worker -- "HTTPS · 일일 상한 · 호출 간격" --> ext
@@ -164,9 +166,9 @@ sequenceDiagram
 | 캐시 · 세션 | Redis 7 | 세대 키 `br:gen` 무효화 · 세션 · 레이트리밋 · 로그인 잠금 |
 | 화면 | Next.js 15 (Pages Router) · React 18 · TypeScript · Tailwind · Recharts 3 · 카카오 지도 | 접근성 탭 · 좁은 화면 메뉴 · 역할에 따른 버튼 · CSP |
 | 관측 | Micrometer → Prometheus · Grafana · ECS 구조화 로그 | 관리 포트 8411 분리 ([ADR-018](docs/adr/018-observability.md)) |
-| 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright · **k6** | 백엔드 139개 · E2E 13개 · 부하 · 레이트리밋 |
+| 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright · **k6** | 백엔드 139개 · E2E 14개 · 부하 · 레이트리밋 |
 | 도구 | Python 3.11 (표준 라이브러리) | 외부 API 키 스모크 · 골든 fixture 캡처 (`tools/smoke.py`) |
-| 운영 · CI | Docker Compose(읽기 전용 · cap_drop · no-new-privileges) · Makefile · GitHub Actions | 테스트 · gitleaks · **CodeQL** · **Trivy** · Dependabot |
+| 운영 · CI | Docker Compose(읽기 전용 · cap_drop · no-new-privileges) · nginx(edge) · Makefile · GitHub Actions | 테스트 · gitleaks · **CodeQL** · **Trivy** · Dependabot |
 | 도입하지 않음 | Kafka/CDC · ClickHouse · Kubernetes | 이유와 도입 조건: [ADR-011](docs/adr/011-out-of-scope-infra.md) |
 
 ---
@@ -268,8 +270,8 @@ R-R01 의 `minUnsoldUnits` 는 구현 중 추가한 파라미터입니다 — �
 
 ```bash
 make test        # 백엔드 139개 (단위·골든 + Testcontainers 통합) + 웹 타입 검사
-make e2e         # Playwright 13개 (스택이 떠 있어야 함, 관리자 로그인 시나리오 포함)
-make load        # k6 부하 (50 VU · 90초, web 프록시 경유)
+make e2e         # Playwright 14개 (스택이 떠 있어야 함, 관리자 로그인 · XFF 위조 시나리오 포함)
+make load        # k6 부하 (50 VU · 90초, edge 경유)
 make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 ```
 
@@ -294,14 +296,14 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 | DART 고유번호 119,447건 적재 (StAX 스트리밍) | 4.2 s | — |
 | 기업개황 3,994건 (DART 호출 간격 200 ms) | 약 12분 | — |
 | 빈 DB → `make up` → `make regions` | 49 s + 18 s | README 대로 첫 화면 (FR-701) |
-| **k6 50 VU · 90 s (web 프록시 경유, 조회 API 9종 혼합)** | **445 req/s · 40,235건 · 오류 0 · API p95 176 ms · GeoJSON p95 243 ms** | API p95 < 300 ms · 지도 < 1 s |
-| 레이트리밋 (20 VU · 20 s, 한 IP) | 1,200건 200 · 29,243건 429(Retry-After) — 한도와 정확히 일치 | 분당 1,200 |
+| **k6 50 VU · 90 s (edge 경유, 조회 API 9종 혼합)** | **766 req/s · 69,114건 · 오류 0 · API p95 177 ms · GeoJSON p95 97 ms** (Next 프록시 경유였을 때 445 req/s · GeoJSON 243 ms) | API p95 < 300 ms · 지도 < 1 s |
+| 레이트리밋 (20 VU · 20 s, 한 IP) | 1,200건 200 · 나머지 429(Retry-After) — 한도와 정확히 일치, 위조 X-Forwarded-For 로 우회 불가 | 분당 1,200 |
 | 실거래 수집 6,400 (시군구×월) · 110만 행 | 420 s (6,417 호출, 동시 4) | 일일 상한 9,000 이내 |
 | 청크 안 동시 호출 A/B (실거래 256 호출) | 순차 23.3 s → 동시 4 17.8 s (−24%) — 이후는 공급자 보호용 호출 간격(60 ms ≈ 16.7건/s)이 천장 | — |
 | 공시 원문 1,313건 수집·구조화 | 263 s (DART 호출 간격 200 ms 가 천장) · **파서 개정 후 재파싱 3.8 s · 호출 0** | — |
 | 주가 43종목 × 3년 (31,138행) | 27 s (43 호출) | — |
 
-데이터 품질·적재 결과와 실데이터·정적 분석으로 찾은 문제 40건은 [docs/VERIFICATION.md](docs/VERIFICATION.md).
+데이터 품질·적재 결과와 실데이터·정적 분석으로 찾은 문제 41건은 [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
 ## 8. 설계서 미결정 사항 → 결과
 
@@ -345,6 +347,6 @@ buildrisk-radar/
 ├─ seed/                     표준계정 · 매핑 규칙 · 업종코드 · 이벤트 사전 · 규칙 · 통계 시리즈 · 지역 별칭
 ├─ tools/smoke.py            외부 API 키 스모크 · 골든 fixture 캡처
 ├─ docs/adr/                 설계 결정 기록 19건
-├─ docs/VERIFICATION.md      실데이터 검증 기록 (적재 결과 · 품질 · 찾아서 고친 문제 40건 · 성능 · 보안 확인)
+├─ docs/VERIFICATION.md      실데이터 검증 기록 (적재 결과 · 품질 · 찾아서 고친 문제 41건 · 성능 · 보안 확인)
 ├─ docker-compose.yml · Makefile · .env.example · .github/ (ci · codeql · dependabot)
 ```

@@ -3,7 +3,7 @@ import http from "k6/http";
 import { check } from "k6";
 import { Counter } from "k6/metrics";
 
-const BASE = __ENV.BASE || "http://web:3400";
+const BASE = __ENV.BASE || "http://edge:8080";
 const limited = new Counter("rate_limited");
 export const options = { vus: 20, duration: "20s", thresholds: { rate_limited: ["count>0"] } };
 

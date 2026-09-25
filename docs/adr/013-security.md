@@ -16,7 +16,7 @@
 | 감사 로그 | 모든 변경 요청(POST·PUT·PATCH·DELETE)을 결과 상태와 함께 `ops.audit_log` 에 — **거부된 시도(401·403)도**. 경로 템플릿 · 요청 본문(4KB) · IP · traceId. 로그인 본문(비밀번호)은 남기지 않음. `GET /api/v1/admin/audit` |
 | 누가 바꿨나 | 규칙 버전 `created_by`, 경보 `acked_by` |
 | 보안 헤더 | API: `CSP default-src 'none'` · nosniff · DENY · no-referrer. Web(Next): CSP(인라인 스크립트 없음 — 테마 초기화도 파일로) · 카카오맵 도메인만 허용 |
-| 진입점 | 외부 공개 포트는 web(:3400) 하나. api 포트를 열지 않는다 — `X-Forwarded-For` 를 믿는 프록시가 web 뿐이어야 레이트리밋·감사 로그의 IP 를 위조할 수 없다 |
+| 진입점 | 외부 공개 포트는 **edge(nginx, :3400)** 하나. edge 는 `X-Forwarded-For` 를 실제 접속 주소로 **덮어쓰고**, api 는 고정 IP 의 edge 만 신뢰한다(`server.tomcat.remoteip.internal-proxies`). 처음에는 'api 포트를 닫고 web(Next) 만 공개'로 충분하다고 봤으나, 재검증에서 Next rewrites 가 XFF 를 전달만 해 위조가 통과하고 사용자 전체가 버킷 하나를 공유함을 발견(VERIFICATION 41) |
 
 **검증** `SecurityIT`(6) · `LeastPrivilegeIT`(2): CSRF 없는 로그인 403 · 역할별 허용/거부 · 세션 쿠키 속성 · 로그아웃 · 잠금 429(다른 IP 영향 없음) ·
 레이트리밋 429 · 잘못된 토큰·익명 변경 시도가 감사에 남음 · 감사 로그에 비밀번호 없음.

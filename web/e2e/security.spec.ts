@@ -43,3 +43,18 @@ test("관리자 로그인 → 수정 버튼 · 감사 로그 → 로그아웃", 
   await page.getByRole("button", { name: "로그아웃" }).first().click();
   await expect(page.getByRole("link", { name: "로그인" }).first()).toBeVisible();
 });
+
+test("X-Forwarded-For 위조는 감사 로그 IP 를 바꾸지 못함 (edge 가 덮어씀)", async ({ page, request }) => {
+  test.skip(!ADMIN, "E2E_ADMIN_PASSWORD 미설정");
+  const forged = "198.51.100.123";
+  const res = await request.put("/api/v1/rules/R-C01", { headers: { "X-Forwarded-For": forged, "Content-Type": "application/json" }, data: {} });
+  expect(res.status()).toBe(401);
+  await page.goto("/login?next=/admin/audit");
+  await page.getByLabel("아이디").fill("admin");
+  await page.getByLabel("비밀번호").fill(ADMIN!);
+  await page.getByRole("button", { name: "로그인" }).click();
+  await expect(page).toHaveURL(/\/admin\/audit/);
+  await expect(page.getByText(/^PUT \/api\/v1\/rules\//).first()).toBeVisible();      // 위조 요청도 감사됨
+  await expect(page.getByText(forged)).toHaveCount(0);                                   // 그러나 위조 IP 는 기록되지 않음
+});
+

@@ -5,12 +5,13 @@
 #   redis   조회 캐시 · 세션 · 레이트리밋 (비밀번호, 영속화 끔)
 #   api     Spring Boot 4.1 — REST 만 (외부 API 키 없음). 배치 실행은 요청 큐에 넣기만 (ADR-012)
 #   worker  같은 이미지 — 요청 큐 소비 · 스케줄 · 외부 API 호출 (키는 여기만)
-#   web     Next.js 15 :3400 — 유일한 외부 진입점. /api · /swagger-ui 는 api 로 프록시
+#   edge    nginx :3400 — 유일한 외부 진입점. /api/v1 · /swagger-ui → api, 나머지 → web. X-Forwarded-For 를 덮어씀
+#   web     Next.js 15 — 화면 (포트 미공개)
 #   batch   (profile batch) 일회성 CLI 실행 — make batch-all / make job JOB=…
 #   prometheus · grafana  (profile obs) — make obs
 #
-# 공개 포트는 127.0.0.1 에만 (NFR-07). api 는 포트를 열지 않습니다: X-Forwarded-For 를 믿는 프록시가 web 하나뿐이어야
-# 레이트리밋·감사 로그의 클라이언트 IP 를 속일 수 없습니다. 관리 포트(8411: health · prometheus)는 내부망 전용.
+# 공개 포트는 127.0.0.1 에만 (NFR-07). api · web 은 포트를 열지 않고, api 는 고정 IP(10.213.0.10)의 edge 만 믿습니다 —
+# 그래야 레이트리밋·감사 로그의 클라이언트 IP 를 헤더 위조로 속일 수 없습니다. 관리 포트(8411: health · prometheus)는 내부망 전용.
 # =============================================================================
 
 x-app-env: &app-env
@@ -112,6 +113,7 @@ services:
       ANALYST_PASSWORD: ${ANALYST_PASSWORD:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-1200}
+      TRUSTED_PROXY_REGEX: 10\.213\.0\.10          # edge(고정 IP)만 X-Forwarded-For 를 믿음
     volumes:
       - ./seed:/app/seed:ro
     <<: *hardening
@@ -155,14 +157,30 @@ services:
       api: { condition: service_healthy }
     environment:
       NEXT_PUBLIC_KAKAO_JS_KEY: ${NEXT_PUBLIC_KAKAO_JS_KEY:-}
-    ports:
-      - "127.0.0.1:3400:3400"
     read_only: true
     tmpfs:
       - /tmp
       - /app/.next/cache:uid=1000,gid=1000
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+
+  # 유일한 외부 진입점 — X-Forwarded-For 를 실제 접속 주소로 덮어쓰는 리버스 프록시
+  edge:
+    restart: unless-stopped
+    image: nginx:1.27-alpine
+    user: "101:101"
+    command: ["nginx", "-g", "daemon off;"]
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_started }
+    volumes:
+      - ./ops/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "127.0.0.1:3400:8080"
+    networks:
+      default:
+        ipv4_address: 10.213.0.10               # api 가 믿는 유일한 프록시
+    <<: *hardening
 
   # ---------------------------------------------------------------- 관측 (make obs)
   prometheus:
@@ -193,6 +211,12 @@ services:
     ports:
       - "127.0.0.1:3401:3000"
     security_opt: [no-new-privileges:true]
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 10.213.0.0/24
 
 volumes:
   db-data:

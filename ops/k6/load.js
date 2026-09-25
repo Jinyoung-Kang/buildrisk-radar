@@ -1,10 +1,10 @@
 // k6 부하 테스트 — web(Next 프록시) → api 경로로 조회 API 를 섞어 호출 (make load)
-//   BASE: 기본 http://web:3400 (compose 네트워크 안에서 실행)
+//   BASE: 기본 http://edge:8080 (compose 네트워크 안, 실제 진입점 경유)
 //   조회만 부름 — 변경 API 는 부하 대상이 아님
 import http from "k6/http";
 import { check } from "k6";
 
-const BASE = __ENV.BASE || "http://web:3400";
+const BASE = __ENV.BASE || "http://edge:8080";
 
 export const options = {
   scenarios: {

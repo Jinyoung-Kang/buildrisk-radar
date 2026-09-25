@@ -79,6 +79,8 @@ test-web:
 
 # 관리자 로그인 시나리오는 .env 의 ADMIN_PASSWORD 를 환경변수로만 넘김 (화면·로그에 출력하지 않음)
 e2e:
+	@# 반복 실행하면 같은 IP 의 로그인 실패가 쌓여 잠금(설계대로)이 걸리므로 잠금 카운터만 비움
+	@$(COMPOSE) exec -T redis sh -c 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli --scan --pattern "br:login:*" | xargs -r env REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli del' > /dev/null
 	cd web && npx playwright install chromium && E2E_ADMIN_PASSWORD="$$(grep -E '^ADMIN_PASSWORD=' ../.env | cut -d= -f2-)" npx playwright test smoke security insight
 
 # k6 부하 (compose 네트워크 안에서 web 프록시 경유). 레이트리밋은 IP 당이라 부하 측정 동안만 끔
