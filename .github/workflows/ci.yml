@@ -63,7 +63,7 @@ jobs:
       GRAFANA_ADMIN_PASSWORD: ci-only
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - run: docker compose build api web
       - name: Trivy — app 이미지 (고칠 수 있는 CRITICAL 이 있으면 실패)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
