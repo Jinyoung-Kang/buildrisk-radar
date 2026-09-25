@@ -1,0 +1,12 @@
+# api · worker 의 관리 포트(8411, 내부망 전용)에서 15초마다 수집
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+scrape_configs:
+  - job_name: buildrisk
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["api:8411"]
+        labels: { service: api }
+      - targets: ["worker:8411"]
+        labels: { service: worker }

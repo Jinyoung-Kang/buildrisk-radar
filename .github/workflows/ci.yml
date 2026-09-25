@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: "21" }
+        with: { distribution: temurin, java-version: "25" }
       - uses: gradle/actions/setup-gradle@v4
       - name: 테스트 (PostGIS·Redis 컨테이너 + WireMock)
         run: ./gradlew test --no-daemon
@@ -43,11 +43,31 @@ jobs:
         with: { python-version: "3.11" }
       - run: python -m py_compile tools/smoke.py && python tools/smoke.py --help > /dev/null
 
+  secrets:
+    name: 비밀값 유출 검사 (gitleaks, 전체 이력)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: gitleaks
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest git /repo --no-banner --redact -v
+
   images:
-    name: Docker 이미지 빌드
+    name: Docker 이미지 빌드 · 취약점 검사 (Trivy)
     runs-on: ubuntu-24.04
     needs: [app, web]
+    env:
+      # compose 가 요구하는 비밀값 — 빌드에는 쓰이지 않는 CI 전용 더미
+      DB_APP_PASSWORD: ci-only
+      REDIS_PASSWORD: ci-only
+      GRAFANA_ADMIN_PASSWORD: ci-only
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - run: docker compose build app web
+      - run: docker compose build api web
+      - name: Trivy — app 이미지 (고칠 수 있는 CRITICAL 이 있으면 실패)
+        uses: aquasecurity/trivy-action@0.28.0
+        with: { image-ref: buildrisk-radar-app, severity: CRITICAL, ignore-unfixed: true, exit-code: "1", format: table }
+      - name: Trivy — web 이미지
+        uses: aquasecurity/trivy-action@0.28.0
+        with: { image-ref: buildrisk-radar-web, severity: CRITICAL, ignore-unfixed: true, exit-code: "1", format: table }

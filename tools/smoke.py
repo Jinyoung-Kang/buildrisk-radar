@@ -153,6 +153,38 @@ def vworld(env, r: Result):
           f"예 {[f['properties'].get('sig_kor_nm') for f in feats[:3]]} {d.get('error', '')}")
 
 
+def rtms(env, r: Result):
+    key = env.get("DATA_GO_KR_KEY")
+    if not key:
+        return r.add("실거래", None, "DATA_GO_KR_KEY 없음 — 건너뜀")
+    ym = (dt.date.today().replace(day=1) - dt.timedelta(days=45)).strftime("%Y%m")
+    _, body = get("https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade",
+                  {"serviceKey": key, "LAWD_CD": "11680", "DEAL_YMD": ym, "pageNo": 1, "numOfRows": 5})
+    text = body.decode("utf-8", "replace")
+    save("rtms_apt_trade", body, [key])
+    code = text.split("<resultCode>")[1].split("<")[0] if "<resultCode>" in text else None
+    total = text.split("<totalCount>")[1].split("<")[0] if "<totalCount>" in text else "?"
+    err = text.split("<returnAuthMsg>")[1].split("<")[0] if "<returnAuthMsg>" in text else ""
+    r.add("실거래", code in ("000", "00"), f"강남구 {ym} resultCode={code} totalCount={total} {err}")
+
+
+def stock(env, r: Result):
+    key = env.get("DATA_GO_KR_KEY")
+    if not key:
+        return r.add("주식시세", None, "DATA_GO_KR_KEY 없음 — 건너뜀")
+    today = dt.date.today()
+    _, body = get("https://apis.data.go.kr/1160100/GetStockSecuritiesInfoService_V2/getStockPriceInfo_V2",
+                  {"serviceKey": key, "resultType": "json", "likeSrtnCd": "000720", "numOfRows": 5,
+                   "beginBasDt": (today - dt.timedelta(days=14)).strftime("%Y%m%d"), "endBasDt": today.strftime("%Y%m%d")})
+    save("stock_price", body, [key])
+    try:
+        d = json.loads(body)["response"]
+        items = d["body"]["items"]["item"]
+        r.add("주식시세", d["header"]["resultCode"] == "00", f"현대건설 최근 {len(items)}일 · 예 {items[0]['basDt']} 종가 {items[0]['clpr']}")
+    except (ValueError, KeyError, IndexError, TypeError):
+        r.add("주식시세", False, body[:160].decode("utf-8", "replace"))
+
+
 def kakao(env, r: Result):
     key = env.get("NEXT_PUBLIC_KAKAO_JS_KEY")
     if not key:
@@ -189,7 +221,8 @@ def main():
     env = load_env()
     if a.capture_dart:
         return capture_dart(env, a.capture_dart.split(","), a.year, a.reprt)
-    checks = {"dart": dart, "kosis": kosis, "rone": rone, "sgis": sgis, "vworld": vworld, "kakao": kakao}
+    checks = {"dart": dart, "kosis": kosis, "rone": rone, "sgis": sgis, "vworld": vworld, "rtms": rtms, "stock": stock,
+              "kakao": kakao}
     only = a.only.split(",") if a.only else list(checks)
     print("외부 API 스모크 — 응답은 fixtures/smoke/ 에 키를 가린 채 저장합니다.")
     r = Result()
