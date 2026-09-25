@@ -1,20 +1,36 @@
-# 의존성 업데이트 PR — 주 1회, 묶어서 (보안 업데이트는 GitHub 이 즉시 따로 올림)
+# 의존성 업데이트 PR — 주 1회. 묶음 PR 은 minor · patch 만 (보안 업데이트는 GitHub 이 즉시 따로 올림).
+# 메이저 업그레이드(Next 16 · React 19 · Tailwind 4 · TypeScript 7 · Node 비 LTS 등)는 깨지는 변경이라 계획해서 직접 올립니다.
 version: 2
 updates:
   - package-ecosystem: gradle
     directory: /app
     schedule: { interval: weekly, day: monday }
-    groups: { spring: { patterns: ["org.springframework*"] }, others: { patterns: ["*"], exclude-patterns: ["org.springframework*"] } }
+    groups:
+      spring: { patterns: ["org.springframework*"], update-types: [minor, patch] }
+      others: { patterns: ["*"], exclude-patterns: ["org.springframework*"], update-types: [minor, patch] }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: npm
     directory: /web
     schedule: { interval: weekly, day: monday }
-    groups: { web: { patterns: ["*"] } }
+    groups:
+      web: { patterns: ["*"], update-types: [minor, patch] }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
     directory: /app
     schedule: { interval: weekly, day: monday }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
     directory: /web
     schedule: { interval: weekly, day: monday }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly, day: monday }
