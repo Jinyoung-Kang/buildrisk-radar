@@ -31,7 +31,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("org.springframework.boot:spring-boot-starter-security")
-    implementation("org.jsoup:jsoup:1.21.2")   // DART 공시 원문(HTML 서식) 구조화
+    implementation("org.jsoup:jsoup:1.23.2")   // DART 공시 원문(HTML 서식) 구조화
     implementation("org.springframework.boot:spring-boot-starter-session-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-restclient")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
