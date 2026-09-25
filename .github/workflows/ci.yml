@@ -66,8 +66,8 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - run: docker compose build api web
       - name: Trivy — app 이미지 (고칠 수 있는 CRITICAL 이 있으면 실패)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.36.0
         with: { image-ref: buildrisk-radar-app, severity: CRITICAL, ignore-unfixed: true, exit-code: "1", format: table }
       - name: Trivy — web 이미지
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.36.0
         with: { image-ref: buildrisk-radar-web, severity: CRITICAL, ignore-unfixed: true, exit-code: "1", format: table }
