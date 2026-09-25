@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import AdminToken from "@/components/AdminToken";
 import Layout from "@/components/Layout";
+import RequireRole from "@/components/RequireRole";
 import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle } from "@/components/ui";
-import { adminApi, qs, type Row } from "@/lib/api";
+import { mutate, qs, type Row } from "@/lib/api";
 import { dt, int } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/useApi";
 
 function ExecutionDetail({ id }: { id: number }) {
@@ -74,31 +75,52 @@ function ExecutionDetail({ id }: { id: number }) {
   );
 }
 
+const REQ_STATUS: Record<string, string> = { QUEUED: "대기", RUNNING: "실행 중", DONE: "완료", FAILED: "실패", CANCELLED: "취소" };
+
+function Workers({ workers }: { workers?: Row[] }) {
+  const live = (workers ?? []).filter((w) => w.live);
+  if (live.length === 0) {
+    return <div className="rounded-lg border border-serious/40 bg-serious/5 px-3 py-2 text-xs mb-3">
+      ⚠ 살아 있는 worker 가 없습니다 — 실행 요청이 대기열에 머뭅니다. <code>docker compose up -d worker</code></div>;
+  }
+  return (
+    <div className="text-xs text-ink2 mb-3 flex flex-wrap gap-x-4 gap-y-1">
+      {live.map((w) => (
+        <span key={w.workerId} title={`외부 API 키: ${(w.configuredKeys as string[]).join(", ") || "없음"}`}>
+          <span className="text-good">●</span> {w.workerId} · 실행 {w.inFlight}/{w.maxConcurrent} · 마지막 신호 {dt(w.lastSeenAt)}
+        </span>))}
+    </div>
+  );
+}
+
 export default function Batch() {
+  const { has } = useAuth();
+  const admin = has("ADMIN");
   const jobs = useApi<Row>("/batch/jobs");
+  const requests = useApi<Row[]>("/batch/requests?limit=15");
   const [filter, setFilter] = useState("");
   const execs = useApi<Row[]>(`/batch/executions${qs({ jobName: filter, limit: 60 })}`);
   const [sel, setSel] = useState<number | null>(null);
   const [err, setErr] = useState<Error | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const anyRunning = (jobs.data?.jobs as Row[] | undefined)?.some((j) => j.running);
+  const anyRunning = (jobs.data?.jobs as Row[] | undefined)?.some((j) => j.running || j.queued);
   useEffect(() => {
     if (!anyRunning) return;
-    const t = setInterval(() => { jobs.reload(); execs.reload(); }, 3000);
+    const t = setInterval(() => { jobs.reload(); execs.reload(); requests.reload(); }, 3000);
     return () => clearInterval(t);
-  }, [anyRunning, jobs, execs]);
+  }, [anyRunning, jobs, execs, requests]);
   const launch = async (name: string, fresh = false) => {
     setErr(null); setMsg(null);
     try {
-      const r = await adminApi<Row>(`/batch/jobs/${name}/launch`, "POST", fresh ? { restart: false } : {});
-      setMsg(`${name} ${r.restarted ? "재시작" : "시작"} — 실행 #${r.jobExecutionId}${r.plannedCalls != null ? ` · 미수집 조합 ${r.plannedCalls}건` : ""}${r.warning ? ` · ${r.warning}` : ""}`);
-      setSel(r.jobExecutionId); jobs.reload(); execs.reload();
+      const r = await mutate<Row>(`/batch/jobs/${name}/launch`, "POST", fresh ? { restart: false } : {});
+      setMsg(`${name} 실행 요청 #${r.requestId} 을 큐에 넣었습니다 — worker 가 곧 시작합니다${r.plannedCalls != null ? ` · 예상 호출 ${int(r.plannedCalls)}건` : ""}${r.warning ? ` · ${r.warning}` : ""}`);
+      jobs.reload(); execs.reload(); requests.reload();
     } catch (e) { setErr(e as Error); }
   };
   const recover = async (execId: number) => {
     setErr(null); setMsg(null);
     try {
-      await adminApi<Row>(`/batch/executions/${execId}/recover`, "POST");
+      await mutate<Row>(`/batch/executions/${execId}/recover`, "POST");
       setMsg(`실행 #${execId} 을 FAILED 로 정리했습니다. 다시 실행하면 마지막 커밋 이후부터 이어갑니다.`);
       jobs.reload(); execs.reload();
     } catch (e) { setErr(e as Error); }
@@ -106,11 +128,13 @@ export default function Batch() {
   const quota = Object.fromEntries(((jobs.data?.quota as Row[]) ?? []).map((q) => [q.provider, q.calls]));
   return (
     <Layout title="배치 모니터">
-      <PageTitle title="배치 모니터" sub="Spring Batch JobRepository(ops.BATCH_*) 기반. STOPPED·FAILED 인 Job 을 다시 실행하면 같은 JobInstance 를 restart 해 마지막 커밋 이후부터 이어갑니다."
-        right={<AdminToken />} />
+      <PageTitle title="배치 모니터" sub="실행 요청은 DB 큐(ops.job_request)에 들어가고 worker 가 가져가 실행합니다. STOPPED·FAILED 인 Job 을 다시 요청하면 같은 JobInstance 를 restart 해 마지막 커밋 이후부터 이어갑니다."
+        right={<RequireRole role="ADMIN"><span className="text-xs text-good">✓ 관리자 — 실행·정리 가능</span></RequireRole>} />
       <ErrorBox error={err ?? jobs.error} />
       {msg && <div className="text-sm text-good mb-3">{msg}</div>}
-      <div className="text-xs text-ink2 mb-3">오늘 DART 호출 {int(quota.DART ?? 0)} / 상한 {int(jobs.data?.dartDailyLimit)} · 스케줄러 {jobs.data?.schedulingEnabled ? "켜짐" : "꺼짐 (수동 실행)"}</div>
+      <Workers workers={jobs.data?.workers as Row[] | undefined} />
+      <div className="text-xs text-ink2 mb-3">오늘 호출 — DART {int(quota.DART ?? 0)} / 상한 {int(jobs.data?.dartDailyLimit)} · 실거래 {int(quota.RTMS ?? 0)} · 주가 {int(quota.FSC_STOCK ?? 0)}
+        · 스케줄러 {jobs.data?.schedulingEnabled ? "켜짐" : "꺼짐 (수동 실행)"}</div>
       <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-3 mb-5">
         {((jobs.data?.jobs as Row[]) ?? []).map((j, i) => (
           <div key={j.name} className="bg-raised rounded-xl shadow-card p-3 flex flex-col gap-1.5">
@@ -125,7 +149,9 @@ export default function Batch() {
                     하트비트 {dt(j.heartbeat)}{j.stale ? " · 멈춤" : ""}</span>}
                 </span>
               ) : <button className="text-left" onClick={() => j.last && setSel(j.last.jobExecutionId)}><JobStatus s={j.last?.status} /></button>}
-              {j.running && j.last ? (
+              {!admin ? (j.queued ? <span className="text-[11px] text-muted">대기 #{j.queued}</span> : null)
+              : j.queued ? <span className="text-[11px] text-muted" title="worker 가 가져가기를 기다리는 중">대기 중 #{j.queued}</span>
+              : j.running && j.last ? (
                 <button onClick={() => recover(j.last.jobExecutionId)} title="프로세스가 죽어 STARTED 로 남은 실행을 FAILED 로 정리"
                   className={`text-[11px] px-2 py-1 rounded border focus-ring ${j.stale ? "border-crit text-crit" : "border-line text-muted"}`}>
                   멈춘 실행 정리</button>
@@ -162,7 +188,26 @@ export default function Batch() {
             </div>
           )}
         </Card>
-        <Card title="실행 상세">{sel ? <ExecutionDetail key={sel} id={sel} /> : <Empty>실행을 고르면 Step·스킵 목록이 보입니다.</Empty>}</Card>
+        <div className="space-y-4">
+          <Card title="실행 상세">{sel ? <ExecutionDetail key={sel} id={sel} /> : <Empty>실행을 고르면 Step·스킵 목록이 보입니다.</Empty>}</Card>
+          <Card title="실행 요청 큐" sub="요청자 · 가져간 worker · 결과 (스케줄러 · 체인 요청 포함)" pad={false}>
+            {!requests.data ? <Loading /> : requests.data.length === 0 ? <Empty>요청이 없습니다.</Empty> : (
+              <div className="table-wrap max-h-80">
+                <table className="data-table compact">
+                  <thead><tr><th className="num">요청</th><th>Job</th><th>상태</th><th>요청자</th><th>실행</th><th>요청 시각</th></tr></thead>
+                  <tbody>{requests.data.map((r) => (
+                    <tr key={r.requestId} title={r.message ?? ""}>
+                      <td className="num text-muted">{r.requestId}</td><td className="font-medium">{r.jobName}</td>
+                      <td className={r.status === "FAILED" ? "text-crit" : r.status === "DONE" ? "text-good" : ""}>{REQ_STATUS[r.status] ?? r.status}</td>
+                      <td className="text-ink2 whitespace-nowrap">{r.requestedBy}</td>
+                      <td>{r.jobExecutionId ? <button className="text-accent hover:underline" onClick={() => setSel(r.jobExecutionId)}>#{r.jobExecutionId}</button> : "-"}</td>
+                      <td className="whitespace-nowrap text-ink2">{dt(r.requestedAt)}</td>
+                    </tr>))}</tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
     </Layout>
   );

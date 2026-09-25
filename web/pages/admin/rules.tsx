@@ -1,9 +1,10 @@
 import { Fragment, useState } from "react";
-import AdminToken from "@/components/AdminToken";
 import Layout from "@/components/Layout";
+import RequireRole from "@/components/RequireRole";
 import { ErrorBox, Loading, PageTitle, SeverityBadge } from "@/components/ui";
-import { adminApi, type RuleView } from "@/lib/api";
+import { mutate, type RuleView } from "@/lib/api";
 import { dt } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/useApi";
 
 function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) {
@@ -22,7 +23,7 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
       return [k, Array.isArray(orig) ? v.split(",").map((s) => s.trim()).filter(Boolean) : Number.isNaN(Number(v)) ? v : Number(v)];
     }));
     try {
-      const r = await adminApi<RuleView>(`/rules/${rule.ruleCode}`, "PUT", { params: body, severity, enabled, changeNote: note });
+      const r = await mutate<RuleView>(`/rules/${rule.ruleCode}`, "PUT", { params: body, severity, enabled, changeNote: note });
       setMsg(r.version === rule.version ? "바뀐 값이 없어 버전을 올리지 않았습니다." : `v${r.version} 을 만들었습니다. ruleEvalJob 을 실행하면 새 버전으로 평가합니다.`);
       onSaved(); history.reload();
     } catch (e) { setErr(e as Error); }
@@ -79,12 +80,13 @@ function useApiHistory(code: string) {
 }
 
 export default function Rules() {
+  const { has } = useAuth();
   const { data, error, reload } = useApi<RuleView[]>("/rules");
   const [open, setOpen] = useState<string | null>(null);
   return (
     <Layout title="규칙">
       <PageTitle title="규칙 관리" sub="로직은 코드(Java 클래스), 임계값·심각도는 DB 버전. 파라미터를 바꾸면 새 버전이 생기고 이전 경보는 이전 버전 번호를 유지합니다."
-        right={<AdminToken />} />
+        right={<RequireRole role="ADMIN"><span className="text-xs text-good">✓ 관리자 — 파라미터 수정 가능</span></RequireRole>} />
       <ErrorBox error={error} />
       {!data ? <Loading /> : (
         <div className="table-wrap bg-raised">
@@ -98,12 +100,12 @@ export default function Rules() {
                   <td className="whitespace-nowrap">{r.targetType === "COMPANY" ? "기업" : "지역"}</td>
                   <td><SeverityBadge s={r.severity} />{!r.enabled && <span className="sub">중지됨</span>}</td>
                   <td>{r.condition}<span className="sub">{r.description}</span></td>
-                  <td className="num">v{r.version}</td>
+                  <td className="num">v{r.version}{r.createdBy && r.createdBy !== "seed" && <span className="sub">{r.createdBy}</span>}</td>
                   <td className="num">{r.openAlerts}</td>
                   <td className="whitespace-nowrap text-right">
-                    <button onClick={() => setOpen(open === r.ruleCode ? null : r.ruleCode)}
+                    {has("ADMIN") && <button onClick={() => setOpen(open === r.ruleCode ? null : r.ruleCode)}
                       className="text-xs px-2.5 py-1 rounded-md border border-line hover:bg-page focus-ring">
-                      {open === r.ruleCode ? "닫기" : "파라미터 수정"}</button>
+                      {open === r.ruleCode ? "닫기" : "파라미터 수정"}</button>}
                   </td>
                 </tr>
                 {open === r.ruleCode && (

@@ -54,29 +54,88 @@ export type Evidence = {
   message: string; observations: Record<string, unknown>[]; sources: Record<string, unknown>[]; calcRunId?: string;
 };
 export type AlertDetail = AlertRow & {
-  ruleDescription: string; message: string; evidence: Evidence; ackedAt?: string; closedAt?: string; calcRunId?: string; disclaimer: string;
+  ruleDescription: string; message: string; evidence: Evidence; ackedAt?: string; ackedBy?: string; closedAt?: string; calcRunId?: string; disclaimer: string;
 };
 export type RuleView = {
   ruleCode: string; version: number; targetType: string; nameKo: string; description: string; params: Record<string, unknown>;
-  severity: Severity; enabled: boolean; condition: string; changeNote?: string; createdAt: string; openAlerts: number;
+  severity: Severity; enabled: boolean; condition: string; changeNote?: string; createdBy?: string; createdAt: string; openAlerts: number;
 };
 export type MetricDef = { code: string; target: string; nameKo: string; unit: string; formula: string; higherIsRisk: boolean; source: string };
 export type Meta = {
   metrics: MetricDef[]; eventTypes: { code: string; name: string; keywords: string[] }[];
   sources: { code: string; name: string; use: string; url: string }[]; disclaimer: string;
 };
+// ---- 인증 · 감사 (ADR-013)
+export type Role = "ADMIN" | "ANALYST";
+export type Me = { authenticated: boolean; username?: string; roles: Role[]; authType?: "SESSION" | "TOKEN" };
+export type AuditEntry = { auditId: number; at: string; actor: string; authType: string; action: string; target?: string; status?: number; detail?: Record<string, unknown>; ip?: string; traceId?: string };
+
+// ---- 수주·보증 노출 · 주가 · 백테스트 (ADR-016 · 017)
+export type ContractRow = {
+  rceptNo: string; rceptDt: string; name: string; counterparty?: string; amount?: number; pctOfRevenue?: number; regionText?: string;
+  regionCd?: string; regionName?: string; regionMatch: string; unsoldPer1kHh?: number; unsoldPeriod?: string; contractDate?: string;
+  endDate?: string; correction: boolean; supersededBy?: string; terminatedBy?: string;
+};
+export type PfLine = { debtor?: string; provider?: string; pfType?: string; amount?: number };
+export type GuaranteeRow = {
+  rceptNo: string; rceptDt: string; debtor?: string; creditor?: string; amount?: number; equity?: number; pctOfEquity?: number;
+  totalBalance?: number; balanceToEquityPct?: number; balanceIsLimit: boolean; usedBalance?: number; pfAmount?: number; pfLines: PfLine[]; endDate?: string; correction: boolean; supersededBy?: string;
+};
+export type CompanyFilings = { corpCode: string; contracts: ContractRow[]; guarantees: GuaranteeRow[]; parse: { parsed: number; partial: number; noDoc: number; failed: number }; disclaimer: string };
+export type ExposureRow = {
+  corpCode: string; corpName: string; contracts: number; totalAmount?: number; mappedAmount?: number; riskAmount?: number; riskSharePct?: number;
+  riskContracts: number; latestBalanceToEquityPct?: number; latestGuaranteeDt?: string; pfAmount?: number; openAlerts: number;
+};
+export type Exposure = { days: number; unsoldPer1kHh: number; asOf: string; items: ExposureRow[]; method: string; disclaimer: string };
+export type RegionContracts = { regionCd: string; totalAmount: number; companies: number; items: { rceptNo: string; rceptDt: string; corpCode: string; corpName: string; name: string; amount?: number; counterparty?: string; endDate?: string }[] };
+export type Prices = { corpCode: string; stockCode?: string; bars: { d: string; c: number; cap?: number }[]; alerts: { alertId: number; ruleCode: string; date: string; title: string; severity: Severity }[]; source?: string };
+export type BtStats = { events: number; used: number; excluded: Record<string, number>; meanExcess?: number; medianExcess?: number; negativeShare?: number; meanReturn?: number; tStat?: number };
+export type Backtest = {
+  horizon: number; rules: { ruleCode: string; ruleName: string; stats: BtStats }[]; baseline: BtStats;
+  events: { alertId: number; ruleCode: string; corpCode: string; corpName: string; title: string; eventDate: string; entryDate?: string; exitDate?: string; ret?: number; bench?: number; excess?: number; benchSize?: number; excluded?: string }[];
+  priceFrom?: string; priceTo?: string; stocks: number; method: string[]; limitations: string[]; disclaimer: string;
+};
+
 export type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public traceId?: string) { super(message); }
 }
 
-export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api/v1${path}`, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers || {}) } });
+/** Spring Security 가 내려준 XSRF-TOKEN 쿠키 값 (SPA 가 읽어 헤더로 돌려보냄) */
+function xsrf(): string | undefined {
+  if (typeof document === "undefined") return undefined;
+  const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : undefined;
+}
+
+const SAFE = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/**
+ * 같은 출처 /api/v1 호출. 세션 쿠키(HttpOnly)는 브라우저가 붙이고, 변경 요청에는 CSRF 헤더를 붙입니다.
+ * CSRF 토큰이 만료돼 403 CSRF_INVALID 가 오면 토큰을 새로 받아 한 번만 다시 시도합니다.
+ */
+export async function api<T>(path: string, init?: RequestInit, retried = false): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const headers: Record<string, string> = { "Content-Type": "application/json", ...(init?.headers as Record<string, string> || {}) };
+  if (!SAFE.has(method)) { const t = xsrf(); if (t) headers["X-XSRF-TOKEN"] = t; }
+  const res = await fetch(`/api/v1${path}`, { ...init, method, headers, credentials: "same-origin" });
   const text = await res.text();
-  const body = text ? JSON.parse(text) : null;
-  if (!res.ok) throw new ApiError(res.status, body?.code ?? "ERROR", body?.message ?? res.statusText, body?.traceId);
+  let body: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+  try { body = text ? JSON.parse(text) : null; } catch { body = null; }
+  if (!res.ok) {
+    if (res.status === 403 && body?.code === "CSRF_INVALID" && !retried) {
+      await fetch("/api/v1/auth/me", { credentials: "same-origin" });
+      return api<T>(path, init, true);
+    }
+    throw new ApiError(res.status, body?.code ?? "ERROR", body?.message ?? res.statusText, body?.traceId);
+  }
   return body as T;
+}
+
+/** 변경 요청 (POST · PUT · PATCH · DELETE) — 로그인 세션 + CSRF */
+export function mutate<T>(path: string, method: string, body?: unknown): Promise<T> {
+  return api<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
 }
 
 export function qs(params: Record<string, string | number | boolean | undefined | null>): string {
@@ -84,14 +143,4 @@ export function qs(params: Record<string, string | number | boolean | undefined 
   Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== "") p.set(k, String(v)); });
   const s = p.toString();
   return s ? `?${s}` : "";
-}
-
-/** 관리 토큰은 이 브라우저 세션에만 보관합니다 (.env 의 ADMIN_TOKEN) */
-export const adminToken = {
-  get: () => { try { return sessionStorage.getItem("br-admin-token") ?? ""; } catch { return ""; } },
-  set: (t: string) => { try { sessionStorage.setItem("br-admin-token", t); } catch { /* 저장 불가 환경 */ } },
-};
-
-export function adminApi<T>(path: string, method: string, body?: unknown): Promise<T> {
-  return api<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body), headers: { "X-Admin-Token": adminToken.get() } });
 }

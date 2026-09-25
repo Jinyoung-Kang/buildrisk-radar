@@ -17,6 +17,11 @@ const shots: [string, string, (p: import("@playwright/test").Page) => Promise<vo
   ["rules", "/admin/rules", async () => {}],
   ["mapping", "/admin/mapping", async () => {}],
   ["about", "/about", async () => {}],
+  ["exposure", "/exposure", async (p) => { await p.waitForTimeout(800); }],
+  ["backtest", "/backtest", async (p) => { await p.waitForTimeout(1500); }],
+  ["company-filings", "/companies/00124540?tab=filings", async (p) => { await p.waitForTimeout(1200); }],
+  ["company-price", "/companies/00124540?tab=price", async (p) => { await p.waitForTimeout(1500); }],
+  ["region-trade", "/regions/41220", async (p) => { await p.waitForTimeout(1500); await p.getByText("아파트 매매 실거래 (국토부)").scrollIntoViewIfNeeded(); await p.waitForTimeout(500); }],
 ];
 
 for (const [name, path, act] of shots) {

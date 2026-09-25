@@ -3,7 +3,10 @@ import { useRouter } from "next/router";
 import { useMemo, useState } from "react";
 import { SignedBars, TrendLine } from "@/components/Charts";
 import EvidenceView from "@/components/EvidenceView";
+import CompanyFilings from "@/components/CompanyFilings";
 import Layout from "@/components/Layout";
+import PriceChart from "@/components/PriceChart";
+import Tabs, { TabPanel, useTab } from "@/components/Tabs";
 import { Card, DartLink, Empty, ErrorBox, Loading, MetricStatus, PageTitle, Segmented, SeverityBadge, StatusPill } from "@/components/ui";
 import { qs, type AlertDetail, type CompanySummary, type Disclosure, type Financials, type Metrics } from "@/lib/api";
 import { eok, num, pk, withUnit } from "@/lib/format";
@@ -30,15 +33,20 @@ function AlertCard({ id }: { id: number }) {
   );
 }
 
+const TABS = ["overview", "financials", "filings", "price", "disclosures"] as const;
+type Tab = (typeof TABS)[number];
+
 export default function CompanyDetail() {
   const { query, isReady } = useRouter();
   const corp = isReady ? String(query.corpCode) : null;
+  const [tab, setTab] = useTab<Tab>(TABS, "overview");
   const [fsDiv, setFsDiv] = useState<"AUTO" | "CFS" | "OFS">("AUTO");
   const [eventFilter, setEventFilter] = useState<"risk" | "all">("all");
   const summary = useApi<CompanySummary>(corp ? `/companies/${corp}` : null);
-  const metrics = useApi<Metrics>(corp ? `/companies/${corp}/metrics` : null);
-  const fin = useApi<Financials>(corp ? `/companies/${corp}/financials${qs({ fsDiv })}` : null);
-  const disc = useApi<Disclosure[]>(corp ? `/companies/${corp}/disclosures` : null);
+  // 탭에 필요한 데이터만 그 탭을 열 때 불러옴
+  const metrics = useApi<Metrics>(corp && tab === "financials" ? `/companies/${corp}/metrics` : null);
+  const fin = useApi<Financials>(corp && tab === "financials" ? `/companies/${corp}/financials${qs({ fsDiv })}` : null);
+  const disc = useApi<Disclosure[]>(corp && tab === "disclosures" ? `/companies/${corp}/disclosures` : null);
   const s = summary.data;
 
   const series = useMemo(() => {
@@ -62,6 +70,11 @@ export default function CompanyDetail() {
               수집 보고서 {s.fetch.reportsOk}건 (없음 {s.fetch.reportsNoData}) · {s.fetch.lastFetchedAt ?? "미수집"}
             </div>} />
 
+          <Tabs label="기업 정보" value={tab} onChange={setTab} tabs={[
+            { id: "overview", label: "개요", badge: s.alerts.length }, { id: "financials", label: "재무·지표" },
+            { id: "filings", label: "수주·보증" }, { id: "price", label: "주가·경보" }, { id: "disclosures", label: "공시" }]} />
+
+          {tab === "overview" && <TabPanel id="overview">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
             {(s.latest?.metrics ?? []).map((m) => (
               <div key={m.code} className="bg-raised rounded-xl shadow-card px-3 py-2.5" title={m.formula}>
@@ -78,7 +91,10 @@ export default function CompanyDetail() {
               <div className="space-y-3">{s.alerts.map((a) => <AlertCard key={a.alertId} id={a.alertId} />)}</div>
             </Card>
           )}
+          {s.alerts.length === 0 && <Empty>열린 경보가 없습니다.</Empty>}
+          </TabPanel>}
 
+          {tab === "financials" && <TabPanel id="financials">
           <div className="grid lg:grid-cols-2 gap-5 mb-5">
             <Card title="부채비율 (%)" sub="부채총계 ÷ 자본총계 × 100 · R-C01 임계 300%">
               <TrendLine data={(series.DEBT_RATIO ?? []).map((d) => ({ x: d.x, v: d.v }))} series={[{ key: "v", name: "부채비율" }]}
@@ -130,6 +146,17 @@ export default function CompanyDetail() {
             )}
           </Card>
 
+          </TabPanel>}
+
+          {tab === "filings" && corp && <TabPanel id="filings"><CompanyFilings corp={corp} /></TabPanel>}
+
+          {tab === "price" && corp && <TabPanel id="price">
+            <Card title="주가와 경보" sub="일별 종가 3년 · 경보가 공개된 날 표시 — 규칙별 평균 효과는 '경보 검증' 화면">
+              <PriceChart corp={corp} />
+            </Card>
+          </TabPanel>}
+
+          {tab === "disclosures" && <TabPanel id="disclosures">
           <Card title="공시 타임라인 (최근 1년)" sub="보고서명 키워드 사전으로 분류 · 원문은 DART"
             right={<Segmented label="공시 필터" value={eventFilter} onChange={setEventFilter}
               options={[{ value: "all", label: "전체" }, { value: "risk", label: "중대 공시만" }]} />}>
@@ -150,6 +177,7 @@ export default function CompanyDetail() {
               </ol>
             )}
           </Card>
+          </TabPanel>}
           <p className="text-xs text-muted mt-4">{s.disclaimer} <Link href="/about" className="underline">지표 정의</Link></p>
         </>
       )}

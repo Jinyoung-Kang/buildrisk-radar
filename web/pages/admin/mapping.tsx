@@ -1,9 +1,10 @@
 import { useState } from "react";
-import AdminToken from "@/components/AdminToken";
+import RequireRole from "@/components/RequireRole";
 import Layout from "@/components/Layout";
 import { Card, Empty, ErrorBox, Loading, PageTitle } from "@/components/ui";
-import { adminApi, type Row } from "@/lib/api";
+import { mutate, type Row } from "@/lib/api";
 import { eok, num } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/useApi";
 
 function AddRule({ stdCode, sjDiv, suggest, onDone }: { stdCode: string; sjDiv: string; suggest?: string; onDone: (m: string) => void }) {
@@ -12,11 +13,12 @@ function AddRule({ stdCode, sjDiv, suggest, onDone }: { stdCode: string; sjDiv: 
   const [err, setErr] = useState<Error | null>(null);
   const add = async () => {
     try {
-      const r = await adminApi<Row>("/mapping/account-rules", "POST", { stdCode, sjDiv, matchType: type, pattern, priority: 30 });
+      const r = await mutate<Row>("/mapping/account-rules", "POST", { stdCode, sjDiv, matchType: type, pattern, priority: 30 });
       onDone(`규칙 #${r.mapId} 추가 — ${r.next}`);
     } catch (e) { setErr(e as Error); }
   };
   return (
+    <RequireRole role="ADMIN" inline>
     <div className="flex flex-col gap-1.5 w-56">
       <select value={type} onChange={(e) => setType(e.target.value)} className="text-xs bg-raised border border-line rounded px-1 py-0.5">
         <option>NAME_EXACT</option><option>NAME_REGEX</option><option>ACCOUNT_ID</option></select>
@@ -24,6 +26,7 @@ function AddRule({ stdCode, sjDiv, suggest, onDone }: { stdCode: string; sjDiv: 
       <button onClick={add} className="text-xs px-2 py-1 rounded bg-accent text-white">매핑 규칙 추가</button>
       <ErrorBox error={err} />
     </div>
+    </RequireRole>
   );
 }
 
@@ -32,10 +35,12 @@ function RegionFix({ r, onDone }: { r: Row; onDone: (m: string) => void }) {
   const [err, setErr] = useState<Error | null>(null);
   const save = async () => {
     try {
-      await adminApi<Row>("/mapping/region-codes", "PUT", { source: r.source, sourceCode: r.source_code, regionCd: cd.trim() || null, note: "화면에서 수동 매핑" });
+      await mutate<Row>("/mapping/region-codes", "PUT", { source: r.source, sourceCode: r.source_code, regionCd: cd.trim() || null, note: "화면에서 수동 매핑" });
       onDone(`${r.source} ${r.source_name} → ${cd || "미매핑"} — 해당 출처 수집 Job 과 standardizeMetricJob 을 다시 실행하면 반영됩니다.`);
     } catch (e) { setErr(e as Error); }
   };
+  const { has } = useAuth();
+  if (!has("ADMIN")) return <span className="text-xs text-muted">-</span>;
   return (
     <span className="inline-flex items-center gap-1.5">
       <input value={cd} onChange={(e) => setCd(e.target.value)} placeholder="기준 region_cd" aria-label="기준 지역 코드"
@@ -47,11 +52,12 @@ function RegionFix({ r, onDone }: { r: Row; onDone: (m: string) => void }) {
 }
 
 function UserRules({ onChanged }: { onChanged: (m: string) => void }) {
+  const { has } = useAuth();
   const { data, reload } = useApi<Row[]>("/mapping/account-rules");
   const [err, setErr] = useState<Error | null>(null);
   const rules = (data ?? []).filter((r) => r.origin === "USER");
   const remove = async (id: number) => {
-    try { const r = await adminApi<Row>(`/mapping/account-rules/${id}`, "DELETE"); onChanged(`규칙 #${id} 삭제 — ${r.next}`); reload(); }
+    try { const r = await mutate<Row>(`/mapping/account-rules/${id}`, "DELETE"); onChanged(`규칙 #${id} 삭제 — ${r.next}`); reload(); }
     catch (e) { setErr(e as Error); }
   };
   return (
@@ -66,7 +72,7 @@ function UserRules({ onChanged }: { onChanged: (m: string) => void }) {
                 <td className="num text-muted">{r.map_id}</td><td className="font-medium">{r.std_code}</td>
                 <td>{r.sj_div ?? "-"}{r.section ? ` · ${r.section}` : ""}</td><td>{r.match_type}</td>
                 <td><code className="text-xs">{r.pattern}</code></td><td className="num">{r.priority}</td>
-                <td className="text-right"><button onClick={() => remove(r.map_id)} className="text-xs text-crit hover:underline">삭제</button></td>
+                <td className="text-right">{has("ADMIN") && <button onClick={() => remove(r.map_id)} className="text-xs text-crit hover:underline">삭제</button>}</td>
               </tr>))}</tbody>
           </table>
         </div>
@@ -80,7 +86,7 @@ export default function Mapping() {
   const [msg, setMsg] = useState<string | null>(null);
   return (
     <Layout title="매핑">
-      <PageTitle title="매핑 품질" sub="원천 계정 → 표준계정 (FR-206), 출처 지역 코드 → 기준 시군구 (FR-405), 유니버스 업종 분포 (U-4)" right={<AdminToken />} />
+      <PageTitle title="매핑 품질" sub="원천 계정 → 표준계정 (FR-206), 출처 지역 코드 → 기준 시군구 (FR-405), 유니버스 업종 분포 (U-4)" right={<RequireRole role="ADMIN"><span className="text-xs text-good">✓ 관리자 — 매핑 수정 가능</span></RequireRole>} />
       <ErrorBox error={error} />
       {msg && <div className="text-sm text-good mb-3">{msg}</div>}
       {!data ? <Loading /> : (

@@ -2,6 +2,7 @@ import { useRouter } from "next/router";
 import { useState } from "react";
 import EvidenceView from "@/components/EvidenceView";
 import Layout from "@/components/Layout";
+import RequireRole from "@/components/RequireRole";
 import { Card, Empty, ErrorBox, Loading, PageTitle, Segmented, SeverityBadge, StatusPill, TargetLink } from "@/components/ui";
 import { api, qs, type AlertDetail, type AlertRow, type Page } from "@/lib/api";
 import { dt } from "@/lib/format";
@@ -30,9 +31,12 @@ function Detail({ id, onChanged }: { id: string; onChanged: () => void }) {
       </div>
       <ErrorBox error={err} />
       <EvidenceView ev={data.evidence} />
-      <div className="flex gap-2 mt-4">
+      <div className="flex gap-2 mt-4 items-center">
+        {data.status !== "CLOSED" && <RequireRole role="ANALYST"><span className="flex gap-2">
         {data.status === "OPEN" && <button disabled={busy} onClick={() => change("ACK")} className="px-3 py-1.5 rounded-lg bg-accent text-white text-sm focus-ring disabled:opacity-50">확인(ACK)</button>}
         {data.status === "ACK" && <button disabled={busy} onClick={() => change("OPEN")} className="px-3 py-1.5 rounded-lg border border-line text-sm focus-ring">확인 취소</button>}
+        </span></RequireRole>}
+        {data.status === "ACK" && data.ackedBy && <span className="text-xs text-muted">{data.ackedBy} 님이 {dt(data.ackedAt)} 확인</span>}
         {data.status === "CLOSED" && <span className="text-xs text-muted">닫힌 경보는 규칙 평가가 다시 참이 될 때 자동으로 열립니다.</span>}
       </div>
       <p className="text-[11px] text-muted mt-4">{data.ruleDescription} · {data.disclaimer}</p>
