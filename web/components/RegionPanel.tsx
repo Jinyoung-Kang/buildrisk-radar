@@ -7,8 +7,8 @@ import { useApi } from "@/lib/useApi";
 
 /** 지역 카드 — 미분양 추이 · 가격지수 추이 · 경보 (지도 옆, 지역 상세 화면 공용) */
 export default function RegionPanel({ regionCd, compact }: { regionCd: string; compact?: boolean }) {
-  const { data } = useApi<RegionSeries>(`/regions/${regionCd}/series`);
-  const contracts = useApi<RegionContracts>(`/regions/${regionCd}/contracts`);
+  const { data } = useApi<RegionSeries>(`/regions/${encodeURIComponent(regionCd)}/series`);
+  const contracts = useApi<RegionContracts>(`/regions/${encodeURIComponent(regionCd)}/contracts`);
   if (!data) return <Loading />;
   const stat = (c: string) => data.stats.find((s) => s.code === c)?.points ?? [];
   const tail = compact ? -24 : -37;

@@ -9,12 +9,12 @@ import { dt } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
 function Detail({ id, onChanged }: { id: string; onChanged: () => void }) {
-  const { data, error, reload } = useApi<AlertDetail>(`/alerts/${id}`);
+  const { data, error, reload } = useApi<AlertDetail>(`/alerts/${encodeURIComponent(id)}`);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<Error | null>(null);
   const change = async (status: "ACK" | "OPEN") => {
     setBusy(true);
-    try { await api(`/alerts/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }); reload(); onChanged(); }
+    try { await api(`/alerts/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ status }) }); reload(); onChanged(); }
     catch (e) { setErr(e as Error); } finally { setBusy(false); }
   };
   if (error) return <ErrorBox error={error} />;

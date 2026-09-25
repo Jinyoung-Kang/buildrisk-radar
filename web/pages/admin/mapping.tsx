@@ -57,7 +57,7 @@ function UserRules({ onChanged }: { onChanged: (m: string) => void }) {
   const [err, setErr] = useState<Error | null>(null);
   const rules = (data ?? []).filter((r) => r.origin === "USER");
   const remove = async (id: number) => {
-    try { const r = await mutate<Row>(`/mapping/account-rules/${id}`, "DELETE"); onChanged(`규칙 #${id} 삭제 — ${r.next}`); reload(); }
+    try { const r = await mutate<Row>(`/mapping/account-rules/${encodeURIComponent(id)}`, "DELETE"); onChanged(`규칙 #${id} 삭제 — ${r.next}`); reload(); }
     catch (e) { setErr(e as Error); }
   };
   return (

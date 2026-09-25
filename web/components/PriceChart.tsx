@@ -7,7 +7,7 @@ import { useApi } from "@/lib/useApi";
 
 /** 종가 추이 + 경보 처음 발생일 표시 (금융위 주식시세, 수정주가 아님) */
 export default function PriceChart({ corp }: { corp: string }) {
-  const { data, error } = useApi<Prices>(`/companies/${corp}/prices?days=1095`);
+  const { data, error } = useApi<Prices>(`/companies/${encodeURIComponent(corp)}/prices?days=1095`);
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
   if (!data.stockCode) return <Empty>상장 종목코드가 없습니다.</Empty>;

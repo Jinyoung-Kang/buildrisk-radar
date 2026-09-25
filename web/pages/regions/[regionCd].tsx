@@ -12,7 +12,7 @@ export default function RegionDetail() {
   const { query, isReady } = useRouter();
   const raw = isReady ? String(query.regionCd) : null;
   const cd = raw && /^\d{5}$/.test(raw) ? raw : null;         // 형식이 맞을 때만 API 경로에 씀
-  const { data } = useApi<RegionSeries>(cd ? `/regions/${cd}/series` : null);
+  const { data } = useApi<RegionSeries>(cd ? `/regions/${encodeURIComponent(cd)}/series` : null);
   const m = (code: string) => (data?.metrics.find((x) => x.code === code)?.points ?? []).slice(-24)
     .map((p) => ({ x: ym(p.period), v: p.value ?? null }));
   return (

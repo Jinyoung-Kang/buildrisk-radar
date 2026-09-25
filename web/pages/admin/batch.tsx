@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/useApi";
 
 function ExecutionDetail({ id }: { id: number }) {
-  const { data } = useApi<Row>(`/batch/executions/${id}`);
+  const { data } = useApi<Row>(`/batch/executions/${encodeURIComponent(id)}`);
   if (!data) return <Loading />;
   let changed: Record<string, number> = {};
   try {
@@ -112,7 +112,7 @@ export default function Batch() {
   const launch = async (name: string, fresh = false) => {
     setErr(null); setMsg(null);
     try {
-      const r = await mutate<Row>(`/batch/jobs/${name}/launch`, "POST", fresh ? { restart: false } : {});
+      const r = await mutate<Row>(`/batch/jobs/${encodeURIComponent(name)}/launch`, "POST", fresh ? { restart: false } : {});
       setMsg(`${name} 실행 요청 #${r.requestId} 을 큐에 넣었습니다 — worker 가 곧 시작합니다${r.plannedCalls != null ? ` · 예상 호출 ${int(r.plannedCalls)}건` : ""}${r.warning ? ` · ${r.warning}` : ""}`);
       jobs.reload(); execs.reload(); requests.reload();
     } catch (e) { setErr(e as Error); }
@@ -120,7 +120,7 @@ export default function Batch() {
   const recover = async (execId: number) => {
     setErr(null); setMsg(null);
     try {
-      await mutate<Row>(`/batch/executions/${execId}/recover`, "POST");
+      await mutate<Row>(`/batch/executions/${encodeURIComponent(execId)}/recover`, "POST");
       setMsg(`실행 #${execId} 을 FAILED 로 정리했습니다. 다시 실행하면 마지막 커밋 이후부터 이어갑니다.`);
       jobs.reload(); execs.reload();
     } catch (e) { setErr(e as Error); }

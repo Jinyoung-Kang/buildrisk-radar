@@ -19,7 +19,7 @@ const EVENT_LABEL: Record<string, string> = {
 const RISK_EVENTS = new Set(["REHAB", "DEFAULT", "SUSPENSION", "AUDIT_OPINION"]);
 
 function AlertCard({ id }: { id: number }) {
-  const { data } = useApi<AlertDetail>(`/alerts/${id}`);
+  const { data } = useApi<AlertDetail>(`/alerts/${encodeURIComponent(id)}`);
   if (!data) return <Loading />;
   return (
     <div className="border border-line rounded-lg p-3">
@@ -43,11 +43,11 @@ export default function CompanyDetail() {
   const [tab, setTab] = useTab<Tab>(TABS, "overview");
   const [fsDiv, setFsDiv] = useState<"AUTO" | "CFS" | "OFS">("AUTO");
   const [eventFilter, setEventFilter] = useState<"risk" | "all">("all");
-  const summary = useApi<CompanySummary>(corp ? `/companies/${corp}` : null);
+  const summary = useApi<CompanySummary>(corp ? `/companies/${encodeURIComponent(corp)}` : null);
   // 탭에 필요한 데이터만 그 탭을 열 때 불러옴
-  const metrics = useApi<Metrics>(corp && tab === "financials" ? `/companies/${corp}/metrics` : null);
-  const fin = useApi<Financials>(corp && tab === "financials" ? `/companies/${corp}/financials${qs({ fsDiv })}` : null);
-  const disc = useApi<Disclosure[]>(corp && tab === "disclosures" ? `/companies/${corp}/disclosures` : null);
+  const metrics = useApi<Metrics>(corp && tab === "financials" ? `/companies/${encodeURIComponent(corp)}/metrics` : null);
+  const fin = useApi<Financials>(corp && tab === "financials" ? `/companies/${encodeURIComponent(corp)}/financials${qs({ fsDiv })}` : null);
+  const disc = useApi<Disclosure[]>(corp && tab === "disclosures" ? `/companies/${encodeURIComponent(corp)}/disclosures` : null);
   const s = summary.data;
 
   const series = useMemo(() => {

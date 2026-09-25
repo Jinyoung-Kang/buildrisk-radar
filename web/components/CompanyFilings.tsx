@@ -15,7 +15,7 @@ function state(c: ContractRow) {
 
 /** 수주 계약 · 채무보증 — 공시 원문 구조화 결과 (ADR-016) */
 export default function CompanyFilings({ corp, riskTh = 5 }: { corp: string; riskTh?: number }) {
-  const { data, error } = useApi<Filings>(`/companies/${corp}/filings`);
+  const { data, error } = useApi<Filings>(`/companies/${encodeURIComponent(corp)}/filings`);
   const [view, setView] = useState<"current" | "all">("current");
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
