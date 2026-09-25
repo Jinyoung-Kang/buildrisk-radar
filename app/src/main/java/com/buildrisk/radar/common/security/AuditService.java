@@ -52,7 +52,7 @@ public class AuditService {
                     .param("trace", MDC.get(TraceIdFilter.MDC_KEY))
                     .update();
         } catch (RuntimeException e) {
-            log.error("감사 로그 기록 실패 action={} target={}: {}", action, target, e.getMessage());
+            log.error("감사 로그 기록 실패 action={} target={}: {}", oneLine(action), oneLine(target), oneLine(e.getMessage()));
         }
     }
 
@@ -72,6 +72,9 @@ public class AuditService {
                         rs.getString("ip"), rs.getString("trace_id")))
                 .list();
     }
+
+    /** 로그 위조 방지 — 요청에서 온 문자열의 줄바꿈 제거 */
+    private static String oneLine(String s) { return s == null ? null : s.replaceAll("[\\r\\n\\t]", "_"); }
 
     private static String blankToNull(String s) { return s == null || s.isBlank() ? null : s; }
 

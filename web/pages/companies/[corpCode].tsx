@@ -38,7 +38,8 @@ type Tab = (typeof TABS)[number];
 
 export default function CompanyDetail() {
   const { query, isReady } = useRouter();
-  const corp = isReady ? String(query.corpCode) : null;
+  const raw = isReady ? String(query.corpCode) : null;
+  const corp = raw && /^\d{8}$/.test(raw) ? raw : null;          // 경로 파라미터는 형식이 맞을 때만 API 경로에 씀
   const [tab, setTab] = useTab<Tab>(TABS, "overview");
   const [fsDiv, setFsDiv] = useState<"AUTO" | "CFS" | "OFS">("AUTO");
   const [eventFilter, setEventFilter] = useState<"risk" | "all">("all");

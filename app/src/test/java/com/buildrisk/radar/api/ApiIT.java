@@ -109,6 +109,9 @@ class ApiIT extends IntegrationTest {
         mvc.perform(patch("/api/v1/alerts/1").header("X-Admin-Token", ADMIN).contentType(MediaType.TEXT_PLAIN).content("x"))
                 .andExpect(status().isUnsupportedMediaType());
         mvc.perform(get("/api/v1/batch/executions").param("limit", "-1")).andExpect(status().isOk());
+        // CodeQL java/tainted-arithmetic: page × size 오버플로 → 음수 OFFSET(500) 이 아니라 400
+        mvc.perform(get("/api/v1/alerts").param("page", String.valueOf(Integer.MAX_VALUE))).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/companies").param("page", "100000").param("size", "200")).andExpect(status().isOk());
         mvc.perform(get("/api/v1/batch/executions").param("limit", "abc")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("limit")));
         mvc.perform(get("/api/v1/regions/geojson").param("simplify", "99999")).andExpect(status().isBadRequest())

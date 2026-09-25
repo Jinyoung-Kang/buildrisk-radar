@@ -5,10 +5,18 @@ import { Card } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
-/** 같은 출처 경로만 돌아감 (오픈 리다이렉트 방지) */
+/**
+ * 같은 출처 경로만 돌아감 (오픈 리다이렉트 방지). 문자열 검사만으로는 '/\\evil.example' 같은 표기를
+ * 브라우저가 프로토콜 상대 주소로 해석하므로, URL 로 해석한 뒤 출처가 같은지 확인하고 경로 부분만 씁니다.
+ */
 function safeNext(n: unknown): string {
-  const s = typeof n === "string" ? n : "/";
-  return s.startsWith("/") && !s.startsWith("//") ? s : "/";
+  if (typeof n !== "string" || !n.startsWith("/")) return "/";
+  try {
+    const u = new URL(n, window.location.origin);
+    return u.origin === window.location.origin ? u.pathname + u.search + u.hash : "/";
+  } catch {
+    return "/";
+  }
 }
 
 export default function Login() {

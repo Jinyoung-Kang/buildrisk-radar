@@ -52,7 +52,8 @@ public class UniverseJobsConfig {
     Step corpCodeDownloadStep(JobRepository repo, PlatformTransactionManager tm, DartClient dart) {
         return new StepBuilder("corpCodeDownloadStep", repo).tasklet((contribution, chunk) -> {
             var je = chunk.getStepContext().getStepExecution().getJobExecution();
-            Path dir = Path.of(System.getProperty("java.io.tmpdir"), "buildrisk", "corp", String.valueOf(je.getJobInstance().getInstanceId()));
+            // 소유자 전용 권한(rwx------)의 새 임시 디렉터리 — 예측 가능한 공유 경로를 쓰지 않음. 경로는 실행 컨텍스트에 남아 restart 때 재사용
+            Path dir = java.nio.file.Files.createTempDirectory("buildrisk-corp-" + je.getJobInstance().getInstanceId() + "-");
             Path xml = dart.downloadCorpCodeXml(dir);
             je.getExecutionContext().putString("corpCodeXml", xml.toString());
             log.info("CORPCODE.xml 저장: {}", xml);

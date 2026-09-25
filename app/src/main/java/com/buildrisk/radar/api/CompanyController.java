@@ -44,7 +44,7 @@ public class CompanyController {
     @Operation(summary = "① 유니버스 목록", description = "sort = alerts(기본) · debtRatio · interestCoverage · name")
     public Page<CompanyRow> list(@RequestParam(required = false) String q,
                                  @RequestParam(defaultValue = "alerts") String sort,
-                                 @RequestParam(defaultValue = "0") @Min(0) int page,
+                                 @RequestParam(defaultValue = "0") @Min(0) @Max(100_000) int page,
                                  @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size) {
         return svc.list(q, sort, page, size);
     }

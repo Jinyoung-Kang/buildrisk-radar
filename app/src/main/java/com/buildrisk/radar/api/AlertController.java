@@ -44,7 +44,7 @@ public class AlertController {
                                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime since,
                                @RequestParam(required = false) String targetKey,
                                @RequestParam(required = false) String ruleCode,
-                               @RequestParam(defaultValue = "0") @Min(0) int page,
+                               @RequestParam(defaultValue = "0") @Min(0) @Max(100_000) int page,
                                @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size) {
         return svc.list(targetType, severity, status, since, targetKey, ruleCode, page, size);
     }

@@ -73,7 +73,7 @@ public class CompanyQueryService {
                         LEFT JOIN LATERAL (SELECT rcept_dt, report_nm FROM dart.disclosure x WHERE x.corp_code = c.corp_code
                                            ORDER BY rcept_dt DESC, rcept_no DESC LIMIT 1) d ON true
                         WHERE """ + " " + where + " ORDER BY " + order + " LIMIT :lim OFFSET :off")
-                .param("q", blank(q)).param("lim", size).param("off", page * size)
+                .param("q", blank(q)).param("lim", size).param("off", (long) page * size)
                 .query((rs, i) -> new CompanyRow(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4),
                         rs.getString(5), rs.getString(6), rs.getBigDecimal(7), rs.getString(8), rs.getBigDecimal(9),
                         rs.getString(10), rs.getBigDecimal(11), rs.getInt(12), severity(rs.getInt(13)),

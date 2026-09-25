@@ -50,7 +50,7 @@ public class AlertQueryService {
                         + "LIMIT :lim OFFSET :off")
                 .param("tt", CompanyQueryService.blank(targetType)).param("sev", CompanyQueryService.blank(severity))
                 .param("st", st).param("since", since).param("tk", CompanyQueryService.blank(targetKey))
-                .param("rc", CompanyQueryService.blank(ruleCode)).param("lim", size).param("off", page * size)
+                .param("rc", CompanyQueryService.blank(ruleCode)).param("lim", size).param("off", (long) page * size)
                 .query((rs, i) -> new AlertRow(rs.getLong(1), rs.getString(2), rs.getInt(3), rs.getString(4),
                         rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8), rs.getString(9),
                         rs.getString(10), rs.getString(11), rs.getString(12), rs.getObject(13, OffsetDateTime.class),

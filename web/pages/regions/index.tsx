@@ -18,10 +18,15 @@ export default function Regions() {
   const period = (router.query.period as string) || "";
   const sido = (router.query.sido as string) || "";
   const selected = (router.query.r as string) || null;
-  const set = (patch: Record<string, string | null>) => {
-    const q = { ...router.query, ...patch } as Record<string, string | null>;
-    Object.keys(q).forEach((k) => { if (!q[k]) delete q[k]; });
-    router.replace({ query: q as Record<string, string> }, undefined, { shallow: true });
+  // 화면 상태는 알려진 키만 URL 에 둠 (쿼리 문자열의 임의 키를 객체에 펼치지 않음)
+  const set = (patch: Partial<Record<"metric" | "period" | "sido" | "r", string | null>>) => {
+    const cur: Record<string, string | null> = { metric: router.query.metric as string, period, sido, r: selected };
+    const next: Record<string, string> = {};
+    for (const k of ["metric", "period", "sido", "r"] as const) {
+      const v = k in patch ? patch[k] : cur[k];
+      if (v) next[k] = v;
+    }
+    router.replace({ query: next }, undefined, { shallow: true });
   };
   const meta = useApi<Meta>("/meta");
   const list = useApi<RegionList>(router.isReady ? `/regions${qs({ metric, period, sido })}` : null);

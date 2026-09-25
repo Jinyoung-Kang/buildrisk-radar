@@ -48,9 +48,14 @@ export default function Alerts() {
   const router = useRouter();
   const q = router.query as Record<string, string>;
   const status = q.status ?? "OPEN,ACK";
-  const set = (patch: Record<string, string | undefined>) => {
-    const next = { ...q, ...patch };
-    Object.keys(next).forEach((k) => { if (!next[k]) delete next[k]; });
+  // 알려진 키만 URL 에 둠 (쿼리 문자열의 임의 키를 객체에 펼치지 않음)
+  const KEYS = ["status", "severity", "targetType", "id"] as const;
+  const set = (patch: Partial<Record<(typeof KEYS)[number], string | undefined>>) => {
+    const next: Record<string, string> = {};
+    for (const k of KEYS) {
+      const v = k in patch ? patch[k] : q[k];
+      if (v) next[k] = v;
+    }
     router.replace({ query: next }, undefined, { shallow: true });
   };
   const list = useApi<Page<AlertRow>>(router.isReady ? `/alerts${qs({ status, severity: q.severity, targetType: q.targetType, size: 200 })}` : null);
@@ -88,7 +93,7 @@ export default function Alerts() {
           )}
           {list.data && <div className="text-xs text-muted px-4 py-2 border-t border-line">{list.data.total}건</div>}
         </Card>
-        <Card className="lg:sticky lg:top-20">{q.id ? <Detail key={q.id} id={q.id} onChanged={list.reload} /> : <Empty>왼쪽에서 경보를 고르면 근거가 보입니다.</Empty>}</Card>
+        <Card className="lg:sticky lg:top-20">{q.id && /^\d{1,18}$/.test(q.id) ? <Detail key={q.id} id={q.id} onChanged={list.reload} /> : <Empty>왼쪽에서 경보를 고르면 근거가 보입니다.</Empty>}</Card>
       </div>
     </Layout>
   );
