@@ -56,7 +56,8 @@ public class RC02InterestCoverage implements RuleEvaluator {
                 o.put("interestExpenseSource", den.get("source"));
                 ev.observe(o).sourceOf(m, "DART");
             }
-            String series = run.stream().map(m -> m.period() + " " + Evidence.fmt(m.value()) + "배")
+            // 영업손실이면 배율(음수)의 크기는 뜻이 없음 — 분기 이자비용이 5원이면 -60억 배가 됨(실측). 숫자는 observations 에 그대로
+            String series = run.stream().map(m -> m.period() + " " + (m.value().signum() < 0 ? "영업손실" : Evidence.fmt(m.value()) + "배"))
                     .collect(Collectors.joining(", "));
             String msg = series + "로 이자보상배율이 " + Evidence.fmt(th) + "배 미만인 분기가 " + k + "개 연속입니다.";
             out.add(new Finding(pk, "이자보상배율 " + Evidence.fmt(th) + " 미만 " + k + "분기 연속", msg, ev.build(msg)));

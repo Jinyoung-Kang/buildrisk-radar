@@ -46,7 +46,10 @@ public class CompanyController {
                                  @RequestParam(defaultValue = "alerts") String sort,
                                  @RequestParam(defaultValue = "0") @Min(0) @Max(100_000) int page,
                                  @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size) {
-        return svc.list(q, sort, page, size);
+        // 검색어가 없는 목록만 캐시 — 임의 검색어마다 키가 생기지 않게 (부하 시험에서 DB CPU 를 가장 많이 쓴 조회)
+        if (q != null && !q.isBlank()) return svc.list(q, sort, page, size);
+        return cache.get("companies:" + sort + ":" + page + ":" + size, Duration.ofMinutes(10),
+                new tools.jackson.core.type.TypeReference<Page<CompanyRow>>() {}, () -> svc.list(null, sort, page, size));
     }
 
     @GetMapping("/{corpCode}")

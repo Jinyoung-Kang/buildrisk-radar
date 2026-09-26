@@ -5,12 +5,13 @@ import Layout from "@/components/Layout";
 import RegionMap from "@/components/RegionMap";
 import RegionPanel from "@/components/RegionPanel";
 import { Card, ErrorBox } from "@/components/ui";
-import { qs, type GeoJson, type Meta, type RegionList, type RegionProps } from "@/lib/api";
+import { qs, type Boundaries, type GeoJson, type Meta, type RegionList, type RegionProps } from "@/lib/api";
 import { makeScale, MISSING } from "@/lib/colors";
 import { num, STATUS_LABEL, withUnit, ym } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
-const SIGNED = new Set(["UNSOLD_3M_CHG", "PRICE_IDX_3M_CHG", "JEONSE_IDX_3M_CHG", "JEONSE_SALE_GAP"]);
+// 부호가 있는 지표는 0 을 중심으로 한 발산형 색 (증가·감소를 구분)
+const SIGNED = new Set(["UNSOLD_3M_CHG", "PRICE_IDX_3M_CHG", "JEONSE_IDX_3M_CHG", "JEONSE_SALE_GAP", "TRADE_YOY", "PRICE_M2_YOY"]);
 
 export default function Regions() {
   const router = useRouter();
@@ -30,11 +31,23 @@ export default function Regions() {
   };
   const meta = useApi<Meta>("/meta");
   const list = useApi<RegionList>(router.isReady ? `/regions${qs({ metric, period, sido })}` : null);
-  const geo = useApi<GeoJson>(router.isReady ? `/regions/geojson${qs({ metric, period, sido })}` : null);
+  // 경계는 버전이 바뀔 때만 받음(브라우저 영구 캐시) — 지표·기간·시도를 바꾸면 값 목록(약 20KB)만 다시 받아 색을 칠함
+  const version = list.data?.boundaryVersion;
+  const bounds = useApi<Boundaries>(version ? `/regions/boundaries${qs({ v: version })}` : null);
+  const geo = useMemo<{ data: GeoJson | null; error: Error | null }>(() => {
+    if (!bounds.data || !list.data) return { data: null, error: bounds.error };
+    const byCd = new Map(list.data.items.map((r) => [r.regionCd, r]));
+    const features = bounds.data.features.filter((f) => byCd.has(f.properties.regionCd)).map((f) => {
+      const r = byCd.get(f.properties.regionCd)!;
+      return { ...f, properties: { ...f.properties, value: r.value ?? null, status: r.status ?? "MISSING", alertCount: r.alertCount } };
+    });
+    return { data: { type: "FeatureCollection", features, meta: { metric: list.data.metric, nameKo: "", unit: list.data.unit,
+      period: list.data.period, calcRunId: list.data.calcRunId, sources: [] } }, error: null };
+  }, [bounds.data, bounds.error, list.data]);
   const def = meta.data?.metrics.find((m) => m.code === metric);
   const regionDefs = meta.data?.metrics.filter((m) => m.target === "REGION") ?? [];
-  const scale = useMemo(() => makeScale((geo.data?.features ?? []).map((f) => f.properties.value).filter((v): v is number => v != null),
-    SIGNED.has(metric), def?.higherIsRisk ?? true), [geo.data, metric, def]);
+  const scale = useMemo(() => makeScale((list.data?.items ?? []).map((r) => r.value).filter((v): v is number => v != null),
+    SIGNED.has(metric), def?.higherIsRisk ?? true), [list.data, metric, def]);
   const colorOf = useCallback((p: RegionProps) => scale.color(p.value), [scale]);
   const unit = def?.unit ?? "";
   const tooltipOf = useCallback((p: RegionProps) =>

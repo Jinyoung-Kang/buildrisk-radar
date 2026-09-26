@@ -16,13 +16,13 @@ function StatRow({ name, code, s, base }: { name: string; code?: string; s: BtSt
   const ex = Object.entries(s.excluded ?? {}).map(([k, v]) => `${EXCLUDED[k] ?? k} ${v}`).join(" · ");
   return (
     <tr className={base ? "bg-page" : ""}>
-      <td className="whitespace-nowrap">{code && <b className="tabular mr-1">{code}</b>}{name}</td>
-      <td className="num whitespace-nowrap">{int(s.used)}<span className="sub">{base ? "겹치지 않는 창" : `경보 ${int(s.events)}건`}</span>
-        {ex && <span className="sub text-muted" title="제외 사유">제외: {ex}</span>}</td>
+      <td className="min-w-[9rem]">{code && <b className="tabular mr-1">{code}</b>}{name}
+        {ex && <span className="sub text-muted">제외: {ex}</span>}</td>
+      <td className="num whitespace-nowrap">{int(s.used)}<span className="sub">{base ? "겹치지 않는 창" : `경보 ${int(s.events)}건`}</span></td>
       <td className={`num ${s.meanExcess != null && s.meanExcess < 0 ? "text-crit" : ""}`}>{pct(s.meanExcess)}</td>
-      <td className="num">{pct(s.medianExcess)}</td>
+      <td className="num hidden sm:table-cell">{pct(s.medianExcess)}</td>
       <td className="num">{s.negativeShare != null ? `${num(s.negativeShare * 100, 0)}%` : "–"}</td>
-      <td className="num">{s.tStat != null ? num(s.tStat, 2) : "–"}</td>
+      <td className="num hidden sm:table-cell">{s.tStat != null ? num(s.tStat, 2) : "–"}</td>
     </tr>
   );
 }
@@ -48,8 +48,8 @@ export default function BacktestPage() {
               {data.rules.length === 0 ? <Empty>평가할 기업 경보가 없습니다.</Empty> : (
                 <div className="table-wrap">
                   <table className="data-table">
-                    <thead><tr><th>규칙</th><th className="num">사용 표본</th><th className="num">평균</th><th className="num">중앙값</th>
-                      <th className="num">음수 비율</th><th className="num">t 값</th></tr></thead>
+                    <thead><tr><th>규칙</th><th className="num">사용 표본</th><th className="num">평균</th><th className="num hidden sm:table-cell">중앙값</th>
+                      <th className="num">음수 비율</th><th className="num hidden sm:table-cell">t 값</th></tr></thead>
                     <tbody>
                       {data.rules.map((r) => <StatRow key={r.ruleCode} code={r.ruleCode} name={r.ruleName} s={r.stats} />)}
                       <StatRow name="비교 기준 — 신호 없는 모든 창" s={data.baseline} base />
@@ -84,15 +84,15 @@ export default function BacktestPage() {
             right={<label className="text-xs flex items-center gap-1.5"><input type="checkbox" checked={showEx} onChange={(e) => setShowEx(e.target.checked)} />제외된 사건도 보기</label>}>
             <div className="table-wrap max-h-[60vh]">
               <table className="data-table compact">
-                <thead><tr><th>규칙</th><th>기업</th><th>공개일</th><th>진입 → 청산</th><th className="num">수익률</th><th className="num">업종 평균</th>
+                <thead><tr><th>규칙</th><th>기업</th><th>공개일</th><th className="hidden md:table-cell">진입 → 청산</th><th className="num">수익률</th><th className="num hidden sm:table-cell">업종 평균</th>
                   <th className="num">초과</th><th>비고</th></tr></thead>
                 <tbody>{events.slice(0, 300).map((e) => (
                   <tr key={`${e.alertId}`}>
                     <td className="tabular whitespace-nowrap">{e.ruleCode}</td>
                     <td className="whitespace-nowrap"><Link href={`/companies/${e.corpCode}?tab=price`} className="hover:underline">{e.corpName}</Link></td>
                     <td className="tabular whitespace-nowrap">{e.eventDate}</td>
-                    <td className="tabular whitespace-nowrap text-ink2">{e.entryDate ?? "–"} → {e.exitDate ?? "–"}</td>
-                    <td className="num">{pct(e.ret)}</td><td className="num">{pct(e.bench)}</td>
+                    <td className="tabular whitespace-nowrap text-ink2 hidden md:table-cell">{e.entryDate ?? "–"} → {e.exitDate ?? "–"}</td>
+                    <td className="num">{pct(e.ret)}</td><td className="num hidden sm:table-cell">{pct(e.bench)}</td>
                     <td className={`num ${e.excess != null && e.excess < 0 ? "text-crit" : ""}`}>{pct(e.excess)}</td>
                     <td className="text-xs text-muted">{e.excluded ? EXCLUDED[e.excluded] ?? e.excluded : e.benchSize ? `비교 ${e.benchSize}종목` : ""}</td>
                   </tr>))}</tbody>

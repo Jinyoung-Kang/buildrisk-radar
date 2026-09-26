@@ -10,8 +10,9 @@ public final class RegionDtos {
     public record RegionRow(String regionCd, String name, String fullName, String sidoCd, String sidoName,
                             BigDecimal value, String status, int alertCount) {}
 
+    /** boundaryVersion: 경계가 다시 적재될 때만 바뀜 — /regions/boundaries?v= 로 브라우저가 영구 캐시 */
     public record RegionList(String metric, String unit, String period, List<String> periods, List<RegionRow> items,
-                             String calcRunId, String disclaimer) {}
+                             String calcRunId, String boundaryVersion, String disclaimer) {}
 
     public record Point(String period, BigDecimal value) {}
 

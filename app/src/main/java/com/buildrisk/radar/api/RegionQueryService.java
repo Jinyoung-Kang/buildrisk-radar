@@ -22,7 +22,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -68,13 +67,21 @@ public class RegionQueryService {
                 .query((rs, i) -> new RegionRow(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4),
                         rs.getString(5), rs.getBigDecimal(6), rs.getString(7), rs.getInt(8))).list();
         String run = jdbc.sql("SELECT calc_run_id::text FROM mkt.region_metric LIMIT 1").query(String.class).optional().orElse(null);
-        return new RegionList(m, MetricCatalog.get(m).unit(), p, periods, rows, run, Disclaimer.TEXT);
+        return new RegionList(m, MetricCatalog.get(m).unit(), p, periods, rows, run, boundaryVersion(), Disclaimer.TEXT);
     }
 
-    /** 단계구분도 GeoJSON — 기본 단순화 경계(geom_s, 약 100m) 또는 요청한 허용오차로 즉석 단순화 */
-    public String geojson(String metric, String period, String sido, int simplify) {
-        String m = metric == null ? "UNSOLD_PER_1K_HH" : metric;
-        String p = resolvePeriod(m, period, periods(m));
+    /** 경계 버전 = 마지막 적재 시각 + 화면 단위 지역 수 (boundaryLoadJob 이 다시 돌 때만 바뀜) */
+    public String boundaryVersion() {
+        return jdbc.sql("""
+                SELECT to_char(max(loaded_at) AT TIME ZONE 'UTC', 'YYYYMMDDHH24MISS') || '-' || count(*)
+                  FROM ref.region WHERE level = 2 AND geom IS NOT NULL""").query(String.class).optional().orElse("0");
+    }
+
+    /**
+     * 경계만 (지표 값 없음) — 지표·기간을 바꿔도 다시 받을 필요가 없는 정적 데이터. 값은 /regions 목록(약 5KB)과 화면에서 합칩니다.
+     * 예전에는 지표를 바꿀 때마다 경계를 포함한 GeoJSON(gzip 546KB)을 다시 받았음 (ADR-020).
+     */
+    public String boundaries(int simplify) {
         String geomExpr = simplify == 100 ? "coalesce(r.geom_s, r.geom)"
                 : simplify <= 0 ? "r.geom" : "ST_SimplifyPreserveTopology(r.geom, " + (simplify / 111_320.0) + ")";
         String features = jdbc.sql("""
@@ -82,29 +89,12 @@ public class RegionQueryService {
                                  'type', 'Feature',
                                  'properties', json_build_object('regionCd', r.region_cd, 'name', r.name,
                                      'fullName', r.full_name, 'sidoCd', r.sido_cd, 'sidoName', r.sido_name,
-                                     'value', x.value, 'status', coalesce(x.status, 'MISSING'), 'alertCount', coalesce(a.cnt, 0),
                                      'lat', ST_Y(r.centroid), 'lon', ST_X(r.centroid)),
                                  'geometry', ST_AsGeoJSON(""" + geomExpr + """
                         , 5)::json) ORDER BY r.region_cd), '[]'::json)::text
-                        FROM ref.region r
-                        LEFT JOIN mkt.region_metric x ON x.region_cd = r.region_cd AND x.metric_code = :m AND x.period = :p
-                        LEFT JOIN (SELECT target_key, count(*) AS cnt FROM risk.alert
-                                   WHERE target_type = 'REGION' AND status IN ('OPEN', 'ACK') GROUP BY target_key) a
-                               ON a.target_key = r.region_cd
-                        WHERE r.level = 2 AND r.geom IS NOT NULL AND (cast(:s AS text) IS NULL OR r.sido_cd = :s)""")
-                .param("m", m).param("p", p).param("s", CompanyQueryService.blank(sido)).query(String.class).single();
-        var def = MetricCatalog.get(m);
-        Map<String, Object> meta = new LinkedHashMap<>();
-        meta.put("metric", m);
-        meta.put("nameKo", def.nameKo());
-        meta.put("unit", def.unit());
-        meta.put("period", p);
-        meta.put("calcRunId", jdbc.sql("SELECT calc_run_id::text FROM mkt.region_metric LIMIT 1").query(String.class).optional().orElse(null));
-        meta.put("sources", List.of(def.source(), "V-World 시군구 경계"));
-        meta.put("crs", "EPSG:4326");
-        meta.put("simplifyMeters", simplify);
-        meta.put("disclaimer", Disclaimer.TEXT);
-        return "{\"meta\":" + mapper.writeValueAsString(meta) + ",\"type\":\"FeatureCollection\",\"features\":" + features + "}";
+                        FROM ref.region r WHERE r.level = 2 AND r.geom IS NOT NULL""").query(String.class).single();
+        return "{\"version\":\"" + boundaryVersion() + "\",\"crs\":\"EPSG:4326\",\"simplifyMeters\":" + simplify
+                + ",\"source\":\"V-World 시군구 경계\",\"type\":\"FeatureCollection\",\"features\":" + features + "}";
     }
 
     public RegionSeries series(String regionCd, List<String> stats) {

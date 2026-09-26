@@ -59,8 +59,7 @@ public class RR01UnsoldSurge implements RuleEvaluator {
             o.put("unsoldPer1kHh", Evidence.round(h.value()));
             o.put("households", h.components().get("households"));
             o.put("householdsYear", h.components().get("householdsYear"));
-            String msg = ym + " 미분양 " + Evidence.fmt(u.value()) + "호로 3개월 전(" + c.components().get("unsold3mAgo")
-                    + "호)보다 " + Evidence.fmt(c.value()) + "% 늘었고, 천 가구당 " + Evidence.fmt(h.value()) + "호입니다.";
+            String msg = ym + " 미분양 " + Evidence.fmt(u.value()) + "호로 " + vs3m(c) + " 늘었고, 천 가구당 " + Evidence.fmt(h.value()) + "호입니다.";
             Map<String, Object> ev = new Evidence(rule, condition(p)).observe(o)
                     .source(Map.of("type", "KOSIS", "table", "116/DT_MLTM_2082", "period", ym))
                     .source(Map.of("type", "SGIS", "table", "총조사 주요지표 tot_family",
@@ -70,5 +69,14 @@ public class RR01UnsoldSurge implements RuleEvaluator {
                     msg, ev));
         }
         return new Evaluation(out, periods, periods.isEmpty() ? null : periods.get(periods.size() - 1));
+    }
+
+    /** "3개월 전(4호)보다 838호(20,950%)" — 기저가 작으면 증감률만으로는 과장돼 보여 늘어난 호수를 함께 (실측: 4호 → 842호) */
+    static String vs3m(MetricPoint chg) {
+        Object now = chg.components().get("unsold"), ago = chg.components().get("unsold3mAgo");
+        if (now == null || ago == null) return "3개월 전보다 " + Evidence.fmt(chg.value()) + "%";
+        BigDecimal a = new BigDecimal(ago.toString());
+        return "3개월 전(" + Evidence.fmt(a) + "호)보다 " + Evidence.fmt(new BigDecimal(now.toString()).subtract(a).abs()) + "호("
+                + Evidence.fmt(chg.value()) + "%)";
     }
 }

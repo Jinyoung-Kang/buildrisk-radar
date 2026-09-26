@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import EvidenceView from "@/components/EvidenceView";
 import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
@@ -44,8 +44,14 @@ function Detail({ id, onChanged }: { id: string; onChanged: () => void }) {
   );
 }
 
+/** 기준 시점: 공시 접수번호(14자리)는 날짜로, 분기·월은 그대로 */
+function asOfLabel(asOf: string) {
+  return asOf.length === 14 ? `${asOf.slice(0, 4)}-${asOf.slice(4, 6)}-${asOf.slice(6, 8)}` : asOf;
+}
+
 export default function Alerts() {
   const router = useRouter();
+  const detailRef = useRef<HTMLDivElement>(null);
   const q = router.query as Record<string, string>;
   const status = q.status ?? "OPEN,ACK";
   // 알려진 키만 URL 에 둠 (쿼리 문자열의 임의 키를 객체에 펼치지 않음)
@@ -58,6 +64,10 @@ export default function Alerts() {
     }
     router.replace({ query: next }, undefined, { shallow: true });
   };
+  // 좁은 화면에서는 상세가 목록 아래에 있으므로 고르면 상세로 스크롤
+  useEffect(() => {
+    if (q.id && window.innerWidth < 1024) detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [q.id]);
   const list = useApi<Page<AlertRow>>(router.isReady ? `/alerts${qs({ status, severity: q.severity, targetType: q.targetType, size: 200 })}` : null);
   return (
     <Layout title="경보">
@@ -76,7 +86,7 @@ export default function Alerts() {
           {!list.data ? <Loading /> : list.data.items.length === 0 ? <Empty>조건에 맞는 경보가 없습니다.</Empty> : (
             <div className="max-h-[76vh] overflow-auto">
               <table className="data-table">
-                <thead><tr><th>심각도</th><th>대상</th><th>내용</th><th>기준</th><th>상태</th></tr></thead>
+                <thead><tr><th>심각도</th><th>대상</th><th>내용</th><th className="hidden sm:table-cell">기준</th><th>상태</th></tr></thead>
                 <tbody>{list.data.items.map((a) => (
                   <tr key={a.alertId} onClick={() => set({ id: String(a.alertId) })} tabIndex={0}
                     onKeyDown={(e) => { if (e.key === "Enter") set({ id: String(a.alertId) }); }}
@@ -84,8 +94,8 @@ export default function Alerts() {
                     <td className="whitespace-nowrap"><SeverityBadge s={a.severity} /></td>
                     <td className="whitespace-nowrap font-medium">{a.targetName ?? a.targetKey}
                       <span className="sub">{a.targetType === "COMPANY" ? "기업" : "지역"}</span></td>
-                    <td>{a.title}<span className="sub">{a.ruleCode} {a.ruleName}</span></td>
-                    <td className="whitespace-nowrap tabular text-ink2">{a.asOf.length === 14 ? `${a.asOf.slice(0, 4)}-${a.asOf.slice(4, 6)}-${a.asOf.slice(6, 8)}` : a.asOf}</td>
+                    <td className="min-w-[10rem]">{a.title}<span className="sub">{a.ruleCode} {a.ruleName}<span className="sm:hidden"> · {asOfLabel(a.asOf)}</span></span></td>
+                    <td className="whitespace-nowrap tabular text-ink2 hidden sm:table-cell">{asOfLabel(a.asOf)}</td>
                     <td className="whitespace-nowrap"><StatusPill status={a.status} reason={a.closeReason} /></td>
                   </tr>))}</tbody>
               </table>
@@ -93,7 +103,9 @@ export default function Alerts() {
           )}
           {list.data && <div className="text-xs text-muted px-4 py-2 border-t border-line">{list.data.total}건</div>}
         </Card>
-        <Card className="lg:sticky lg:top-20">{q.id && /^\d{1,18}$/.test(q.id) ? <Detail key={q.id} id={q.id} onChanged={list.reload} /> : <Empty>왼쪽에서 경보를 고르면 근거가 보입니다.</Empty>}</Card>
+        <div ref={detailRef} className="scroll-mt-20">
+          <Card className="lg:sticky lg:top-20">{q.id && /^\d{1,18}$/.test(q.id) ? <Detail key={q.id} id={q.id} onChanged={list.reload} /> : <Empty>목록에서 경보를 고르면 조건·관측값·원천 근거가 보입니다.</Empty>}</Card>
+        </div>
       </div>
     </Layout>
   );

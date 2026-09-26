@@ -4,6 +4,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JavaType;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
@@ -28,6 +30,15 @@ public class JsonCache {
     }
 
     public <T> T get(String key, Duration ttl, Class<T> type, Supplier<T> loader) {
+        return get(key, ttl, mapper.getTypeFactory().constructType(type), loader);
+    }
+
+    /** 제네릭 응답(Page&lt;CompanyRow&gt; 등)용 — Class 로 읽으면 항목이 Map 으로 풀려 숫자 표현이 달라질 수 있음 */
+    public <T> T get(String key, Duration ttl, TypeReference<T> type, Supplier<T> loader) {
+        return get(key, ttl, mapper.getTypeFactory().constructType(type), loader);
+    }
+
+    private <T> T get(String key, Duration ttl, JavaType type, Supplier<T> loader) {
         String full;
         try {
             String gen = redis.opsForValue().get(GEN_KEY);

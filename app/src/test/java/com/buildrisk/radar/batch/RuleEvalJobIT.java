@@ -11,11 +11,19 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 /** FR-502~504: 경보 멱등 저장 · 근거 · 자동 CLOSED · 규칙 버전 변경 */
+@org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 class RuleEvalJobIT extends IntegrationTest {
     @Autowired
     BatchLauncher launcher;
+    @Autowired
+    org.springframework.test.web.servlet.MockMvc mvc;
+    @Autowired
+    org.springframework.data.redis.core.StringRedisTemplate redis;
     UUID run;
 
     @BeforeEach
@@ -38,6 +46,20 @@ class RuleEvalJobIT extends IntegrationTest {
     }
 
     int alerts(String where) { return count("SELECT count(*) FROM risk.alert WHERE rule_code = 'R-C02' AND " + where); }
+
+    @Test
+    void Job_이_끝나면_캐시된_경보_목록이_바로_새_경보를_보여_준다() throws Exception {
+        jdbc.update("DELETE FROM risk.alert WHERE target_key = '00000009'");
+        String mine = "$.items[?(@.targetKey == '00000009' && @.ruleCode == 'R-C02')]";
+        mvc.perform(get("/api/v1/alerts").param("status", "OPEN,ACK")).andExpect(jsonPath(mine, hasSize(0)));   // 이 응답이 캐시됨
+        var je = launcher.runAndWait("ruleEvalJob", Map.of());
+        mvc.perform(get("/api/v1/alerts").param("status", "OPEN,ACK")).andExpect(jsonPath(mine, hasSize(1)));
+
+        // 무효화 리스너가 없는 Job(공시 · 미분양 · 가격지수 …)도 끝나는 한 곳(awaitFinished)에서 세대를 올림
+        String before = redis.opsForValue().get("br:gen");
+        launcher.awaitFinished(je.getId());
+        assertThat(redis.opsForValue().get("br:gen")).isNotEqualTo(before);
+    }
 
     @Test
     void 재평가해도_중복이_없고_조건이_풀리면_자동으로_닫힌다() {

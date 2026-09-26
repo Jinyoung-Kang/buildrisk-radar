@@ -36,7 +36,9 @@ public class MappingService {
     private static final String REPORTS = """
             WITH rep AS (
               SELECT f.corp_code, f.bsns_year, f.reprt_code, f.fs_div,
-                     f.bsns_year || 'Q' || CASE f.reprt_code WHEN '11013' THEN 1 WHEN '11012' THEN 2 WHEN '11014' THEN 3 ELSE 4 END AS period_key
+                     -- fs_std.period_key 는 char(6): text 로 비교하면 PK 인덱스를 못 씀(1.3초 → 0.1초, 실측)
+                     cast(f.bsns_year || 'Q' || CASE f.reprt_code WHEN '11013' THEN 1 WHEN '11012' THEN 2 WHEN '11014' THEN 3 ELSE 4 END
+                          AS char(6)) AS period_key
               FROM dart.fs_fetch f JOIN ref.company c ON c.corp_code = f.corp_code AND c.is_target
               WHERE f.status = 'OK')
             """;

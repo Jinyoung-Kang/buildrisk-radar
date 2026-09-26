@@ -114,10 +114,37 @@ class ApiIT extends IntegrationTest {
         mvc.perform(get("/api/v1/companies").param("page", "100000").param("size", "200")).andExpect(status().isOk());
         mvc.perform(get("/api/v1/batch/executions").param("limit", "abc")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("limit")));
-        mvc.perform(get("/api/v1/regions/geojson").param("simplify", "99999")).andExpect(status().isBadRequest())
+        mvc.perform(get("/api/v1/regions/boundaries").param("simplify", "99999")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("simplify:")));
+        mvc.perform(get("/api/v1/regions/boundaries").param("simplify", "137")).andExpect(status().isBadRequest());
         mvc.perform(put("/api/v1/rules/R-C01").header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON).content("{"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 경계는_미리_압축한_바이트로_주고_버전이_맞으면_immutable_아니면_ETag_로_304() throws Exception {
+        String version = mvc.perform(get("/api/v1/regions")).andReturn().getResponse().getContentAsString()
+                .replaceAll("(?s).*\"boundaryVersion\":\"([^\"]*)\".*", "$1");
+        var gz = mvc.perform(get("/api/v1/regions/boundaries").param("v", version).header("Accept-Encoding", "gzip, br"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Encoding", "gzip"))
+                .andExpect(header().string("Vary", org.hamcrest.Matchers.containsString("Accept-Encoding")))
+                .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("immutable")))
+                .andReturn().getResponse();
+        String etag = gz.getHeader("ETag");
+        org.assertj.core.api.Assertions.assertThat(etag).startsWith("W/");
+        String unzipped = new String(new java.util.zip.GZIPInputStream(new java.io.ByteArrayInputStream(gz.getContentAsByteArray()))
+                .readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        // gzip 을 받지 않는 클라이언트는 원본 — 두 표현의 내용이 같음
+        var raw = mvc.perform(get("/api/v1/regions/boundaries").param("v", version))
+                .andExpect(status().isOk()).andExpect(header().doesNotExist("Content-Encoding"))
+                .andReturn().getResponse();
+        org.assertj.core.api.Assertions.assertThat(raw.getContentAsString(java.nio.charset.StandardCharsets.UTF_8)).isEqualTo(unzipped)
+                .contains("\"type\":\"FeatureCollection\"");
+        mvc.perform(get("/api/v1/regions/boundaries").header("Accept-Encoding", "gzip;q=0")).andExpect(header().doesNotExist("Content-Encoding"))
+                .andExpect(header().string("Cache-Control", "no-cache"));     // 버전 없이 부르면 매번 확인
+        mvc.perform(get("/api/v1/regions/boundaries").param("v", version).header("If-None-Match", etag))
+                .andExpect(status().isNotModified());
     }
 
     @Test

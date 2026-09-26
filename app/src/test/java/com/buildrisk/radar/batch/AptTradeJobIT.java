@@ -29,6 +29,10 @@ class AptTradeJobIT extends IntegrationTest {
     private static final String PATH = "/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade";
     @Autowired
     BatchLauncher launcher;
+    @Autowired
+    com.buildrisk.radar.batch.queue.JobRequestService queue;
+    @Autowired
+    com.buildrisk.radar.batch.queue.JobRequestWorker worker;
 
     @BeforeEach
     void regions() {
@@ -136,5 +140,33 @@ class AptTradeJobIT extends IntegrationTest {
     private String metric(String region, String code, String period) {
         return jdbc.queryForObject("SELECT value::text FROM mkt.region_metric WHERE region_cd = ? AND metric_code = ? AND period = ?",
                 String.class, region, code, period);
+    }
+
+    /** SIGTERM(정상 종료): 청크 경계에서 STOPPED → 다시 요청하면 받은 곳 다음부터 이어서 완료 */
+    @Test
+    void worker_정상_종료는_청크_경계에서_멈추고_다시_요청하면_이어받는다() throws Exception {
+        WM.stubFor(get(urlPathEqualTo(PATH)).willReturn(aResponse().withFixedDelay(150)
+                .withHeader("Content-Type", "application/xml").withBody(xml(item(50_000, "84.00", false)))));
+        jdbc.update("DELETE FROM ops.job_request");
+        var first = queue.enqueue("aptTradeJob", Map.of("months", 24, "restart", false), "test");
+        worker.pollOnce();
+        for (int i = 0; i < 100 && count("SELECT count(*) FROM mkt.apt_trade_fetch") == 0; i++) Thread.sleep(100);
+        assertThat(count("SELECT count(*) FROM mkt.apt_trade_fetch")).isPositive();          // 첫 청크 커밋
+        worker.drain(java.time.Duration.ofSeconds(30));
+        var done = queue.get(first.requestId());
+        assertThat(done.get("status")).isEqualTo("DONE");
+        assertThat(done.get("batchStatus")).isEqualTo("STOPPED");
+        assertThat(String.valueOf(done.get("message"))).contains("worker 종료");
+        int partial = count("SELECT count(*) FROM mkt.apt_trade_fetch");
+        assertThat(partial).isLessThan(3 * 24);
+
+        worker.resume();
+        WM.resetRequests();
+        var second = queue.enqueue("aptTradeJob", Map.of("months", 24), "test");               // 기본 = restart
+        worker.pollOnce();
+        for (int i = 0; i < 300 && !"DONE".equals(queue.get(second.requestId()).get("status")); i++) Thread.sleep(100);
+        assertThat(queue.get(second.requestId()).get("batchStatus")).isEqualTo("COMPLETED");
+        assertThat(count("SELECT count(*) FROM mkt.apt_trade_fetch")).isEqualTo(3 * 24);
+        WM.verify(3 * 24 - partial, getRequestedFor(urlPathEqualTo(PATH)));                  // 받은 것은 다시 부르지 않음
     }
 }

@@ -61,7 +61,26 @@ public final class Evidence {
         if (v == null) return "-";
         BigDecimal s = v.abs().compareTo(BigDecimal.valueOf(100)) >= 0 ? v.setScale(0, RoundingMode.HALF_UP)
                 : v.setScale(2, RoundingMode.HALF_UP);
-        return s.stripTrailingZeros().toPlainString();
+        String plain = s.stripTrailingZeros().toPlainString();
+        // 1,000 이상은 천 단위 구분 (예: 122,405억원) — 근거 문장을 읽기 쉽게
+        return s.abs().compareTo(BigDecimal.valueOf(1000)) >= 0 && s.scale() <= 0
+                ? String.format("%,d", s.toBigInteger()) : plain;
+    }
+
+    private static final BigDecimal EOK = BigDecimal.valueOf(100_000_000);
+    private static final BigDecimal MAN = BigDecimal.valueOf(10_000);
+
+    /** 원 단위 금액을 읽는 말로: 2조 1,250억원 · 6,844억원 · 3,500만원 · 0원 */
+    public static String won(BigDecimal won) {
+        if (won == null) return "-";
+        if (won.signum() == 0) return "0원";
+        String sign = won.signum() < 0 ? "-" : "";
+        BigDecimal a = won.abs();
+        if (a.compareTo(EOK) < 0) return sign + fmt(a.divide(MAN, 0, RoundingMode.HALF_UP)) + "만원";
+        long eok = a.divide(EOK, 0, RoundingMode.HALF_UP).longValueExact();
+        long jo = eok / 10_000, rest = eok % 10_000;
+        if (jo == 0) return sign + String.format("%,d", rest) + "억원";
+        return sign + jo + "조" + (rest == 0 ? "" : " " + String.format("%,d", rest) + "억") + "원";
     }
 
     public static BigDecimal round(BigDecimal v) { return v == null ? null : v.setScale(4, RoundingMode.HALF_UP); }

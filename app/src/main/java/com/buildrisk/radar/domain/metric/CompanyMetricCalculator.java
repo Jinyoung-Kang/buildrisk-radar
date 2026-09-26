@@ -70,7 +70,9 @@ public final class CompanyMetricCalculator {
                 "denominator", Map.of("std", den, "amount", nz(d), "source", f.sources().getOrDefault(den, "-"))));
         if (n == null || d == null) return new MetricValue(corp, f.periodKey(), code, null, "MISSING", c);
         if (d.signum() == 0) return new MetricValue(corp, f.periodKey(), code, null, "ZERO_DENOM", c);
-        if (negDenIsEquity && d.signum() < 0) return new MetricValue(corp, f.periodKey(), code, null, "NEG_EQUITY", c);
+        // 자본 외 분모(이자비용·매출·유동부채)는 음수일 수 없음. 분기값이 음수면 누적 차분이 어긋난 것
+        // (예: 1분기 '이자지급' · 반기 '이자지급(영업)'만 잡혀 누적이 줄어듦 — 실측) → 부호가 뒤집힌 비율로 오경보를 내지 않음
+        if (d.signum() < 0) return new MetricValue(corp, f.periodKey(), code, null, negDenIsEquity ? "NEG_EQUITY" : "INCONSISTENT", c);
         BigDecimal v = n.divide(d, MC);
         if (percent) v = v.multiply(HUNDRED);
         return new MetricValue(corp, f.periodKey(), code, scale(v), MetricValue.OK, c);

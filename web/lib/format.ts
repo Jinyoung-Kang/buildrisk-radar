@@ -49,6 +49,7 @@ export function dt(s?: string | null): string {
 
 export const STATUS_LABEL: Record<string, string> = {
   OK: "정상", MISSING: "계정·통계 없음", NEG_EQUITY: "자본잠식", ZERO_DENOM: "분모 0", PARTIAL: "일부 지역만",
+  INCONSISTENT: "누적 차분 불일치",
 };
 
 export const CLOSE_REASON: Record<string, string> = {

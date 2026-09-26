@@ -47,11 +47,14 @@ public class BatchLauncher {
     private final DataSource dataSource;
     private final com.buildrisk.radar.domain.market.AptTradeRepository trades;
     private final com.buildrisk.radar.domain.filing.FilingRepository filings;
+    private final com.buildrisk.radar.common.cache.JsonCache cache;
 
     public BatchLauncher(JobOperator operator, JobRepository repository, List<Job> jobList, FsRepository fs,
                          ApiQuotaService quota, AppProperties props, org.springframework.jdbc.core.simple.JdbcClient jdbc,
                          DataSource dataSource, com.buildrisk.radar.domain.market.AptTradeRepository trades,
-                         com.buildrisk.radar.domain.filing.FilingRepository filings) {
+                         com.buildrisk.radar.domain.filing.FilingRepository filings,
+                         com.buildrisk.radar.common.cache.JsonCache cache) {
+        this.cache = cache;
         this.trades = trades;
         this.filings = filings;
         this.jdbc = jdbc;
@@ -71,6 +74,16 @@ public class BatchLauncher {
     public Collection<String> jobNames() { return jobs.keySet(); }
 
     public boolean running(String jobName) { return !repository.findRunningJobExecutions(jobName).isEmpty(); }
+
+    /** 다음 청크 경계에서 멈추도록 요청 → STOPPED (restart 로 마지막 커밋 이후부터 이어감). 이미 끝났으면 false */
+    public boolean stop(long executionId) {
+        try {
+            JobExecution je = repository.getJobExecution(executionId);
+            return je != null && je.isRunning() && operator.stop(je);
+        } catch (org.springframework.batch.core.launch.JobExecutionNotRunningException e) {
+            return false;
+        }
+    }
 
     /** 마지막 하트비트: Job·Step 실행의 last_updated 중 가장 최근 (Step 은 청크 커밋마다 갱신) */
     public java.time.LocalDateTime heartbeat(JobExecution je) {
@@ -278,16 +291,26 @@ public class BatchLauncher {
     public JobExecution runAndWait(String jobName, Map<String, Object> body) {
         Launch l = launch(jobName, body);
         if (l.warning() != null) log.warn(l.warning());
+        try {
+            return awaitFinished(l.jobExecutionId());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * 실행이 끝날 때까지 기다린 뒤 조회 캐시 세대를 올림 — 모든 Job 이 끝나는 단 한 곳(worker · CLI 모두 여기로).
+     * STOPPED · FAILED 여도 커밋된 청크는 이미 반영돼 있으므로 상태와 관계없이 무효화합니다.
+     * (예전에는 Job 5개의 리스너에서만 무효화 — 공시 · 미분양 · 가격지수 Job 뒤에는 캐시된 목록이 옛 값을 보여 줄 수 있었음)
+     */
+    public JobExecution awaitFinished(long executionId) throws InterruptedException {
         JobExecution je;
         do {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException(e);
-            }
-            je = repository.getJobExecution(l.jobExecutionId());
+            Thread.sleep(1000);
+            je = repository.getJobExecution(executionId);
         } while (je != null && je.isRunning());
+        cache.invalidateAll();
         return je;
     }
 

@@ -62,6 +62,15 @@ class MetricCalculatorTest {
     }
 
     @Test
+    void 분기_이자비용이_음수면_부호가_뒤집힌_배율_대신_불일치() {
+        // 1분기 '이자지급' 620 · 반기 '이자지급(영업)' 477 → 누적 차분 -143 (실측 사례). 영업이익이 양수인데 배율이 음수가 되면 오경보
+        var facts = Map.of("2025Q2", f("2025Q2", m(), m(), m("OPERATING_INCOME", 140, "INTEREST_EXPENSE", -143)));
+        var v = at(CompanyMetricCalculator.compute("00000001", facts), "2025Q2");
+        assertThat(v.get("INTEREST_COVERAGE").status()).isEqualTo("INCONSISTENT");
+        assertThat(v.get("INTEREST_COVERAGE").value()).isNull();
+    }
+
+    @Test
     void 같은_입력이면_같은_결과() {   // FR-501 재실행 시 같은 값
         var facts = Map.of("2026Q1", f("2026Q1", m("TOTAL_LIABILITIES", 3, "TOTAL_EQUITY", 7), m(), m()));
         assertThat(CompanyMetricCalculator.compute("x", facts)).isEqualTo(CompanyMetricCalculator.compute("x", facts));

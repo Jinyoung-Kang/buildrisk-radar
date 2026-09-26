@@ -56,8 +56,8 @@ public class RR02PriceDeclineUnsold implements RuleEvaluator {
               .source(Map.of("type", "KOSIS", "table", "116/DT_MLTM_2082", "period", ym));
             String series = run.stream().map(m -> m.period() + " " + Evidence.fmt(m.value()) + "pt")
                     .collect(Collectors.joining(", "));
-            String msg = "매매가격지수 3개월 변화가 " + series + "로 " + k + "개월 연속 하락했고, 미분양은 3개월 전보다 "
-                    + Evidence.fmt(u.value()) + "% 늘었습니다.";
+            String msg = "매매가격지수 3개월 변화가 " + series + "로 " + k + "개월 연속 하락했고, 미분양은 "
+                    + RR01UnsoldSurge.vs3m(u) + " 늘었습니다.";
             out.add(new Finding(ym, "가격 " + k + "개월 연속 하락 + 미분양 증가", msg, ev.build(msg)));
         }
         return new Evaluation(out, periods, periods.isEmpty() ? null : periods.get(periods.size() - 1));

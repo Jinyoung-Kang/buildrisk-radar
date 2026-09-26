@@ -58,6 +58,7 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain api(HttpSecurity http, AppProperties props, ObjectMapper mapper, RateLimiter limiter,
                             AuditService audit, CookieCsrfTokenRepository csrfRepository,
+                            org.springframework.context.ApplicationContext context,
                             SecurityContextRepository contextRepository,
                             @Value("${server.servlet.session.cookie.name:BR_SESSION}") String sessionCookie) throws Exception {
         http
@@ -104,8 +105,21 @@ public class SecurityConfig {
                                 new ContentSecurityPolicyHeaderWriter("default-src 'none'; frame-ancestors 'none'"))))
                 .addFilterBefore(new RateLimitFilter(limiter, props.security().rateLimitPerMinute(), mapper), DisableEncodeUrlFilter.class)
                 .addFilterBefore(new ServiceTokenFilter(props, mapper), CsrfFilter.class)
-                .addFilterBefore(new AuditFilter(audit, mapper), ServiceTokenFilter.class);
+                .addFilterBefore(new AuditFilter(audit, mapper, req -> routeTemplate(context, req)), ServiceTokenFilter.class);
         return http.build();
+    }
+
+    /** MVC 매핑으로 경로 템플릿을 찾음 (거부된 요청의 감사 로그용). 매핑이 없거나 메서드가 안 맞으면 null */
+    private static String routeTemplate(org.springframework.context.ApplicationContext context, HttpServletRequest req) {
+        try {
+            var mapping = context.getBean("requestMappingHandlerMapping",
+                    org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping.class);
+            if (mapping.getHandler(req) == null) return null;
+            Object p = req.getAttribute(org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+            return p == null ? null : p.toString();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static boolean hasCookie(HttpServletRequest req, String name) {

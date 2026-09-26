@@ -198,7 +198,7 @@ export default function Batch() {
                   <tbody>{requests.data.map((r) => (
                     <tr key={r.requestId} title={r.message ?? ""}>
                       <td className="num text-muted">{r.requestId}</td><td className="font-medium">{r.jobName}</td>
-                      <td className={r.status === "FAILED" ? "text-crit" : r.status === "DONE" ? "text-good" : ""}>{REQ_STATUS[r.status] ?? r.status}</td>
+                      <td className={`whitespace-nowrap ${r.status === "FAILED" ? "text-crit" : r.status === "DONE" ? "text-good" : ""}`}>{REQ_STATUS[r.status] ?? r.status}</td>
                       <td className="text-ink2 whitespace-nowrap">{r.requestedBy}</td>
                       <td>{r.jobExecutionId ? <button className="text-accent hover:underline" onClick={() => setSel(r.jobExecutionId)}>#{r.jobExecutionId}</button> : "-"}</td>
                       <td className="whitespace-nowrap text-ink2">{dt(r.requestedAt)}</td>

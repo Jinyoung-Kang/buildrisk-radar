@@ -84,3 +84,10 @@ a { color: inherit; }
 .data-table tbody tr.selected td { background: rgb(var(--accent) / 0.13); }
 .data-table tbody tr.clickable { cursor: pointer; }
 .section-label { font-size: 12px; font-weight: 600; color: rgb(var(--ink2)); margin-bottom: 6px; }
+
+/* 그리드 칸의 기본 min-width:auto 는 표·차트 폭만큼 칸을 늘려 좁은 화면에서 가로 넘침을 만듦(390px 에서 최대 +349px, 실측).
+   칸은 트랙 폭을 따르고, 넓은 표는 .table-wrap 안에서 가로 스크롤 */
+.grid > * { min-width: 0; }
+
+/* 표 안의 한국어 단어가 글자 단위로 끊기지 않게 (좁은 칸에서 '높 음' · '완 료' 로 보였음) */
+.data-table th, .data-table td { word-break: keep-all; }

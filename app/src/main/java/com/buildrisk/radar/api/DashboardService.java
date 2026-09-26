@@ -55,6 +55,10 @@ public class DashboardService {
                 FROM ops.batch_job_execution e JOIN ops.batch_job_instance i ON i.job_instance_id = e.job_instance_id
                 ORDER BY i.job_name, e.job_execution_id DESC""").query().listOfRows());
         out.put("jobOrder", JobCatalog.JOBS.stream().map(JobCatalog.Def::name).toList());
+        // 화면 이름도 카탈로그 한 곳에서 — Job 이 늘어도 화면이 코드명을 그대로 보이지 않게
+        Map<String, String> titles = new LinkedHashMap<>();
+        JobCatalog.JOBS.forEach(d -> titles.put(d.name(), d.title()));
+        out.put("jobTitles", titles);
         out.put("freshness", jdbc.sql("""
                 SELECT (SELECT count(*) FROM ref.company WHERE is_target) AS "universe",
                        (SELECT max(period_key) FROM risk.company_metric WHERE value IS NOT NULL) AS "latestFsPeriod",

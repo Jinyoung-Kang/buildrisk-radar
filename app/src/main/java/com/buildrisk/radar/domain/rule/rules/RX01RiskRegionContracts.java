@@ -90,8 +90,8 @@ public class RX01RiskRegionContracts implements RuleEvaluator {
         riskyRows.stream().limit(5).forEach(ev::observe);
         ev.source(Map.of("type", "DART", "table", "단일판매ㆍ공급계약체결 원문 (구조화)"))
           .source(Map.of("type", "KOSIS·SGIS", "table", "천 가구당 미분양 (지역 지표)"));
-        String msg = "최근 수주 " + cs.size() + "건 " + RC05GuaranteeBalance.eok(total) + "억원 중 " + Evidence.fmt(share)
-                + "%(" + riskyRows.size() + "건, " + RC05GuaranteeBalance.eok(risky) + "억원)가 천 가구당 미분양 "
+        String msg = "최근 수주 " + cs.size() + "건 " + Evidence.won(total) + " 중 " + Evidence.fmt(share)
+                + "%(" + riskyRows.size() + "건, " + Evidence.won(risky) + ")가 천 가구당 미분양 "
                 + Evidence.fmt(th) + "호 이상 지역입니다. 가장 큰 계약: " + riskyRows.get(0).get("contract") + " ("
                 + riskyRows.get(0).get("region") + ").";
         return new Evaluation(List.of(new Finding(asOf, "위험 지역 수주 " + Evidence.fmt(share) + "%", msg, ev.build(msg))),

@@ -66,11 +66,11 @@ public class RC05GuaranteeBalance implements RuleEvaluator {
             o.put("unusedLimit", last.unusedLimit());
             o.put("usedBalance", last.totalBalance().subtract(last.unusedLimit()));
         }
-        String msg = last.rceptDt() + " 채무보증 결정 공시 기준 채무보증 총 잔액 " + eok(last.totalBalance()) + "억원으로 자기자본("
-                + eok(last.equity()) + "억원)의 " + Evidence.fmt(ratio) + "%입니다. 최근 " + gs.size() + "건의 보증 결정 중 PF 유형 보증 "
-                + eok(pf) + "억원."
+        String msg = last.rceptDt() + " 채무보증 결정 공시 기준 채무보증 총 잔액 " + Evidence.won(last.totalBalance()) + "으로 자기자본("
+                + Evidence.won(last.equity()) + ")의 " + Evidence.fmt(ratio) + "%입니다. 최근 " + gs.size() + "건의 보증 결정 중 PF 유형 보증 "
+                + Evidence.won(pf) + "."
                 + (last.balanceIsLimit() ? " 원문 주석상 총 잔액은 보증 한도(미사용분 포함)" + (last.unusedLimit() != null
-                        ? "이며, 미사용 " + eok(last.unusedLimit()) + "억원을 뺀 사용 잔액은 자기자본의 "
+                        ? "이며, 미사용 " + Evidence.won(last.unusedLimit()) + "을 뺀 사용 잔액은 자기자본의 "
                           + Evidence.fmt(last.totalBalance().subtract(last.unusedLimit()).multiply(HUNDRED)
                                 .divide(last.equity(), MathContext.DECIMAL64)) + "%입니다." : "입니다.") : "");
         Map<String, Object> ev = new Evidence(rule, condition(p)).observe(o)
@@ -79,9 +79,5 @@ public class RC05GuaranteeBalance implements RuleEvaluator {
                 .build(msg);
         return new Evaluation(List.of(new Finding(latest, "채무보증 잔액 자기자본의 " + Evidence.fmt(ratio) + "%", msg, ev)),
                 evaluated, latest);
-    }
-
-    static String eok(BigDecimal won) {
-        return won == null ? "-" : Evidence.fmt(won.divide(BigDecimal.valueOf(100_000_000), 0, java.math.RoundingMode.HALF_UP));
     }
 }

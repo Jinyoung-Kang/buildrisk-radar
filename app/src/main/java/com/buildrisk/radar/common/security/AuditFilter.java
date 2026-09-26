@@ -22,10 +22,13 @@ public class AuditFilter extends OncePerRequestFilter {
     private static final int BODY_LIMIT = 4096;
     private final AuditService audit;
     private final ObjectMapper mapper;
+    private final java.util.function.Function<HttpServletRequest, String> templateResolver;
 
-    public AuditFilter(AuditService audit, ObjectMapper mapper) {
+    /** templateResolver: 인가 단계에서 거부돼 핸들러가 정해지지 않은 요청도 경로 템플릿으로 (감사 로그를 행위별로 묶을 수 있게) */
+    public AuditFilter(AuditService audit, ObjectMapper mapper, java.util.function.Function<HttpServletRequest, String> templateResolver) {
         this.audit = audit;
         this.mapper = mapper;
+        this.templateResolver = templateResolver;
     }
 
     @Override
@@ -50,7 +53,7 @@ public class AuditFilter extends OncePerRequestFilter {
             byte[] body = wrapped.getContentAsByteArray();
             if (body.length > 0) detail.put("body", parse(body));
             audit.record(req, SecurityContextHolder.getContext().getAuthentication(),
-                    req.getMethod() + " " + template(req), req.getRequestURI(), status, detail);
+                    req.getMethod() + " " + template(req, templateResolver), req.getRequestURI(), status, detail);
         }
     }
 
@@ -63,9 +66,11 @@ public class AuditFilter extends OncePerRequestFilter {
         }
     }
 
-    /** 경로 템플릿(예: /api/v1/rules/{ruleCode}) — 없으면(인가 거부 등으로 핸들러 미결정) 실제 경로 */
-    private static String template(HttpServletRequest req) {
+    /** 경로 템플릿(예: /api/v1/rules/{ruleCode}) — 핸들러가 안 정해졌으면 매핑에서 찾고, 그래도 없으면 실제 경로 */
+    private static String template(HttpServletRequest req, java.util.function.Function<HttpServletRequest, String> resolver) {
         Object p = req.getAttribute(org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
-        return p == null ? req.getRequestURI() : p.toString();
+        if (p != null) return p.toString();
+        String resolved = resolver == null ? null : resolver.apply(req);
+        return resolved != null ? resolved : req.getRequestURI();
     }
 }

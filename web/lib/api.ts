@@ -28,7 +28,9 @@ export type Metrics = { corpCode: string; calcRunId?: string; metrics: MetricSer
 export type Disclosure = { rceptNo: string; rceptDt: string; reportNm: string; eventType: string; eventKeyword?: string; flrNm?: string; rm?: string; url: string };
 
 export type RegionRow = { regionCd: string; name: string; fullName: string; sidoCd: string; sidoName: string; value?: number; status?: string; alertCount: number };
-export type RegionList = { metric: string; unit: string; period?: string; periods: string[]; items: RegionRow[]; calcRunId?: string; disclaimer: string };
+export type RegionList = { metric: string; unit: string; period?: string; periods: string[]; items: RegionRow[]; calcRunId?: string; boundaryVersion: string; disclaimer: string };
+/** 경계만 (지표 값 없음) — /regions/boundaries?v= 로 받아 브라우저가 영구 캐시 */
+export type Boundaries = { version: string; type: "FeatureCollection"; features: { type: "Feature"; properties: Pick<RegionProps, "regionCd" | "name" | "fullName" | "sidoCd" | "sidoName" | "lat" | "lon">; geometry: Geometry }[] };
 export type RegionProps = { regionCd: string; name: string; fullName: string; sidoCd: string; sidoName: string; value: number | null; status: string; alertCount: number; lat: number; lon: number };
 export type Geometry = { type: "Polygon" | "MultiPolygon"; coordinates: number[][][] | number[][][][] };
 export type GeoJson = {

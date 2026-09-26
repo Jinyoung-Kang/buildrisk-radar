@@ -81,6 +81,7 @@ export default function CompanyDetail() {
               <div key={m.code} className="bg-raised rounded-xl shadow-card px-3 py-2.5" title={m.formula}>
                 <div className="text-xs text-ink2">{m.nameKo}</div>
                 <div className="text-lg font-semibold tabular">{withUnit(m.value, m.unit)}<MetricStatus status={m.status} /></div>
+                {m.code === "INTEREST_COVERAGE" && m.value != null && m.value < 0 && <div className="text-[11px] text-muted">영업손실 분기</div>}
                 {m.yoyPp != null && <div className="text-[11px] text-muted">전년 동기 {m.yoyPp > 0 ? "+" : ""}{num(m.yoyPp)}%p</div>}
               </div>
             ))}
@@ -101,9 +102,10 @@ export default function CompanyDetail() {
               <TrendLine data={(series.DEBT_RATIO ?? []).map((d) => ({ x: d.x, v: d.v }))} series={[{ key: "v", name: "부채비율" }]}
                 threshold={300} fmt={(v) => `${num(v, 0)}%`} />
             </Card>
-            <Card title="이자보상배율 (배)" sub="분기 영업이익 ÷ 분기 이자비용 · R-C02 임계 1배">
+            <Card title="이자보상배율 (배)" sub="분기 영업이익 ÷ 분기 이자비용 · R-C02 임계 1배 · 축은 -10~20배로 자름">
               <TrendLine data={(series.INTEREST_COVERAGE ?? []).map((d) => ({ x: d.x, v: d.v }))} series={[{ key: "v", name: "이자보상배율" }]}
-                threshold={1} fmt={(v) => `${num(v, 1)}배`} />
+                threshold={1} fmt={(v) => `${num(v, 1)}배`} clamp={[-10, 20]}
+                tipFmt={(v) => (v < 0 ? `영업손실 (${num(v, 1)}배)` : `${num(v, 1)}배`)} />
             </Card>
             <Card title="분기 영업활동현금흐름" sub="누적 차분 · 빨강 = 유출(R-C03)">
               <SignedBars data={(series.OCF_QTR ?? []).map((d) => ({ x: d.x, v: d.v }))} dataKey="v" name="영업현금흐름" fmt={(v) => eok(v)} />

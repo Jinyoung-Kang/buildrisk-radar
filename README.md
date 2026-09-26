@@ -8,7 +8,8 @@ KOSIS 미분양 · 한국부동산원 가격지수 · SGIS 총가구 · **국토
 뻔한 대시보드와 다른 점 — **공시 원문을 구조화해 기업과 지역을 잇습니다.** 건설사의 공급계약 공시 원문에서 공사 지역·금액을,
 채무보증 공시에서 보증 잔액·PF 보증을 뽑아 "미분양이 쌓이는 지역에 앞으로의 매출이 몰린 건설사"를 재무제표보다 먼저 보고,
 그 경보가 실제로 의미가 있었는지 **주가로 사후 검증(point-in-time 백테스트)** 합니다.
-API · worker 를 나눈 **DB 큐 기반 배치 아키텍처**, 세션 + CSRF · 역할 · 감사 로그 · DB 최소 권한 같은 **보안**, k6 로 잰 **성능**까지 실데이터로 검증했습니다.
+API · worker 를 나눈 **DB 큐 기반 배치 아키텍처**, 세션 + CSRF · 역할 · 감사 로그 · DB 최소 권한 같은 **보안**,
+k6 로 잰 **성능과 메모리 안정성**(50 VU 약 3,400 req/s · API p95 30 ms · 컨테이너 메모리 한도 안)까지 실데이터로 검증했습니다.
 
 > ⚠ 공시·공공통계 기반 **모니터링 예시**이며 투자 권유·신용평가가 아니고 투자 판단 자료가 아닙니다. 모든 화면·API 응답에 이 문구가 붙습니다.
 > 규칙 임계값은 업계 공식 기준이 아니라 탐색용 기본값입니다.
@@ -17,7 +18,7 @@ API · worker 를 나눈 **DB 큐 기반 배치 아키텍처**, 세션 + CSRF ·
 
 <table>
 <tr>
-<td width="50%"><img src="docs/images/company.png" alt="기업 상세 — 태영건설"><br><sub><b>기업 상세</b> · 태영건설: 2023Q4 자본잠식(값 없음) → 2024Q1 부채비율 1,200% (워크아웃)</sub></td>
+<td width="50%"><img src="docs/images/company.png" alt="기업 상세 — 태영건설"><br><sub><b>기업 상세</b> · 태영건설: 부채비율 2023Q3 479% → 2023Q4 · 2024Q1 자본잠식(값 없음) → 2024Q2 1,187% (워크아웃)</sub></td>
 <td width="50%"><img src="docs/images/region-price.png" alt="매매가격지수 3개월 변화"><br><sub><b>지역 지도</b> · 아파트 매매가격지수 3개월 변화 (빨강 = 하락, 흐리게 = 조사 대상 아님)</sub></td>
 </tr>
 <tr>
@@ -54,13 +55,13 @@ API · worker 를 나눈 **DB 큐 기반 배치 아키텍처**, 세션 + CSRF ·
 | **서로 다른 지역 코드 체계 통합** | KOSIS(시 단위)·SGIS(일반구)·R-ONE(권역 경로)을 기준 시군구로 매핑. 2026-07 광주·전남 통합, 인천 행정체제 개편까지 실측 반영 | 매핑률 KOSIS 98.8% · R-ONE 100% · SGIS 98.8%, 미매핑 6건은 모두 사유 기록 |
 | **설명 가능한 규칙 엔진** | 로직 = Java 클래스, 임계값 = DB 버전. 경보 멱등키(규칙·버전·대상·시점), 근거 JSON, 자동 CLOSED(RESOLVED·SUPERSEDED·RULE_CHANGED·EXPIRED) | `RuleEvaluatorTest` · `RuleEvalJobIT` |
 | **추적성** | 지표·경보 → 표준계정 → 원천 행 → DART 접수번호 / 통계표 ID → 수집 run(`collect_run`) · 계산 run(`calc_run`) | 경보 근거의 `sources` · `calcRunId` |
-| **API · worker 분리, DB 실행 요청 큐** ([ADR-012](docs/adr/012-api-worker-queue.md)) | API 는 요청만 넣고(202), worker 가 `FOR UPDATE SKIP LOCKED` 로 가져가 실행. 부분 유니크 인덱스로 중복 요청 409, advisory lock 으로 프로세스 간 중복 시작 차단, worker 등록부(하트비트)로 죽은 worker 의 요청만 정리. API 컨테이너에는 외부 API 키가 없음 | `JobRequestQueueIT` — 동시 claim 정확히 1회 · 요청 체인 · **서로 다른 Job 동시 시작(실데이터에서 발견한 SERIALIZABLE 충돌 재현 → 수정)** |
+| **API · worker 분리, DB 실행 요청 큐** ([ADR-012](docs/adr/012-api-worker-queue.md)) | API 는 요청만 넣고(202), worker 가 `FOR UPDATE SKIP LOCKED` 로 가져가 실행. 부분 유니크 인덱스로 중복 요청 409, advisory lock 으로 프로세스 간 중복 시작 차단, worker 등록부(하트비트)로 죽은 worker 의 요청만 정리, **종료 신호에 청크 경계에서 멈추고 다시 요청하면 이어감**. API 컨테이너에는 외부 API 키가 없음 | `JobRequestQueueIT` — 동시 claim 정확히 1회 · 요청 체인 · **서로 다른 Job 동시 시작(실데이터에서 발견한 SERIALIZABLE 충돌 재현 → 수정)** · `AptTradeJobIT` 정상 종료 → 이어받기(재호출 0) |
 | **보안** ([ADR-013](docs/adr/013-security.md) · [014](docs/adr/014-db-least-privilege.md)) | 세션(Redis, HttpOnly·SameSite=Strict) + CSRF(`csrf.spa()`), 역할(ANALYST·ADMIN), 스크립트용 서비스 토큰, 로그인 잠금, IP 레이트리밋, **거부된 시도까지 남는 감사 로그**, CSP 등 보안 헤더, 단일 진입점(edge — X-Forwarded-For 덮어쓰기), **DML 전용 DB 계정 · 추가 전용 감사 테이블**, 읽기 전용 컨테이너 · capability 제거 | `SecurityIT` · `LeastPrivilegeIT` · E2E · k6 로 429 확인 · CI 의 gitleaks · CodeQL · Trivy |
 | **공시 원문 구조화** ([ADR-016](docs/adr/016-filing-structuring.md)) | document.xml 원문을 그대로 보관 + 파서 버전 → 서식이 다른 유가·코스닥·자율공시·정정·해지를 '항목 경로'로 파싱. 파서를 고치면 **API 호출 0건으로 1,313건 재파싱(3.8초)** | 실제 원문 7건 `FilingParserTest` · `FilingJobIT` |
 | **기업 × 지역 교차 신호** | 공사 지역 주소 → 시군구(정확 대조만, 추정 없음) → 그 지역 미분양과 결합해 R-X01, 채무보증 잔액으로 R-C05, 실거래 거래량 급감 + 미분양 증가로 R-R03 | `ExposureRulesTest` · `AddressRegionMatcherTest` |
 | **경보의 사후 검증** ([ADR-017](docs/adr/017-stock-backtest.md)) | 경보 근거 공시가 공개된 날 다음 거래일부터 20·60·120거래일 업종 대비 초과수익률. 수정주가가 아닌 원천 종가 → 주식수 변동 구간 제외, 겹침 제외, 비교 기준 분포 · t 값 · 한계 표시 | `EventStudyTest` |
-| **성능 · 관측** ([ADR-018](docs/adr/018-observability.md)) | 외부 API Step 청크 안 가상 스레드 동시 처리(호출 간격·일일 상한은 스레드 안전하게 유지), 실거래 월 파티션, Redis 캐시. Prometheus 지표(외부 API 제공기관별 지연·결과) · ECS 로그 · Grafana | k6 50 VU: **766 req/s · API p95 177 ms · 오류 0** |
-| **실데이터 검증** | 8개 출처 실데이터로 전체 배치를 돌리고 문제 41건을 재현 → 수정 → 회귀 테스트로 고정 (재시작 누락, 좀비 실행, 순액·액면 이중 공시, 공시 오탐, 동시 시작 직렬화 충돌, 자율공시 서식 …) | [docs/VERIFICATION.md](docs/VERIFICATION.md) |
+| **성능 · 메모리 · 관측** ([ADR-018](docs/adr/018-observability.md) · [020](docs/adr/020-map-boundaries-cache.md) · [021](docs/adr/021-container-memory.md) · [022](docs/adr/022-read-cache.md)) | 외부 API Step 청크 안 가상 스레드 동시 처리(호출 간격·일일 상한은 스레드 안전하게 유지), 실거래 월 파티션. **조회 캐시**(Redis, 세대 번호로 일괄 무효화 — 모든 Job 이 끝나는 한 곳에서), **지도 경계는 버전 URL + 1년 immutable + 프로세스 안에 미리 압축한 바이트**, **컨테이너 메모리 예산**(서비스별 한도 · 힙 60% · G1 명시). Prometheus 지표 · ECS 로그 · Grafana | k6 50 VU · 90초 3회: **약 3,400 req/s · API p95 30 ms · 오류 0**, api 최대 RSS 625 MiB / 1 GiB (점검 전 504 req/s · 307 ms, 오래 걸면 OOM 킬) |
+| **실데이터 검증** | 8개 출처 실데이터로 전체 배치를 돌리고 문제 61건을 재현 → 수정 → 회귀 테스트로 고정 (재시작 누락, 좀비 실행, 순액·액면 이중 공시, 공시 오탐, 동시 시작 직렬화 충돌, 자율공시 서식, **부하 중 OOM 킬**, **계정이 바뀐 누적 차분이 만든 오경보** …) | [docs/VERIFICATION.md](docs/VERIFICATION.md) |
 
 ---
 
@@ -108,14 +109,14 @@ make obs                  # (선택) Prometheus :9490 · Grafana :3401
 flowchart TB
   user["브라우저"]
   subgraph edgezone["외부 공개: 127.0.0.1:3400 하나"]
-    edge["edge · nginx<br/>X-Forwarded-For = 실제 접속 주소로 덮어씀"]
+    edge["edge · nginx<br/>X-Forwarded-For = 실제 접속 주소로 덮어씀<br/>도커 DNS 재해석(컨테이너 IP 변경 추적)"]
   end
   subgraph internal["내부망 (포트 미공개)"]
     web["web · Next.js 15 (React 18 · Tailwind · Recharts · 카카오 지도)<br/>CSP"]
-    api["api · Spring Boot 4.1 / Java 25<br/>REST · Spring Security(세션+CSRF · 역할 · 토큰)<br/>레이트리밋 · 감사 로그 · 외부 API 키 없음"]
+    api["api · Spring Boot 4.1 / Java 25 (G1 · 힙 60% · 1 GB 한도)<br/>REST · Spring Security(세션+CSRF · 역할 · 토큰)<br/>레이트리밋 · 감사 로그 · 조회 캐시 · 외부 API 키 없음"]
     worker["worker · 같은 이미지<br/>요청 큐 소비(SKIP LOCKED) · 스케줄러<br/>Spring Batch Job 13개 · 외부 API 호출"]
     pg[("PostgreSQL 16 + PostGIS<br/>ref · dart · mkt · risk · ops + BATCH_*<br/>런타임 계정 buildrisk_app = DML 전용")]
-    redis[("Redis 7 (비밀번호)<br/>조회 캐시 · 세션 · 레이트리밋 · 로그인 잠금")]
+    redis[("Redis 7 (비밀번호)<br/>조회 캐시(세대 키 br:gen) · 세션 · 레이트리밋 · 로그인 잠금")]
     prom["Prometheus · Grafana (obs)"]
   end
   ext["Open DART · KOSIS · R-ONE · SGIS · V-World<br/>국토부 실거래가 · 금융위 주식시세"]
@@ -151,10 +152,11 @@ sequenceDiagram
   W->>J: advisory lock → start / restart (STOPPED·FAILED 면 같은 JobInstance)
   J->>J: 청크 안 항목을 가상 스레드로 동시 처리 (Throttle · QuotaGuard 스레드 안전)
   J-->>W: COMPLETED · STOPPED(한도) · FAILED(원인 한 줄)
+  W->>W: 조회 캐시 세대 +1 (어떤 Job 이든 끝나면)
   W->>Q: DONE / FAILED (+ _next 로 다음 Job)
 ```
 
-자세한 설계 결정은 [docs/adr](docs/adr/README.md) (ADR 19건).
+자세한 설계 결정은 [docs/adr](docs/adr/README.md) (ADR 22건).
 
 ### 기술 스택
 
@@ -163,12 +165,12 @@ sequenceDiagram
 | 애플리케이션 | **Java 25** (가상 스레드) · **Spring Boot 4.1.1** · Spring Batch 6 · JdbcClient · Flyway · springdoc · jsoup | 3.4 는 OSS 지원 종료 → 4.1 (U-5, [ADR-009](docs/adr/009-boot41-jdbcclient.md)) |
 | 보안 | **Spring Security 7** (세션 + `csrf.spa()` · 역할 · 서비스 토큰) · **Spring Session Redis** · BCrypt | [ADR-013](docs/adr/013-security.md) |
 | 저장 | PostgreSQL 16 + PostGIS 3.6 | 경계 · 실거래 월 파티션 · 마이그레이션/런타임 계정 분리 ([ADR-014](docs/adr/014-db-least-privilege.md)) |
-| 캐시 · 세션 | Redis 7 | 세대 키 `br:gen` 무효화 · 세션 · 레이트리밋 · 로그인 잠금 |
+| 캐시 · 세션 | Redis 7 · 프로세스 안 캐시 | 목록 · 상세 read-through(세대 키 `br:gen` 일괄 무효화) · 세션 · 레이트리밋 · 로그인 잠금 / 지도 경계는 버전별 gzip 바이트 ([ADR-022](docs/adr/022-read-cache.md)) |
 | 화면 | Next.js 15 (Pages Router) · React 18 · TypeScript · Tailwind · Recharts 3 · 카카오 지도 | 접근성 탭 · 좁은 화면 메뉴 · 역할에 따른 버튼 · CSP |
 | 관측 | Micrometer → Prometheus · Grafana · ECS 구조화 로그 | 관리 포트 8411 분리 ([ADR-018](docs/adr/018-observability.md)) |
-| 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright · **k6** | 백엔드 139개 · E2E 14개 · 부하 · 레이트리밋 |
+| 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright · **k6** | 백엔드 147개 · E2E 14개 · 부하 · 레이트리밋 |
 | 도구 | Python 3.11 (표준 라이브러리) | 외부 API 키 스모크 · 골든 fixture 캡처 (`tools/smoke.py`) |
-| 운영 · CI | Docker Compose(읽기 전용 · cap_drop · no-new-privileges) · nginx(edge) · Makefile · GitHub Actions | 테스트 · gitleaks · **CodeQL** · **Trivy** · Dependabot |
+| 운영 · CI | Docker Compose(읽기 전용 · cap_drop · no-new-privileges · **서비스별 메모리 한도** · healthcheck) · nginx(edge) · Makefile · GitHub Actions | 테스트 · gitleaks · **CodeQL** · **Trivy** · Dependabot ([ADR-021](docs/adr/021-container-memory.md)) |
 | 도입하지 않음 | Kafka/CDC · ClickHouse · Kubernetes | 이유와 도입 조건: [ADR-011](docs/adr/011-out-of-scope-infra.md) |
 
 ---
@@ -194,6 +196,8 @@ sequenceDiagram
 실행은 모두 **요청 큐**를 거칩니다 — 화면·API 요청, 스케줄러(`BATCH_SCHEDULING_ENABLED=true`), 체인(`_next`: 지표 → 규칙) 모두 같은 경로로 기록됩니다.
 프로세스가 죽어 STARTED 로 남은 실행은 하트비트(Step `last_updated`)가 10분 넘게 멈추면 다음 실행 요청 때 자동으로 FAILED 정리 후 restart 되고,
 배치 모니터의 **멈춘 실행 정리** 버튼(`POST /batch/executions/{id}/recover`)으로 즉시 정리할 수도 있습니다.
+배포·재시작으로 worker 가 종료 신호를 받으면 새 요청을 가져가지 않고 돌던 Job 을 **청크 경계에서 STOPPED** 로 멈춥니다(최대 45초, `stop_grace_period: 60s`) — 다시 요청하면 마지막 커밋 이후부터 이어갑니다.
+어떤 Job 이든 끝나면(상태와 무관 — 커밋된 청크는 이미 반영) 조회 캐시 세대를 올려 목록 · 상세가 바로 새 값을 보여 줍니다.
 
 ---
 
@@ -201,6 +205,8 @@ sequenceDiagram
 
 **기업 지표** — 부채비율 · 유동비율 · 차입금의존도 · 이자보상배율(분기) · 영업현금흐름 비율 · 분기 영업현금흐름 · 전년 동기 대비(%p).
 분모가 0·음수(자본잠식)이거나 계정이 없으면 값 대신 상태 코드(`NEG_EQUITY` · `ZERO_DENOM` · `MISSING`).
+음수일 수 없는 분모(이자비용 등)의 분기값이 음수면 — 보고서마다 원천 계정이 달라 누적이 줄어든 경우(실측 16개사 28개 값) — 부호가 뒤집힌 비율 대신 `INCONSISTENT`.
+경보 근거 문장은 사람이 읽는 단위로 씁니다: 2조 1,250억원 · 838호(20,950%) · 영업손실 분기는 음수 배율 대신 '영업손실'(숫자는 관측값에 그대로).
 
 **지역 지표** — 미분양 · 천 가구당 미분양 · 미분양 3개월 증감률 · 매매/전세지수 3개월 변화 · 전세·매매 괴리 ·
 **아파트 매매 거래 · 거래량 전년 동월 대비 · 계약 해제 비율 · ㎡당 중위 매매가 · 전년 동월 대비** (신고가 들어오는 중인 최근 두 달 제외).
@@ -230,8 +236,8 @@ R-R01 의 `minUnsoldUnits` 는 구현 중 추가한 파라미터입니다 — �
 | 3 | `GET /companies/{corpCode}/financials` | 표준계정 시계열 (fsDiv=AUTO·CFS·OFS, 누적 + 분기값) |
 | 4 | `GET /companies/{corpCode}/metrics` | 지표 시계열 (값 · 상태 · 구성요소 · 원천 rceptNo) |
 | 5 | `GET /companies/{corpCode}/disclosures` | 공시 타임라인 (eventType 필터) |
-| 6 | `GET /regions` | 시군구 목록 + 지표 (sido, metric, period) |
-| 7 | `GET /regions/geojson` | 단계구분도 GeoJSON (simplify m) — Redis 캐시 |
+| 6 | `GET /regions` | 시군구 목록 + 지표 값 (sido, metric, period) + `boundaryVersion` — 지도는 이 값과 경계를 화면에서 합침 |
+| 7 | `GET /regions/boundaries?v=` | 시군구 경계만 (simplify 100 · 500 · 1000) — 버전이 맞으면 1년 immutable, 아니면 ETag · 304. 미리 압축한 gzip ([ADR-020](docs/adr/020-map-boundaries-cache.md)) |
 | 8 | `GET /regions/{regionCd}/series` | 지역 통계·지표 시계열 · 출처 코드 매핑 |
 | 9 | `GET /alerts` | 경보 목록 (targetType, severity, status, since) |
 | 10 | `GET /alerts/{alertId}` | 경보 상세 · 근거 |
@@ -269,7 +275,7 @@ R-R01 의 `minUnsoldUnits` 는 구현 중 추가한 파라미터입니다 — �
 ## 7. 테스트 · 측정값
 
 ```bash
-make test        # 백엔드 139개 (단위·골든 + Testcontainers 통합) + 웹 타입 검사
+make test        # 백엔드 147개 (단위·골든 + Testcontainers 통합) + 웹 타입 검사
 make e2e         # Playwright 14개 (스택이 떠 있어야 함, 관리자 로그인 · XFF 위조 시나리오 포함)
 make load        # k6 부하 (50 VU · 90초, edge 경유)
 make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
@@ -277,13 +283,13 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 
 | 층 | 대상 | 내용 |
 |---|---|---|
-| 단위 | 표준화(구간 규칙·순액/액면·대체 규칙) · 분기 차분 · 지표 · 지역 매칭 · 공시 분류 · 유니버스 · 규칙 6종 | JUnit 파라미터화 테스트 |
+| 단위 | 표준화(구간 규칙·순액/액면·대체 규칙) · 분기 차분 · 지표(음수 분모 → INCONSISTENT) · 지역 매칭 · 공시 분류 · 유니버스 · 규칙 9종 · 근거 문장(금액 단위 · 영업손실 · 작은 기저) | JUnit 파라미터화 테스트 |
 | 골든 | 실제 DART 응답 6건 (대형·중견·코스닥, 연결·별도) | 회계 항등식 · 차입금 ≤ 부채 · 스냅샷 (`-Dgolden.update=true` 로 갱신) |
 | 배치 통합 | `financialStatementJob` · `companyProfileJob` · 좀비 실행 | 청크 도중 실패 → restart 중복 0 · 013 → OFS · 020 → STOPPED → 이어감 · 일일 상한 · restart 누락 0 · 하트비트 복구 |
-| 규칙 통합 | `ruleEvalJob` | 재평가 멱등 · ACK 유지 · 자동 RESOLVED · 규칙 버전 변경 시 RULE_CHANGED |
-| API | MockMvc + 시드 DB | 400·401·404·405·415 오류 형식 · traceId · 규칙 새 버전 · 202 큐 · 지역 수동 매핑 · 근거 없는 경보 DB 거부 |
+| 규칙 통합 | `ruleEvalJob` | 재평가 멱등 · ACK 유지 · 자동 RESOLVED · 규칙 버전 변경 시 RULE_CHANGED · **캐시된 목록이 Job 직후 새 경보를 보여 줌** |
+| API | MockMvc + 시드 DB | 400·401·404·405·415 오류 형식 · traceId · 규칙 새 버전 · 202 큐 · 지역 수동 매핑 · 근거 없는 경보 DB 거부 · 경계 gzip/원본 · immutable · 304 |
 | 큐 · 동시성 | `JobRequestQueueIT` | 중복 요청 409 · 동시 claim 정확히 1회 · 체인 · 서로 다른 Job 동시 시작 5회 반복 |
-| 보안 | `SecurityIT` · `LeastPrivilegeIT` | CSRF · 역할 · 세션 쿠키 속성 · 잠금 · 레이트리밋 · 감사 · DB DDL/감사 변조 거부 |
+| 보안 | `SecurityIT` · `LeastPrivilegeIT` | CSRF · 역할 · 세션 쿠키 속성 · 잠금 · 레이트리밋 · 감사(거부된 요청도 경로 템플릿으로) · DB DDL/감사 변조 거부 |
 | 신규 수집 | `AptTradeJobIT` · `FilingJobIT` · `StockAndInsightIT` · 파서·주소·사건 연구 단위 | 일반구 → 화면 단위 집계 · 0건 달 · 동시 호출에서 maxCalls 정확히 · 트래픽 초과 STOPPED · 원문 재파싱 호출 0 · 해지 연결 |
 | E2E | Playwright | 대시보드 고지 · 지도 · 경보 근거 · 배치 모니터 · 테마 · 보안 헤더 · 로그인/권한 · 노출 · 경보 검증 · 탭 키보드 · 좁은 화면 메뉴 |
 
@@ -291,19 +297,23 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 |---|---|---|
 | 기업 상세 43곳 (캐시 없음) | p50 7 ms · p95 8 ms | p95 < 300 ms |
 | 기업 상세 (Redis 캐시) | p50 5 ms · p95 6 ms | p95 < 300 ms |
-| 지도 GeoJSON 230곳 (첫 요청 / 캐시) | 84 ms / p95 48 ms · 1.95 MB (gzip 546 KB) | p95 < 1 s |
+| 지도: 지표 전환 / 경계 | 지표 목록 약 5 KB (전: 경계 포함 546 KB) / 경계 gzip 약 530 KB 를 버전당 한 번, 재방문 304 | p95 < 1 s |
 | 기업 목록 · 재무 · 지표 | p95 15 · 7 · 8 ms | — |
 | DART 고유번호 119,447건 적재 (StAX 스트리밍) | 4.2 s | — |
 | 기업개황 3,994건 (DART 호출 간격 200 ms) | 약 12분 | — |
 | 빈 DB → `make up` → `make regions` | 49 s + 18 s | README 대로 첫 화면 (FR-701) |
-| **k6 50 VU · 90 s (edge 경유, 조회 API 9종 혼합)** | **766 req/s · 69,114건 · 오류 0 · API p95 177 ms · GeoJSON p95 97 ms** (Next 프록시 경유였을 때 445 req/s · GeoJSON 243 ms) | API p95 < 300 ms · 지도 < 1 s |
+| **k6 50 VU · 90 s × 3회 (edge 경유, 화면 호출 비율대로 10종 혼합)** | **약 3,400 req/s (3,467 · 3,400 · 3,353) · 오류 0 / 약 92만 건 · API p95 30 ms · 경계 재검증 p95 18 ms** — 같은 날 점검 전 504 req/s · 307 ms · 오래 걸면 api OOM 킬 ([VERIFICATION 47~50](docs/VERIFICATION.md#3차-검증-2026-09-26)) | API p95 < 300 ms |
+| api 메모리 (1 GiB 한도, 위 부하 3회 연속) | 최대 RSS 625 MiB · 힙 ≤ 251 MB · 힙 밖 137 MB · 재시작 0 | 한도 안 |
+| 최악 조건: 50 VU 가 캐시 없이 경계 전체 반복 수신 | 205 req/s · 111 MB/s · 오류 0 · 메모리 한도 안 | — |
+| 기업 목록 쿼리 (EXPLAIN ANALYZE) | 13.8 ms → 2.1 ms (CTE `MATERIALIZED`) | — |
 | 레이트리밋 (20 VU · 20 s, 한 IP) | 1,200건 200 · 나머지 429(Retry-After) — 한도와 정확히 일치, 위조 X-Forwarded-For 로 우회 불가 | 분당 1,200 |
 | 실거래 수집 6,400 (시군구×월) · 110만 행 | 420 s (6,417 호출, 동시 4) | 일일 상한 9,000 이내 |
 | 청크 안 동시 호출 A/B (실거래 256 호출) | 순차 23.3 s → 동시 4 17.8 s (−24%) — 이후는 공급자 보호용 호출 간격(60 ms ≈ 16.7건/s)이 천장 | — |
 | 공시 원문 1,313건 수집·구조화 | 263 s (DART 호출 간격 200 ms 가 천장) · **파서 개정 후 재파싱 3.8 s · 호출 0** | — |
 | 주가 43종목 × 3년 (31,138행) | 27 s (43 호출) | — |
 
-데이터 품질·적재 결과와 실데이터·정적 분석으로 찾은 문제 41건은 [docs/VERIFICATION.md](docs/VERIFICATION.md).
+데이터 품질·적재 결과와 실데이터·정적 분석·부하 시험으로 찾은 문제 61건은 [docs/VERIFICATION.md](docs/VERIFICATION.md).
+부하 수치는 다른 프로젝트의 스택이 함께 도는 개발용 맥에서 잰 값이라 절대값은 흔들립니다 — 비교는 같은 날 연달아 잰 값끼리입니다.
 
 ## 8. 설계서 미결정 사항 → 결과
 
@@ -319,7 +329,8 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 ## 9. 한계
 
 - 회계연도가 12월이 아닌 회사는 사업연도를 그대로 기간 키로 씁니다(건설업 상장사는 대부분 12월 결산).
-- 이자보상배율의 이자비용을 현금흐름표 '이자의 지급'으로 대신한 회사는 이자 지급 시점에 따라 분기 값이 출렁일 수 있습니다(근거에 원천 표시).
+- 이자보상배율의 이자비용을 현금흐름표 '이자의 지급'으로 대신한 회사는 이자 지급 시점에 따라 분기 값이 출렁일 수 있습니다(근거에 원천 표시). 보고서마다 잡힌 계정이 달라 분기 차분이 음수가 되면 값 대신 `INCONSISTENT` 로 둡니다.
+- 조회 캐시는 Job 종료 · 경보 확인 때 무효화됩니다. `make psql` 로 DB 를 직접 고치면 최대 10분 옛 값을 보여 줄 수 있습니다(아무 Job 이나 한 번 실행하면 갱신).
 - 차입금을 '금융부채'로 묶어 공시한 회사(예: GS건설)는 리스부채 등이 섞인 값으로 차입금의존도를 계산합니다(대체 규칙, 근거에 원천 표시).
 - 인천 2026-07 개편 신설 구는 KOSIS 시계열이 202607부터라 3개월 증감률이 아직 없고, SGIS 2024 총가구는 폐지된 옛 구 기준이라 천 가구당 미분양이 비어 있습니다(사유 기록).
 - 공시 이벤트 분류는 보고서명 키워드 사전 기반이라 본문 내용은 보지 않습니다(범위 밖).
@@ -339,14 +350,14 @@ buildrisk-radar/
 │     ├─ batch/              jobs/ (Job 13개) · queue/ (요청 큐 · worker · 등록부) · support/ (Launcher · QuotaGuard · CLI · 스케줄러)
 │     ├─ domain/             account · metric · rule(+rules/) · region(주소 해석) · disclosure · universe · filing(원문 파서) · market · backtest
 │     ├─ adapters/           dart · kosis · rone · sgis · vworld · datagokr(실거래 · 주식시세) · common(한도 · 재시도 · 간격 · 지표)
-│     └─ common/             설정 · 역할(api/worker) · security(세션 · CSRF · 토큰 · 레이트리밋 · 감사) · 오류 규약 · traceId · 캐시 · seed
+│     └─ common/             설정 · 역할(api/worker) · security(세션 · CSRF · 토큰 · 레이트리밋 · 감사) · 오류 규약 · traceId · cache(Redis · 프로세스 안) · seed
 ├─ app/src/main/resources/db/migration/   V1 … V14 · afterMigrate(런타임 계정 권한)
 ├─ app/src/test/             단위 · Testcontainers 통합 · WireMock fixture (DART 재무 · 공시 원문 · 실거래 · 주가 실응답)
 ├─ web/                      Next.js 15 (pages · components · lib(auth · api) · e2e)
 ├─ ops/                      prometheus · grafana(프로비저닝 대시보드) · k6(부하 · 레이트리밋)
 ├─ seed/                     표준계정 · 매핑 규칙 · 업종코드 · 이벤트 사전 · 규칙 · 통계 시리즈 · 지역 별칭
 ├─ tools/smoke.py            외부 API 키 스모크 · 골든 fixture 캡처
-├─ docs/adr/                 설계 결정 기록 19건
-├─ docs/VERIFICATION.md      실데이터 검증 기록 (적재 결과 · 품질 · 찾아서 고친 문제 41건 · 성능 · 보안 확인)
+├─ docs/adr/                 설계 결정 기록 22건
+├─ docs/VERIFICATION.md      실데이터 검증 기록 (적재 결과 · 품질 · 찾아서 고친 문제 61건 · 부하 · 보안 확인)
 ├─ docker-compose.yml · Makefile · .env.example · .github/ (ci · codeql · dependabot)
 ```

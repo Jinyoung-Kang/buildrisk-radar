@@ -8,7 +8,7 @@ const OUT = "../docs/images";
 const shots: [string, string, (p: import("@playwright/test").Page) => Promise<void>][] = [
   ["dashboard", "/", async () => {}],
   ["regions", "/regions", async (p) => { await p.waitForTimeout(2500); }],
-  ["company", "/companies/00153861", async (p) => { await p.waitForTimeout(1200); }],
+  ["company", "/companies/00153861?tab=financials", async (p) => { await p.waitForTimeout(1500); }],
   ["companies", "/companies", async () => {}],
   ["region-card", "/regions?metric=UNSOLD_PER_1K_HH", async (p) => { await p.waitForTimeout(2000); await p.locator("ol button").first().click(); await p.waitForTimeout(2000); }],
   ["region-price", "/regions?metric=PRICE_IDX_3M_CHG", async (p) => { await p.waitForTimeout(3000); }],

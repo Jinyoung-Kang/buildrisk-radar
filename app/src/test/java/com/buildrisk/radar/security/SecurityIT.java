@@ -160,6 +160,9 @@ class SecurityIT extends IntegrationTest {
                 .andExpect(status().isUnauthorized());
         mvc.perform(post("/api/v1/batch/jobs/ruleEvalJob/launch")).andExpect(status().isUnauthorized());
         assertThat(count("SELECT count(*) FROM ops.audit_log WHERE actor = 'anonymous' AND status = 401")).isEqualTo(2);
+        // 거부된 요청도 경로 템플릿으로 기록 (행위별 집계가 가능하게)
+        assertThat(jdbc.queryForList("SELECT action FROM ops.audit_log WHERE status = 401", String.class))
+                .containsExactlyInAnyOrder("PUT /api/v1/rules/{ruleCode}", "POST /api/v1/batch/jobs/{jobName}/launch");
     }
 
     @Test

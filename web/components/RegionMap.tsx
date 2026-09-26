@@ -33,6 +33,7 @@ export default function RegionMap({ geo, colorOf, tooltipOf, selected, onSelect,
   const [err, setErr] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const bounds = useRef<any>(null);
+  const userMoved = useRef(false);   // 사용자가 끌거나 확대하기 전까지는 크기가 바뀔 때마다 전국에 다시 맞춤
 
   /** 컨테이너 크기가 정해진 뒤 전체 경계에 맞춤 (flex 레이아웃은 마운트 시점에 크기가 0 일 수 있음) */
   function fit() {
@@ -49,11 +50,15 @@ export default function RegionMap({ geo, colorOf, tooltipOf, selected, onSelect,
       map.current = new kakao.maps.Map(el.current, { center: new kakao.maps.LatLng(36.3, 127.8), level: 13 });
       map.current.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
       tip.current = new kakao.maps.CustomOverlay({ yAnchor: 1.3, zIndex: 10 });
+      kakao.maps.event.addListener(map.current, "dragstart", () => { userMoved.current = true; });
       setReady(true);
     }).catch((e) => setErr(e.message));
-    const ro = new ResizeObserver(() => { map.current?.relayout(); });
-    if (el.current) ro.observe(el.current);
-    return () => { cancelled = true; ro.disconnect(); };
+    // 레이아웃이 자리 잡는 동안(데이터 도착·스크롤바) 크기가 바뀌면 다시 맞춤 — 한 번만 맞추면 치우쳐 보였음
+    const ro = new ResizeObserver(() => { if (userMoved.current) map.current?.relayout(); else fit(); });
+    const onWheel = () => { userMoved.current = true; };
+    if (el.current) { ro.observe(el.current); el.current.addEventListener("wheel", onWheel, { passive: true }); }
+    const node = el.current;
+    return () => { cancelled = true; ro.disconnect(); node?.removeEventListener("wheel", onWheel); };
   }, []);
 
   function paint() {
@@ -116,6 +121,11 @@ export default function RegionMap({ geo, colorOf, tooltipOf, selected, onSelect,
   return (
     <div className={`relative ${className ?? ""}`}>
       <div ref={el} className="absolute inset-0 rounded-xl overflow-hidden bg-line/40" aria-label="시군구 지도" role="application" />
+      {ready && !err && (
+        <button type="button" onClick={() => { userMoved.current = false; fit(); }}
+          className="absolute top-3 left-3 z-10 text-xs px-2.5 py-1.5 rounded-md bg-raised/95 border border-line shadow-card hover:bg-page focus-ring">
+          전국 보기</button>
+      )}
       {err && geo && <SvgMap geo={geo} colorOf={colorOf} tooltipOf={tooltipOf} selected={selected} onSelect={onSelect} />}
       {err && (
         <details className="absolute top-3 left-3 max-w-md text-xs bg-raised/90 rounded-lg shadow-card px-3 py-2">

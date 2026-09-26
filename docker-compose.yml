@@ -25,7 +25,6 @@ x-app-env: &app-env
   REDIS_URL: redis://:${REDIS_PASSWORD:?make env 로 .env 를 채우세요}@redis:6379
   ADMIN_TOKEN: ${ADMIN_TOKEN:-}
   LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
-  JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75
   TZ: Asia/Seoul
 
 # 외부 API 키 — worker · batch 에만
@@ -57,6 +56,10 @@ x-mgmt-health: &mgmt-health
   retries: 30
   start_period: 30s
 
+# 메모리: 서비스마다 mem_limit. JVM 힙은 이미지(app/Dockerfile)의 JAVA_TOOL_OPTIONS 로 한도의 60%.
+# 한도가 없던 때는 JVM 이 도커 VM 전체(7.7 GB, 다른 스택과 공유)를 기준으로 힙을 6.2 GB 까지 잡아, 부하 중 VM 메모리가 바닥나
+# 커널 OOM 킬러가 api 를 죽였음(exit 137, 실측 — docs/VERIFICATION.md 47번)
+
 services:
   db:
     restart: unless-stopped
@@ -69,6 +72,7 @@ services:
       LANG: C.UTF-8
       TZ: Asia/Seoul
     command: ["postgres", "-c", "shared_buffers=256MB", "-c", "work_mem=32MB", "-c", "log_min_duration_statement=500"]
+    mem_limit: 1536m
     volumes:
       - db-data:/var/lib/postgresql/data
     ports:
@@ -86,6 +90,7 @@ services:
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?make env 로 .env 를 채우세요}
     command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no --maxmemory 128mb --maxmemory-policy allkeys-lru"]
+    mem_limit: 256m
     ports:
       - "127.0.0.1:6419:6379"
     <<: *hardening
@@ -101,6 +106,7 @@ services:
       context: .
       dockerfile: app/Dockerfile
     image: buildrisk-radar-app
+    mem_limit: 1g                               # 힙 768 MB
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -122,6 +128,7 @@ services:
   worker:
     restart: unless-stopped
     image: buildrisk-radar-app
+    mem_limit: 1536m                            # 배치(원문 5 MB × 동시 4 · 실거래 페이지) 여유
     depends_on:
       api: { condition: service_healthy }       # 마이그레이션은 api 가 먼저 끝냄
     environment:
@@ -132,10 +139,13 @@ services:
       - ./seed:/app/seed:ro
     <<: *hardening
     healthcheck: *mgmt-health
+    # 종료 신호를 받으면 돌던 잡을 청크 경계에서 멈추고(최대 45초) 나감 — 기본 10초면 중간에 강제 종료됨
+    stop_grace_period: 60s
 
   batch:
     profiles: ["batch"]
     image: buildrisk-radar-app
+    mem_limit: 1536m
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -153,6 +163,7 @@ services:
       context: ./web
       args:
         API_INTERNAL_BASE: http://api:8410
+    mem_limit: 512m
     depends_on:
       api: { condition: service_healthy }
     environment:
@@ -163,16 +174,23 @@ services:
       - /app/.next/cache:uid=1000,gid=1000
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3400/api/config').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
   # 유일한 외부 진입점 — X-Forwarded-For 를 실제 접속 주소로 덮어쓰는 리버스 프록시
   edge:
     restart: unless-stopped
     image: nginx:1.27-alpine
+    mem_limit: 128m
     user: "101:101"
     command: ["nginx", "-g", "daemon off;"]
     depends_on:
       api: { condition: service_healthy }
-      web: { condition: service_started }
+      web: { condition: service_healthy }
     volumes:
       - ./ops/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
@@ -181,11 +199,17 @@ services:
       default:
         ipv4_address: 10.213.0.10               # api 가 믿는 유일한 프록시
     <<: *hardening
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
 
   # ---------------------------------------------------------------- 관측 (make obs)
   prometheus:
     profiles: ["obs"]
     image: prom/prometheus:v3.1.0
+    mem_limit: 512m
     command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=7d"]
     volumes:
       - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -197,6 +221,7 @@ services:
   grafana:
     profiles: ["obs"]
     image: grafana/grafana:11.4.0
+    mem_limit: 256m
     depends_on: [prometheus]
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?make env 로 .env 를 채우세요}

@@ -10,8 +10,6 @@ import com.buildrisk.radar.domain.rule.RuleModels.MetricPoint;
 import com.buildrisk.radar.domain.rule.RuleModels.RuleDefinition;
 import com.buildrisk.radar.domain.rule.RuleModels.TargetType;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,7 +19,6 @@ import java.util.stream.Collectors;
 
 /** R-C03 — 분기 영업활동현금흐름(OCF_QTR) < 0 이 consecutive 분기 연속 */
 public class RC03NegativeOcf implements RuleEvaluator {
-    private static final BigDecimal EOK = BigDecimal.valueOf(100_000_000L);
 
     @Override public String code() { return "R-C03"; }
 
@@ -51,15 +48,11 @@ public class RC03NegativeOcf implements RuleEvaluator {
                 o.put("operatingCashFlowQtr", m.value());
                 ev.observe(o).sourceOf(m, "DART");
             }
-            String series = run.stream().map(m -> m.period() + " " + eok(m.value()) + "억 원")
+            String series = run.stream().map(m -> m.period() + " " + Evidence.won(m.value()))
                     .collect(Collectors.joining(", "));
-            String msg = "분기 영업활동현금흐름이 " + series + "로 " + k + "개 분기 연속 음수입니다.";
+            String msg = "분기 영업활동현금흐름이 " + series + "으로 " + k + "개 분기 연속 음수입니다.";
             out.add(new Finding(pk, "영업현금흐름 " + k + "분기 연속 적자", msg, ev.build(msg)));
         }
         return new Evaluation(out, periods, periods.isEmpty() ? null : periods.get(periods.size() - 1));
-    }
-
-    private static String eok(BigDecimal won) {
-        return won.divide(EOK, 0, RoundingMode.HALF_UP).toPlainString();
     }
 }

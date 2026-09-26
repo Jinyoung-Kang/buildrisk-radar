@@ -1,5 +1,6 @@
 package com.buildrisk.radar.domain;
 
+import com.buildrisk.radar.domain.rule.Evidence;
 import com.buildrisk.radar.domain.rule.Params;
 import com.buildrisk.radar.domain.rule.RuleData;
 import com.buildrisk.radar.domain.rule.RuleModels.DisclosureEvent;
@@ -66,6 +67,47 @@ class RuleEvaluatorTest {
         assertThat(evidence).containsKeys("condition", "params", "observations", "sources", "message");
         assertThat((List<?>) evidence.get("observations")).hasSize(2);
         assertThat((List<?>) evidence.get("sources")).isNotEmpty();   // 근거 없는 경보 0
+    }
+
+    @Test
+    void R_C02_영업손실_분기는_뜻없는_음수_배율_대신_영업손실로_쓴다() {
+        // 분기 이자비용 5원 · 영업손실 302억 → -60억 배 (실측). 숫자는 observations 에 그대로 두고 문장만 읽을 수 있게
+        var d = new Mem().put("DEBT_RATIO", "2026Q1", "1").put("DEBT_RATIO", "2026Q2", "1")
+                .put("INTEREST_COVERAGE", "2026Q1", "0.5").put("INTEREST_COVERAGE", "2026Q2", "-6049063301.8");
+        var r = rule("R-C02", TargetType.COMPANY, Map.of("threshold", 1.0, "consecutive", 2));
+        var f = registry.get("R-C02").evaluate(r, "c", d).findings().getLast();
+        assertThat(f.message()).startsWith("2026Q1 0.5배, 2026Q2 영업손실로").doesNotContain("6,049");
+    }
+
+    @Test
+    void 금액은_조_억_만원_단위로_읽는다() {
+        assertThat(Evidence.won(new BigDecimal("2125000000000"))).isEqualTo("2조 1,250억원");
+        assertThat(Evidence.won(new BigDecimal("2000000000000"))).isEqualTo("2조원");
+        assertThat(Evidence.won(new BigDecimal("684400000000"))).isEqualTo("6,844억원");
+        assertThat(Evidence.won(new BigDecimal("-35000000"))).isEqualTo("-3,500만원");
+        assertThat(Evidence.won(BigDecimal.ZERO)).isEqualTo("0원");
+        assertThat(Evidence.won(null)).isEqualTo("-");
+    }
+
+    @Test
+    void R_R01_기저가_작으면_증감률과_함께_늘어난_호수를_쓴다() {
+        var d = new Mem().put("UNSOLD_UNITS", "202511", "842").put("UNSOLD_PER_1K_HH", "202511", "8.1");
+        d.metrics.computeIfAbsent("UNSOLD_3M_CHG", k -> new TreeMap<>()).put("202511", new MetricPoint("202511",
+                new BigDecimal("20950"), "OK", Map.of("unsold", 842, "unsold3mAgo", 4, "period3mAgo", "202508")));
+        var r = rule("R-R01", TargetType.REGION, Map.of("unsold3mChgPct", 50, "unsoldPer1kHh", 2, "minUnsoldUnits", 100));
+        assertThat(registry.get("R-R01").evaluate(r, "41110", d).findings().getFirst().message())
+                .isEqualTo("202511 미분양 842호로 3개월 전(4호)보다 838호(20,950%) 늘었고, 천 가구당 8.1호입니다.");
+    }
+
+    @Test
+    void R_C03_영업현금흐름_3분기_연속_음수일_때만_참이고_금액은_억원_단위() {
+        var d = new Mem().put("DEBT_RATIO", "2025Q4", "1").put("DEBT_RATIO", "2026Q1", "1").put("DEBT_RATIO", "2026Q2", "1")
+                .put("OCF_QTR", "2025Q4", "-106700000000").put("OCF_QTR", "2026Q1", "-33500000000").put("OCF_QTR", "2026Q2", "56600000000");
+        var r = rule("R-C03", TargetType.COMPANY, Map.of("consecutive", 3));
+        assertThat(registry.get("R-C03").evaluate(r, "c", d).findings()).isEmpty();          // 마지막 분기 유입
+        d.put("OCF_QTR", "2026Q2", "-56600000000");
+        assertThat(registry.get("R-C03").evaluate(r, "c", d).findings().getLast().message())
+                .isEqualTo("분기 영업활동현금흐름이 2025Q4 -1,067억원, 2026Q1 -335억원, 2026Q2 -566억원으로 3개 분기 연속 음수입니다.");
     }
 
     @Test
