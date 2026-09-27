@@ -5,11 +5,16 @@ import com.buildrisk.radar.domain.filing.FilingModels.Guarantee;
 import com.buildrisk.radar.domain.filing.FilingModels.Kind;
 import com.buildrisk.radar.domain.filing.FilingModels.Termination;
 import com.buildrisk.radar.domain.region.AddressRegionMatcher;
+
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 
@@ -202,9 +207,9 @@ public class FilingRepository {
 
     private static String sha256(String s) {
         try {
-            var md = java.security.MessageDigest.getInstance("SHA-256");
-            return java.util.HexFormat.of().formatHex(md.digest(s.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-        } catch (java.security.NoSuchAlgorithmException e) {
+            var md = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(md.digest(s.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
     }

@@ -1,10 +1,12 @@
 package com.buildrisk.radar.adapters.vworld;
 
 import com.buildrisk.radar.adapters.common.ApiKeyMissingException;
+import com.buildrisk.radar.adapters.common.ExternalApiMetrics;
 import com.buildrisk.radar.adapters.common.HttpSupport;
 import com.buildrisk.radar.adapters.common.Json;
 import com.buildrisk.radar.adapters.common.UpstreamException;
 import com.buildrisk.radar.common.AppProperties;
+
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -33,9 +35,9 @@ public class VworldClient {
     private final RestClient http;
     private final ObjectMapper mapper;
 
-    private final com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics;
+    private final ExternalApiMetrics metrics;
 
-    public VworldClient(AppProperties props, ObjectMapper mapper, com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics) {
+    public VworldClient(AppProperties props, ObjectMapper mapper, ExternalApiMetrics metrics) {
         this.metrics = metrics;
         this.cfg = props.vworld();
         this.http = HttpSupport.client(cfg.baseUrl(), Duration.ofSeconds(120));

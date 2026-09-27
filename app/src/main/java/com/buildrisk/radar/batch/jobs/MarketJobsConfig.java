@@ -7,10 +7,12 @@ import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.AppProperties;
-import com.buildrisk.radar.domain.market.AptTradeRepository;
+import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.domain.market.AptTradeRepository.Fetched;
 import com.buildrisk.radar.domain.market.AptTradeRepository.Target;
+import com.buildrisk.radar.domain.market.AptTradeRepository;
 import com.buildrisk.radar.domain.market.TradeWindow;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
@@ -48,7 +50,7 @@ public class MarketJobsConfig {
 
     @Bean
     Job aptTradeJob(JobRepository repo, Step aptTradeFetchStep, Step aptTradeAggregateStep, RunRecorder runs,
-                  com.buildrisk.radar.common.cache.JsonCache cache) {
+                  JsonCache cache) {
         return new JobBuilder("aptTradeJob", repo).listener(runs.collect("RTMS", cache::invalidateAll))
                 .start(aptTradeFetchStep).next(aptTradeAggregateStep).build();
     }

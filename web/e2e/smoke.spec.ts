@@ -26,7 +26,20 @@ test("경보: 상세에 근거(조건·파라미터·관측값·원천)가 붙�
   await expect(page.getByText(/원천 \(NFR-04/)).toBeVisible();
 });
 
-test("배치 모니터: Job 10개와 실행 이력", async ({ page }) => {
+test("경보: 한 페이지를 넘는 목록은 페이지를 넘겨 끝까지 볼 수 있다", async ({ page }) => {
+  await page.goto("/alerts?status=OPEN,ACK,CLOSED");
+  const pager = page.getByRole("navigation", { name: "페이지" });
+  const paged = await pager.waitFor({ timeout: 10_000 }).then(() => true).catch(() => false);
+  test.skip(!paged, "경보가 한 페이지(100건) 이하 — 배치를 더 실행하면 확인 가능");
+  const firstId = await page.locator("tbody tr.clickable").first().textContent();
+  await pager.getByRole("button", { name: "다음 ›" }).click();
+  await expect(page).toHaveURL(/[?&]p=1/);
+  await expect(page.getByText(/^101–/)).toBeVisible();
+  await expect(page.locator("tbody tr.clickable").first()).not.toHaveText(firstId ?? "");
+  await expect(pager.getByRole("button", { name: "‹ 이전" })).toBeEnabled();
+});
+
+test("배치 모니터: Job 13개와 실행 이력", async ({ page }) => {
   await page.goto("/admin/batch");
   await expect(page.getByText("financialStatementJob · 매일 03:00")).toBeVisible();
   await expect(page.getByText("ruleEvalJob · 지표 Job 완료 후")).toBeVisible();

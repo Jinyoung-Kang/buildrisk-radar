@@ -2,6 +2,8 @@ package com.buildrisk.radar.api;
 
 import com.buildrisk.radar.batch.queue.JobRequestService;
 import com.buildrisk.radar.batch.support.BatchLauncher;
+import com.buildrisk.radar.common.role.ApiRole;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
@@ -13,8 +15,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import com.buildrisk.radar.common.role.ApiRole;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
@@ -60,7 +62,7 @@ public class BatchController {
                     + "(body.restart=false 로 새로 시작). financialStatementJob body 예: {\"years\":[2024,2025,2026],\"maxCalls\":500}")
     public ResponseEntity<JobRequestService.Enqueued> launch(@PathVariable String jobName,
                                                              @RequestBody(required = false) Map<String, Object> body,
-                                                             java.security.Principal principal) {
+                                                             Principal principal) {
         String by = principal == null ? "anonymous" : principal.getName();
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(queue.enqueue(jobName, body, by));
     }

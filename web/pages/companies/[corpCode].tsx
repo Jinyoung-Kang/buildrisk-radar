@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useMemo, useState } from "react";
-import { SignedBars, TrendLine } from "@/components/Charts";
 import EvidenceView from "@/components/EvidenceView";
 import CompanyFilings from "@/components/CompanyFilings";
 import Layout from "@/components/Layout";
-import PriceChart from "@/components/PriceChart";
+import { PriceChart, SignedBars, TrendLine } from "@/components/LazyCharts";
 import Tabs, { TabPanel, useTab } from "@/components/Tabs";
 import { Card, DartLink, Empty, ErrorBox, Loading, MetricStatus, PageTitle, Segmented, SeverityBadge, StatusPill } from "@/components/ui";
 import { qs, type AlertDetail, type CompanySummary, type Disclosure, type Financials, type Metrics } from "@/lib/api";

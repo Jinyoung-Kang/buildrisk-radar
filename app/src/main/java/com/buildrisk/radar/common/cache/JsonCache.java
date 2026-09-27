@@ -1,5 +1,7 @@
 package com.buildrisk.radar.common.cache;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -22,11 +24,23 @@ public class JsonCache {
 
     private final StringRedisTemplate redis;
     private final ObjectMapper mapper;
+    private final Counter hits;
+    private final Counter misses;
+    private final Counter errors;
     private volatile long lastWarn;
 
-    public JsonCache(StringRedisTemplate redis, ObjectMapper mapper) {
+    /** 적중률은 Prometheus 의 buildrisk_cache_requests_total{result} 로 — 캐시가 실제로 DB 부하를 덜어 주는지 확인 (ADR-022) */
+    public JsonCache(StringRedisTemplate redis, ObjectMapper mapper, MeterRegistry registry) {
         this.redis = redis;
         this.mapper = mapper;
+        this.hits = counter(registry, "hit");
+        this.misses = counter(registry, "miss");
+        this.errors = counter(registry, "error");
+    }
+
+    private static Counter counter(MeterRegistry registry, String result) {
+        return Counter.builder("buildrisk.cache.requests").tag("cache", "redis").tag("result", result)
+                .description("조회 캐시 요청 (hit · miss · error = Redis 불가로 캐시 없이 조회)").register(registry);
     }
 
     public <T> T get(String key, Duration ttl, Class<T> type, Supplier<T> loader) {
@@ -44,11 +58,16 @@ public class JsonCache {
             String gen = redis.opsForValue().get(GEN_KEY);
             full = "br:" + (gen == null ? "0" : gen) + ":" + key;
             String hit = redis.opsForValue().get(full);
-            if (hit != null) return mapper.readValue(hit, type);
+            if (hit != null) {
+                hits.increment();
+                return mapper.readValue(hit, type);
+            }
         } catch (RuntimeException e) {
+            errors.increment();
             warn(e);
             return loader.get();
         }
+        misses.increment();
         T value = loader.get();
         try {
             if (value != null) redis.opsForValue().set(full, mapper.writeValueAsString(value), ttl);

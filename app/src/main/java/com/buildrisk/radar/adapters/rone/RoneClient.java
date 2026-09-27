@@ -1,11 +1,13 @@
 package com.buildrisk.radar.adapters.rone;
 
 import com.buildrisk.radar.adapters.common.ApiKeyMissingException;
+import com.buildrisk.radar.adapters.common.ExternalApiMetrics;
 import com.buildrisk.radar.adapters.common.HttpSupport;
 import com.buildrisk.radar.adapters.common.Json;
 import com.buildrisk.radar.adapters.common.Throttle;
 import com.buildrisk.radar.adapters.common.UpstreamException;
 import com.buildrisk.radar.common.AppProperties;
+
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -35,9 +37,9 @@ public class RoneClient {
     private final ObjectMapper mapper;
     private final Throttle throttle;
 
-    private final com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics;
+    private final ExternalApiMetrics metrics;
 
-    public RoneClient(AppProperties props, ObjectMapper mapper, com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics) {
+    public RoneClient(AppProperties props, ObjectMapper mapper, ExternalApiMetrics metrics) {
         this.metrics = metrics;
         this.cfg = props.rone();
         this.http = HttpSupport.client(cfg.baseUrl(), Duration.ofSeconds(60));

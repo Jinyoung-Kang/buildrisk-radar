@@ -6,12 +6,14 @@ import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.domain.filing.FilingParser;
-import com.buildrisk.radar.domain.filing.FilingRepository;
 import com.buildrisk.radar.domain.filing.FilingRepository.Target;
+import com.buildrisk.radar.domain.filing.FilingRepository;
 import com.buildrisk.radar.domain.region.AddressRegionMatcher;
 import com.buildrisk.radar.domain.region.RegionRepository;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
@@ -48,7 +50,7 @@ public class FilingJobConfig {
 
     @Bean
     Job filingParseJob(JobRepository repo, Step filingFetchStep, Step filingReparseStep, Step filingLinkStep, RunRecorder runs,
-                  com.buildrisk.radar.common.cache.JsonCache cache) {
+                  JsonCache cache) {
         return new JobBuilder("filingParseJob", repo).listener(runs.collect("DART", cache::invalidateAll))
                 .start(filingFetchStep).next(filingReparseStep).next(filingLinkStep).build();
     }

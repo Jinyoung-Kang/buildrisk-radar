@@ -45,7 +45,7 @@ export default function Login() {
   return (
     <Layout title="로그인">
       <div className="max-w-sm mx-auto mt-10">
-        <Card title="로그인" sub="조회는 로그인 없이 가능합니다. 경보 확인(분석가)·규칙·배치·매핑·감사(관리자)는 로그인이 필요합니다.">
+        <Card as="h1" title="로그인" sub="조회는 로그인 없이 가능합니다. 경보 확인(분석가)·규칙·배치·매핑·감사(관리자)는 로그인이 필요합니다.">
           <form onSubmit={submit} className="space-y-4" noValidate>
             <label className="block text-sm">
               <span className="text-ink2">아이디</span>

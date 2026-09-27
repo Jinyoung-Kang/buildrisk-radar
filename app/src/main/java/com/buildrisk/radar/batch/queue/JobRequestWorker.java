@@ -2,16 +2,22 @@ package com.buildrisk.radar.batch.queue;
 
 import com.buildrisk.radar.batch.support.BatchKeys;
 import com.buildrisk.radar.batch.support.BatchLauncher;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.job.JobExecution;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.lang.management.ManagementFactory;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -28,8 +34,9 @@ public class JobRequestWorker {
     private final String workerId = "worker-" + ManagementFactory.getRuntimeMXBean().getName();
     private final int maxConcurrent = 2;
     /** 실행 중인 요청 → Job 실행 번호 (종료 시 멈춤 요청 대상) */
-    private final java.util.concurrent.ConcurrentHashMap<Long, Long> running = new java.util.concurrent.ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Long> running = new ConcurrentHashMap<>();
     private volatile boolean draining;
+    private final AtomicBoolean shutdown = new AtomicBoolean();
 
     public JobRequestWorker(JobRequestService queue, BatchLauncher launcher) {
         this.queue = queue;
@@ -87,7 +94,7 @@ public class JobRequestWorker {
      * 정상 종료(SIGTERM): 새 요청을 가져가지 않고, 실행 중인 Job 에 멈춤을 요청해 청크 경계에서 STOPPED 로 끝나기를 기다립니다.
      * 강제로 죽으면 실행이 STARTED 로 남아 하트비트 정리(기본 10분)를 기다려야 했음.
      */
-    public int drain(java.time.Duration timeout) {
+    public int drain(Duration timeout) {
         draining = true;
         int stopped = 0;
         for (Long execId : running.values()) if (launcher.stop(execId)) stopped++;
@@ -107,8 +114,15 @@ public class JobRequestWorker {
     /** drain 이후 다시 요청을 받음 (테스트 · 종료 취소) */
     public void resume() { draining = false; }
 
-    @jakarta.annotation.PreDestroy
-    void onShutdown() { drain(java.time.Duration.ofSeconds(45)); }
+    /**
+     * 종료 신호에 drain. ContextClosedEvent 는 Spring 이 빈을 멈추고(lifecycle stop) 없애기 전에 발행됩니다.
+     * 예전의 @PreDestroy 는 Redis 연결이 이미 닫힌 뒤라, 멈춘 Job 뒤의 조회 캐시 무효화가 실패했습니다(실제 스택에서 확인).
+     * 관리 포트(자식 컨텍스트)의 종료 이벤트도 올라오므로 한 번만 실행합니다.
+     */
+    @EventListener(ContextClosedEvent.class)
+    void onShutdown() {
+        if (shutdown.compareAndSet(false, true)) drain(Duration.ofSeconds(45));
+    }
 
     public int inFlight() { return inFlight.get(); }
 

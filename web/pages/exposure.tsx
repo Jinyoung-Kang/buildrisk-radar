@@ -16,7 +16,7 @@ function ShareBar({ pct, warn }: { pct?: number; warn: number }) {
       <div className="w-24 h-2 bg-line rounded-full overflow-hidden" aria-hidden>
         <div className={`h-full ${pct >= warn ? "bg-crit" : "bg-accent"}`} style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
-      <span className={`tabular w-12 text-right ${pct >= warn ? "text-crit font-medium" : ""}`}>{num(pct)}%</span>
+      <span className={`tabular w-12 text-right ${pct >= warn ? "text-crit font-medium" : ""}`}>{num(pct, 1, true)}%</span>
     </div>
   );
 }
@@ -63,7 +63,7 @@ export default function ExposurePage() {
                     <td className="num"><ShareBar pct={r.riskSharePct} warn={50} /></td>
                     <td className="num">{r.riskContracts || "–"}</td>
                     <td className={`num ${(r.latestBalanceToEquityPct ?? 0) >= 100 ? "text-crit font-medium" : ""}`}>
-                      {r.latestBalanceToEquityPct != null ? `${num(r.latestBalanceToEquityPct)}%` : "–"}
+                      {r.latestBalanceToEquityPct != null ? `${num(r.latestBalanceToEquityPct, 1, true)}%` : "–"}
                       {r.latestGuaranteeDt && <span className="sub">{r.latestGuaranteeDt}</span>}</td>
                     <td className="num whitespace-nowrap">{eok(r.pfAmount)}</td>
                     <td className="num">{r.openAlerts || "–"}</td>

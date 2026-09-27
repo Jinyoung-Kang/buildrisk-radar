@@ -9,39 +9,48 @@ const tooltipStyle = {
   labelStyle: { color: "rgb(var(--ink2))" },
 };
 
-/** 데이터 범위를 clamp 안으로 자르고 1·2·5 단위의 반듯한 눈금을 만듦 (예: -60억·19 → -10~20, 눈금 10 간격) */
-function clampedAxis(data: Pt[], keys: string[], clamp: [number, number], threshold?: number) {
-  const vals = data.flatMap((d) => keys.map((k) => d[k])).filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+/**
+ * 1·2·5 단위의 반듯한 눈금 (예: 0·7·14·21·28 → 0·10·20·30, 0·-0.65·-1.3 → 0·-0.5·-1·-1.5).
+ * zero: 0 을 범위에 넣을지(크기를 비교하는 값) — 지수처럼 100 근처에서 움직이는 값은 false 로 두어야 변화가 보임.
+ * clamp: 축 상·하한 — 분모가 0 에 가까운 비율(이자비용 5원 → -60억 배)이 축을 눌러 임계선이 안 보이는 것을 막음.
+ */
+export function niceAxis(values: number[], opts: { clamp?: [number, number]; threshold?: number; zero?: boolean } = {}) {
+  const vals = values.filter((v) => Number.isFinite(v));
   if (!vals.length) return undefined;
-  const lo0 = Math.max(Math.min(...vals, threshold ?? Infinity), clamp[0]);
-  const hi0 = Math.min(Math.max(...vals, threshold ?? -Infinity), clamp[1]);
-  const raw = (hi0 - lo0) / 4 || 1;
+  const [cLo, cHi] = opts.clamp ?? [-Infinity, Infinity];
+  const extra = [opts.threshold, opts.zero === false ? undefined : 0].filter((v): v is number => v !== undefined);
+  const lo0 = Math.max(Math.min(...vals, ...extra), cLo);
+  const hi0 = Math.min(Math.max(...vals, ...extra), cHi);
+  const raw = (hi0 - lo0) / 4 || Math.abs(hi0) / 4 || 1;
   const mag = 10 ** Math.floor(Math.log10(raw));
   const step = [1, 2, 5, 10].map((m) => m * mag).find((x) => x >= raw)!;
-  const lo = Math.max(Math.floor(lo0 / step) * step, clamp[0]);
-  const hi = Math.min(Math.ceil(hi0 / step) * step, clamp[1]);
+  const lo = Math.max(Math.floor(lo0 / step) * step, cLo);
+  let hi = Math.min(Math.ceil(hi0 / step) * step, cHi);
+  if (hi <= lo) hi = lo + step;                                   // 값이 모두 같을 때(예: 전부 0) 높이 0 인 축 방지
   const ticks: number[] = [];
   for (let t = Math.ceil(lo / step) * step; t <= hi + step / 1e6; t += step) ticks.push(Number(t.toPrecision(12)));
   return { domain: [lo, hi] as [number, number], ticks };
 }
 
-/** 한 지표 추이 (시리즈 1개면 범례 없이 제목이 이름) — 임계선 선택.
- *  clamp: 축 범위 상·하한 — 분모가 0 에 가까운 비율(이자비용 5원 → -60억 배)이 축을 눌러 임계선이 안 보이는 것을 막음.
- *  범위를 넘는 점은 잘려 보이고, 툴팁은 실제 값(tipFmt)을 보여 줌 */
-export function TrendLine({ data, series, fmt, tipFmt, threshold, thresholdLabel, clamp, height = 200 }: {
+const numbers = (data: Pt[], keys: string[]) =>
+  data.flatMap((d) => keys.map((k) => d[k])).filter((v): v is number => typeof v === "number");
+
+/** 한 지표 추이 (시리즈 1개면 범례 없이 제목이 이름) — 임계선 선택. 축은 항상 반듯한 눈금(niceAxis).
+ *  clamp 를 넘는 점은 잘려 보이고, 툴팁은 실제 값(tipFmt)을 보여 줌 */
+export function TrendLine({ data, series, fmt, tipFmt, threshold, thresholdLabel, clamp, zero = true, height = 200 }: {
   data: Pt[]; series: { key: string; name: string }[]; fmt?: (v: number) => string; tipFmt?: (v: number) => string;
-  threshold?: number; thresholdLabel?: string; clamp?: [number, number]; height?: number;
+  threshold?: number; thresholdLabel?: string; clamp?: [number, number]; zero?: boolean; height?: number;
 }) {
   const f = fmt ?? ((v: number) => num(v));
   const tf = tipFmt ?? f;
-  const axis = clamp && clampedAxis(data, series.map((x) => x.key), clamp, threshold);
+  const axis = niceAxis(numbers(data, series.map((x) => x.key)), { clamp, threshold, zero });
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="x" tickLine={false} minTickGap={12} />
         <YAxis width={56} tickLine={false} axisLine={false} tickFormatter={(v) => f(v)}
-          {...(axis ? { domain: axis.domain, ticks: axis.ticks, allowDataOverflow: true } : {})} />
+          {...(axis ? { domain: axis.domain, ticks: axis.ticks, allowDataOverflow: !!clamp } : {})} />
         <Tooltip {...tooltipStyle} formatter={(v, n) => [typeof v === "number" ? tf(v) : String(v ?? "–"), String(n)]} />
         {threshold !== undefined && (
           <ReferenceLine y={threshold} stroke="#d03b3b" strokeDasharray="4 3"
@@ -63,12 +72,14 @@ export function SignedBars({ data, dataKey, name, fmt, negativeIsRisk = true, he
   data: Pt[]; dataKey: string; name: string; fmt?: (v: number) => string; negativeIsRisk?: boolean; height?: number;
 }) {
   const f = fmt ?? ((v: number) => num(v));
+  const axis = niceAxis(numbers(data, [dataKey]));
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="x" tickLine={false} minTickGap={12} />
-        <YAxis width={56} tickLine={false} axisLine={false} tickFormatter={(v) => f(v)} />
+        <YAxis width={56} tickLine={false} axisLine={false} tickFormatter={(v) => f(v)}
+          {...(axis ? { domain: axis.domain, ticks: axis.ticks } : {})} />
         <ReferenceLine y={0} stroke="rgb(var(--muted))" />
         <Tooltip {...tooltipStyle} cursor={{ fill: "rgb(var(--line) / 0.5)" }}
           formatter={(v) => [typeof v === "number" ? f(v) : String(v ?? "–"), name]} />

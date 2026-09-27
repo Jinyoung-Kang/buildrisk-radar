@@ -10,11 +10,12 @@ import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.common.AppProperties;
 import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.domain.region.RegionAliases;
-import com.buildrisk.radar.domain.region.RegionRepository;
 import com.buildrisk.radar.domain.region.RegionRepository.BoundaryRow;
 import com.buildrisk.radar.domain.region.RegionRepository.SeriesDef;
 import com.buildrisk.radar.domain.region.RegionRepository.StatRow;
+import com.buildrisk.radar.domain.region.RegionRepository;
 import com.buildrisk.radar.domain.region.RegionResolver;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
@@ -33,16 +34,19 @@ import org.springframework.transaction.PlatformTransactionManager;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * EPIC-4 지역 시장
@@ -141,7 +145,7 @@ public class RegionJobsConfig {
 
     /** 출처 한 행을 지역 해석 전 형태로 */
     public record SourceStat(String seriesId, String source, String sourceCode, String sido, List<String> tokens,
-                             String period, java.math.BigDecimal value, String raw) {}
+                             String period, BigDecimal value, String raw) {}
 
     @Bean
     @StepScope
@@ -162,9 +166,9 @@ public class RegionJobsConfig {
                 .reader(reader).processor(processor).writer(chunk -> regions.upsertStats(chunk.getItems())).build();
     }
 
-    private static <T> ItemReader<T> lazyList(java.util.function.Supplier<List<T>> loader) {
+    private static <T> ItemReader<T> lazyList(Supplier<List<T>> loader) {
         return new ItemReader<>() {
-            private java.util.Iterator<T> it;
+            private Iterator<T> it;
 
             @Override
             public T read() {

@@ -7,6 +7,8 @@ import com.buildrisk.radar.api.dto.CompanyDtos.Financials;
 import com.buildrisk.radar.api.dto.CompanyDtos.Metrics;
 import com.buildrisk.radar.api.dto.Page;
 import com.buildrisk.radar.common.cache.JsonCache;
+import com.buildrisk.radar.common.role.ApiRole;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
@@ -19,7 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import com.buildrisk.radar.common.role.ApiRole;
+import tools.jackson.core.type.TypeReference;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -49,7 +51,7 @@ public class CompanyController {
         // 검색어가 없는 목록만 캐시 — 임의 검색어마다 키가 생기지 않게 (부하 시험에서 DB CPU 를 가장 많이 쓴 조회)
         if (q != null && !q.isBlank()) return svc.list(q, sort, page, size);
         return cache.get("companies:" + sort + ":" + page + ":" + size, Duration.ofMinutes(10),
-                new tools.jackson.core.type.TypeReference<Page<CompanyRow>>() {}, () -> svc.list(null, sort, page, size));
+                new TypeReference<Page<CompanyRow>>() {}, () -> svc.list(null, sort, page, size));
     }
 
     @GetMapping("/{corpCode}")

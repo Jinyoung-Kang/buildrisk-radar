@@ -12,6 +12,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 기동 시 seed 를 DB 와 맞춥니다 (멱등).
@@ -71,7 +72,7 @@ public class SeedLoader implements ApplicationRunner {
                 .query().listOfRows()) {
             boolean keep = csvRules.stream().anyMatch(r -> r.get("std_code").equals(row.get("std_code"))
                     && r.get("match_type").equals(row.get("match_type")) && r.get("pattern").equals(row.get("pattern"))
-                    && java.util.Objects.equals(r.get("sj_div"), row.get("sj_div")));
+                    && Objects.equals(r.get("sj_div"), row.get("sj_div")));
             if (!keep) removed += jdbc.sql("DELETE FROM ref.account_map WHERE map_id = :id").param("id", row.get("map_id")).update();
         }
         if (removed > 0) log.info("seed 에서 빠진 매핑 규칙 {}개 삭제", removed);

@@ -5,6 +5,8 @@ import com.buildrisk.radar.api.dto.AlertDtos.AlertRow;
 import com.buildrisk.radar.api.dto.AlertDtos.StatusChange;
 import com.buildrisk.radar.api.dto.Page;
 import com.buildrisk.radar.common.cache.JsonCache;
+import com.buildrisk.radar.common.role.ApiRole;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
@@ -18,8 +20,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import com.buildrisk.radar.common.role.ApiRole;
+import tools.jackson.core.type.TypeReference;
 
+import java.security.Principal;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 
@@ -51,7 +54,7 @@ public class AlertController {
         if (since != null || targetKey != null || ruleCode != null)
             return svc.list(targetType, severity, status, since, targetKey, ruleCode, page, size);
         return cache.get("alerts:" + targetType + ":" + severity + ":" + status + ":" + page + ":" + size, Duration.ofMinutes(10),
-                new tools.jackson.core.type.TypeReference<Page<AlertRow>>() {},
+                new TypeReference<Page<AlertRow>>() {},
                 () -> svc.list(targetType, severity, status, null, null, null, page, size));
     }
 
@@ -61,7 +64,7 @@ public class AlertController {
 
     @PatchMapping("/{alertId}")
     @Operation(summary = "⑪ 상태 변경 (ACK · OPEN) — ANALYST 이상")
-    public AlertDetail patch(@PathVariable long alertId, @RequestBody StatusChange body, java.security.Principal principal) {
+    public AlertDetail patch(@PathVariable long alertId, @RequestBody StatusChange body, Principal principal) {
         AlertDetail d = svc.changeStatus(alertId, body.status(), principal == null ? "anonymous" : principal.getName());
         cache.invalidateAll();
         return d;

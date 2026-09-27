@@ -25,6 +25,8 @@
 이전에는 종료 처리가 없어 도커 기본 유예(10초) 안에 끝나지 않으면 강제 종료되어 실행이 STARTED 로 남을 수 있었고(좀비 실행), 하트비트 기준(10분)이 지나야 정리됐다.
 compose 의 worker `stop_grace_period` 는 60초. `AptTradeJobIT.worker_정상_종료는_청크_경계에서_멈추고_다시_요청하면_이어받는다` 가
 멈춤 → 재요청 → COMPLETED, 외부 호출 총 72회(이미 받은 조합 재호출 0)를 확인한다.
+drain 은 `ContextClosedEvent`(Spring 이 빈을 멈추고 없애기 전)에서 한다 — 처음에는 `@PreDestroy` 에 두었다가, Redis 연결이 이미 닫힌 뒤라
+Job 종료 후 조회 캐시 무효화가 실패하는 것을 실제 스택에서 발견해 옮겼다(VERIFICATION 62번).
 
 **대안** Quartz 클러스터(테이블 11개 추가, 이 규모엔 과함) · Redis 큐(요청 이력·감사가 DB 와 분리됨) · Kafka(ADR-011).
 DB 큐는 요청 기록이 곧 감사 기록이고, 트랜잭션·유니크 제약으로 정합성을 DB 가 보장한다.

@@ -1,5 +1,6 @@
 package com.buildrisk.radar.domain.rule.rules;
 
+import com.buildrisk.radar.domain.account.PeriodKeys;
 import com.buildrisk.radar.domain.rule.Evidence;
 import com.buildrisk.radar.domain.rule.Params;
 import com.buildrisk.radar.domain.rule.RuleData;
@@ -56,7 +57,7 @@ public class RC01DebtRatioSurge implements RuleEvaluator {
             obs.put("totalLiabilities", ((Map<?, ?>) d.components().getOrDefault("numerator", Map.of())).get("amount"));
             obs.put("totalEquity", ((Map<?, ?>) d.components().getOrDefault("denominator", Map.of())).get("amount"));
             Evidence ev = new Evidence(rule, condition(p)).observe(obs).sourceOf(d, "DART");
-            MetricPoint ago = dr.get(com.buildrisk.radar.domain.account.PeriodKeys.yearAgo(pk));
+            MetricPoint ago = dr.get(PeriodKeys.yearAgo(pk));
             if (ago != null) ev.sourceOf(ago, "DART");
             out.add(new Finding(pk, "부채비율 " + Evidence.fmt(d.value()) + "% · 전년 대비 +" + Evidence.fmt(y.value()) + "%p",
                     msg, ev.build(msg)));

@@ -1,10 +1,12 @@
 package com.buildrisk.radar.adapters.common;
 
 import com.buildrisk.radar.adapters.dart.DartApiException;
+
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
@@ -41,7 +43,7 @@ public class ExternalApiMetrics {
                     .tag("provider", provider).tag("operation", operation).tag("outcome", outcome)
                     .publishPercentileHistogram()
                     .register(registry)
-                    .record(System.nanoTime() - start, java.util.concurrent.TimeUnit.NANOSECONDS);
+                    .record(System.nanoTime() - start, TimeUnit.NANOSECONDS);
         }
     }
 }

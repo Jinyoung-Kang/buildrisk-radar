@@ -1,10 +1,12 @@
 package com.buildrisk.radar.batch.queue;
 
 import com.buildrisk.radar.batch.support.JobCatalog;
+
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -57,7 +59,7 @@ public class WorkerRegistry {
     public Map<String, Boolean> liveKeyStatus() {
         var live = list().stream().filter(Worker::live).toList();
         if (live.isEmpty()) return null;
-        Map<String, Boolean> out = new java.util.HashMap<>();
+        Map<String, Boolean> out = new HashMap<>();
         JobCatalog.JOBS.stream().map(JobCatalog.Def::envKey).filter(Objects::nonNull)
                 .forEach(k -> out.put(k, live.stream().anyMatch(w -> w.configuredKeys().contains(k))));
         return out;

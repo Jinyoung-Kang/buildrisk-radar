@@ -3,12 +3,15 @@ package com.buildrisk.radar.batch.queue;
 import com.buildrisk.radar.batch.support.BatchLauncher;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
+
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -114,7 +117,7 @@ public class JobRequestService {
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "실행 요청이 없습니다: " + id));
     }
 
-    private Request row(java.sql.ResultSet rs, int i) throws java.sql.SQLException {
+    private Request row(ResultSet rs, int i) throws SQLException {
         long exec = rs.getLong(6);
         return new Request(rs.getLong(1), rs.getString(2), mapper.readValue(rs.getString(3), MAP), rs.getString(4),
                 rs.getString(5), rs.wasNull() ? null : exec, rs.getString(7), rs.getString(8));

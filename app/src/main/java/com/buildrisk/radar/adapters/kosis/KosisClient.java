@@ -1,10 +1,12 @@
 package com.buildrisk.radar.adapters.kosis;
 
 import com.buildrisk.radar.adapters.common.ApiKeyMissingException;
+import com.buildrisk.radar.adapters.common.ExternalApiMetrics;
 import com.buildrisk.radar.adapters.common.HttpSupport;
 import com.buildrisk.radar.adapters.common.Json;
 import com.buildrisk.radar.adapters.common.UpstreamException;
 import com.buildrisk.radar.common.AppProperties;
+
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -30,9 +32,9 @@ public class KosisClient {
     private final RestClient http;
     private final ObjectMapper mapper;
 
-    private final com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics;
+    private final ExternalApiMetrics metrics;
 
-    public KosisClient(AppProperties props, ObjectMapper mapper, com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics) {
+    public KosisClient(AppProperties props, ObjectMapper mapper, ExternalApiMetrics metrics) {
         this.metrics = metrics;
         this.cfg = props.kosis();
         this.http = HttpSupport.client(cfg.baseUrl(), Duration.ofSeconds(90));

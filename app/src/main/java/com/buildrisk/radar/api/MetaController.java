@@ -1,15 +1,19 @@
 package com.buildrisk.radar.api;
 
 import com.buildrisk.radar.common.Disclaimer;
+import com.buildrisk.radar.common.cache.JsonCache;
+import com.buildrisk.radar.common.role.ApiRole;
 import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.domain.metric.MetricCatalog;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import com.buildrisk.radar.common.role.ApiRole;
+import tools.jackson.core.type.TypeReference;
 
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,9 +25,9 @@ import java.util.Map;
 public class MetaController {
     private final DashboardService dashboard;
     private final SeedCatalog seed;
-    private final com.buildrisk.radar.common.cache.JsonCache cache;
+    private final JsonCache cache;
 
-    public MetaController(DashboardService dashboard, SeedCatalog seed, com.buildrisk.radar.common.cache.JsonCache cache) {
+    public MetaController(DashboardService dashboard, SeedCatalog seed, JsonCache cache) {
         this.dashboard = dashboard;
         this.seed = seed;
         this.cache = cache;
@@ -33,8 +37,8 @@ public class MetaController {
     @Operation(summary = "대시보드 요약")
     public Map<String, Object> dashboard() {
         // 배치 상태(실행 중 Job)가 섞여 있어 짧게 15초 — 경보 · 지표는 Job 종료 · ACK 때 세대가 올라가 바로 반영
-        return cache.get("dashboard", java.time.Duration.ofSeconds(15),
-                new tools.jackson.core.type.TypeReference<Map<String, Object>>() {}, dashboard::summary);
+        return cache.get("dashboard", Duration.ofSeconds(15),
+                new TypeReference<Map<String, Object>>() {}, dashboard::summary);
     }
 
     @GetMapping("/meta")

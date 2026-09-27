@@ -4,10 +4,11 @@ import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer,
 import Layout from "@/components/Layout";
 import { Card, Empty, ErrorBox, Loading, PageTitle, Segmented } from "@/components/ui";
 import type { Backtest, BtStats } from "@/lib/api";
-import { int, num } from "@/lib/format";
+import { int, num, signed, isNeg } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
-const pct = (v?: number | null, d = 1) => (v == null ? "–" : `${v > 0 ? "+" : ""}${num(v * 100, d)}%`);
+const pct = (v?: number | null, d = 1) => (v == null ? "–" : `${signed(v * 100, d)}%`);
+const neg = (v?: number | null) => isNeg(v == null ? v : v * 100);
 const EXCLUDED: Record<string, string> = {
   NO_PRICE: "시세 없음", HORIZON_NOT_ELAPSED: "기간 미경과", SHARE_CHANGE: "주식수 변동", OVERLAP: "앞 사건과 겹침", NO_BENCHMARK: "비교군 부족",
 };
@@ -19,7 +20,7 @@ function StatRow({ name, code, s, base }: { name: string; code?: string; s: BtSt
       <td className="min-w-[9rem]">{code && <b className="tabular mr-1">{code}</b>}{name}
         {ex && <span className="sub text-muted">제외: {ex}</span>}</td>
       <td className="num whitespace-nowrap">{int(s.used)}<span className="sub">{base ? "겹치지 않는 창" : `경보 ${int(s.events)}건`}</span></td>
-      <td className={`num ${s.meanExcess != null && s.meanExcess < 0 ? "text-crit" : ""}`}>{pct(s.meanExcess)}</td>
+      <td className={`num ${neg(s.meanExcess) ? "text-crit" : ""}`}>{pct(s.meanExcess)}</td>
       <td className="num hidden sm:table-cell">{pct(s.medianExcess)}</td>
       <td className="num">{s.negativeShare != null ? `${num(s.negativeShare * 100, 0)}%` : "–"}</td>
       <td className="num hidden sm:table-cell">{s.tStat != null ? num(s.tStat, 2) : "–"}</td>
@@ -93,7 +94,7 @@ export default function BacktestPage() {
                     <td className="tabular whitespace-nowrap">{e.eventDate}</td>
                     <td className="tabular whitespace-nowrap text-ink2 hidden md:table-cell">{e.entryDate ?? "–"} → {e.exitDate ?? "–"}</td>
                     <td className="num">{pct(e.ret)}</td><td className="num hidden sm:table-cell">{pct(e.bench)}</td>
-                    <td className={`num ${e.excess != null && e.excess < 0 ? "text-crit" : ""}`}>{pct(e.excess)}</td>
+                    <td className={`num ${neg(e.excess) ? "text-crit" : ""}`}>{pct(e.excess)}</td>
                     <td className="text-xs text-muted">{e.excluded ? EXCLUDED[e.excluded] ?? e.excluded : e.benchSize ? `비교 ${e.benchSize}종목` : ""}</td>
                   </tr>))}</tbody>
               </table>

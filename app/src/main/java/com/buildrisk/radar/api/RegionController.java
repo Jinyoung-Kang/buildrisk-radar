@@ -4,6 +4,8 @@ import com.buildrisk.radar.api.dto.RegionDtos.RegionList;
 import com.buildrisk.radar.api.dto.RegionDtos.RegionSeries;
 import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.common.cache.PayloadCache;
+import com.buildrisk.radar.common.role.ApiRole;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Pattern;
@@ -18,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import com.buildrisk.radar.common.role.ApiRole;
+import org.springframework.web.context.request.WebRequest;
 
 import java.time.Duration;
 import java.util.List;
@@ -55,7 +57,7 @@ public class RegionController {
     public ResponseEntity<byte[]> boundaries(@RequestParam(required = false) @Pattern(regexp = "[0-9-]{1,40}") String v,
                                              @RequestParam(defaultValue = "100") @Pattern(regexp = "100|500|1000") String simplify,
                                              @RequestHeader(value = HttpHeaders.ACCEPT_ENCODING, required = false) String acceptEncoding,
-                                             org.springframework.web.context.request.WebRequest request) {
+                                             WebRequest request) {
         // simplify 는 정해진 단계만 — 임의 값마다 PostGIS 단순화 + 1.9MB 캐시 항목이 생기지 않게
         int tolerance = Integer.parseInt(simplify);
         String version = svc.boundaryVersion();

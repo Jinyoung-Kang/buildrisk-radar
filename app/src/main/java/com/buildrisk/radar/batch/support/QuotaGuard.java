@@ -1,11 +1,13 @@
 package com.buildrisk.radar.batch.support;
 
-import com.buildrisk.radar.adapters.common.UpstreamException;
 import com.buildrisk.radar.adapters.common.QuotaExceededException;
+import com.buildrisk.radar.adapters.common.UpstreamException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.step.StepExecution;
 
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 /**
@@ -21,7 +23,7 @@ public class QuotaGuard {
     private final StepExecution se;
     private final SkipRecorder skips;
     private final long maxItems;
-    private final java.util.concurrent.atomic.AtomicLong calls = new java.util.concurrent.atomic.AtomicLong();
+    private final AtomicLong calls = new AtomicLong();
 
     public QuotaGuard(StepExecution se, SkipRecorder skips, long maxItems) {
         this.se = se;

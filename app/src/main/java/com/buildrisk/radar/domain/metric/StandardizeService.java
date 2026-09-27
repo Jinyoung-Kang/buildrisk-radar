@@ -1,12 +1,14 @@
 package com.buildrisk.radar.domain.metric;
 
 import com.buildrisk.radar.domain.account.AccountModels.StdValue;
+import com.buildrisk.radar.domain.account.AccountModels;
 import com.buildrisk.radar.domain.account.AccountStandardizer;
-import com.buildrisk.radar.domain.account.FsRepository;
 import com.buildrisk.radar.domain.account.FsRepository.Report;
 import com.buildrisk.radar.domain.account.FsRepository.StdRow;
+import com.buildrisk.radar.domain.account.FsRepository;
 import com.buildrisk.radar.domain.account.QuarterDeriver;
 import com.buildrisk.radar.domain.metric.CompanyMetricCalculator.PeriodFacts;
+
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -36,7 +38,7 @@ public class StandardizeService {
             for (StdValue v : std.standardize(r.lines()).values()) {
                 rows.add(new StdRow(corpCode, r.periodKey(), r.fsDiv(), v.stdCode(), v.basis().name(), v.amount(),
                         v.sourceAccount(), v.sourceSjDiv(), r.rceptNo(), r.reprtCode()));
-                if (v.basis() == com.buildrisk.radar.domain.account.AccountModels.Basis.CUM) {
+                if (v.basis() == AccountModels.Basis.CUM) {
                     cum.computeIfAbsent(v.stdCode(), k -> new HashMap<>()).computeIfAbsent(r.fsDiv(), k -> new TreeMap<>())
                             .put(r.periodKey(), new QuarterDeriver.Cum(v.amount(), r.fsDiv()));
                 }

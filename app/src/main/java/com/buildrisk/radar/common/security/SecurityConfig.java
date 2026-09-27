@@ -1,12 +1,14 @@
 package com.buildrisk.radar.common.security;
 
 import com.buildrisk.radar.common.AppProperties;
+
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -29,12 +31,14 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.header.writers.ContentSecurityPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
-import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
 import org.springframework.security.web.session.DisableEncodeUrlFilter;
 import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.session.web.http.DefaultCookieSerializer;
+import org.springframework.web.servlet.HandlerMapping;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
@@ -58,7 +62,7 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain api(HttpSecurity http, AppProperties props, ObjectMapper mapper, RateLimiter limiter,
                             AuditService audit, CookieCsrfTokenRepository csrfRepository,
-                            org.springframework.context.ApplicationContext context,
+                            ApplicationContext context,
                             SecurityContextRepository contextRepository,
                             @Value("${server.servlet.session.cookie.name:BR_SESSION}") String sessionCookie) throws Exception {
         http
@@ -110,12 +114,12 @@ public class SecurityConfig {
     }
 
     /** MVC 매핑으로 경로 템플릿을 찾음 (거부된 요청의 감사 로그용). 매핑이 없거나 메서드가 안 맞으면 null */
-    private static String routeTemplate(org.springframework.context.ApplicationContext context, HttpServletRequest req) {
+    private static String routeTemplate(ApplicationContext context, HttpServletRequest req) {
         try {
             var mapping = context.getBean("requestMappingHandlerMapping",
-                    org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping.class);
+                    RequestMappingHandlerMapping.class);
             if (mapping.getHandler(req) == null) return null;
-            Object p = req.getAttribute(org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+            Object p = req.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
             return p == null ? null : p.toString();
         } catch (Exception e) {
             return null;

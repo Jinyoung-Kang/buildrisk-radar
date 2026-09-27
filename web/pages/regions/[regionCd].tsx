@@ -20,7 +20,7 @@ export default function RegionDetail() {
       <Link href="/regions" className="text-sm text-accent hover:underline">← 지도</Link>
       {!data || !cd ? <Loading /> : (
         <div className="grid lg:grid-cols-[380px_1fr] gap-5 mt-3">
-          <Card><RegionPanel regionCd={cd} /></Card>
+          <Card><RegionPanel regionCd={cd} headingAs="h1" /></Card>
           <div className="space-y-5">
             <Card title="천 가구당 미분양 (호)" sub="R-R01 임계 2호">
               <TrendLine data={m("UNSOLD_PER_1K_HH")} series={[{ key: "v", name: "천 가구당" }]} threshold={2} fmt={(v) => num(v, 2)} />

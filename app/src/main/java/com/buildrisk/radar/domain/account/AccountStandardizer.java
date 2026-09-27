@@ -9,6 +9,8 @@ import com.buildrisk.radar.domain.account.AccountModels.StdValue;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +76,7 @@ public final class AccountStandardizer {
      * '부채총계'·'자본'·'자산' 제목을 만나면 구간이 끝납니다.
      */
     static Map<String, String> sections(List<RawLine> lines) {
-        Map<String, String> out = new java.util.HashMap<>();
+        Map<String, String> out = new HashMap<>();
         String cur = null;
         for (RawLine l : lines.stream().filter(x -> "BS".equals(x.sjDiv())).sorted(Comparator.comparingInt(RawLine::lineNo)).toList()) {
             String n = normalize(l.accountNm());
@@ -90,7 +92,7 @@ public final class AccountStandardizer {
         Map<String, String> sectionOf = sections(lines);
         List<StdValue> out = new ArrayList<>();
         List<String> missing = new ArrayList<>();
-        java.util.Set<String> claimed = new java.util.HashSet<>();
+        Set<String> claimed = new HashSet<>();
         for (StdAccount acc : accounts) {
             StdValue v = acc.sum() ? sum(acc, lines, claimed, sectionOf) : first(acc, lines, sectionOf);
             if (v == null) missing.add(acc.stdCode());
@@ -115,7 +117,7 @@ public final class AccountStandardizer {
         return null;
     }
 
-    private StdValue sum(StdAccount acc, List<RawLine> lines, java.util.Set<String> claimed, Map<String, String> sectionOf) {
+    private StdValue sum(StdAccount acc, List<RawLine> lines, Set<String> claimed, Map<String, String> sectionOf) {
         List<CompiledRule> rules = rulesByStd.getOrDefault(acc.stdCode(), List.of());
         Map<String, RawLine> matched = collect(acc, lines, claimed, sectionOf,
                 rules.stream().filter(r -> r.rule().priority() < FALLBACK_PRIORITY).toList());
@@ -132,10 +134,10 @@ public final class AccountStandardizer {
     }
 
     /** 규칙에 걸린 행: 이미 다른 표준계정이 가져간 행 제외, 같은 계정명은 첫 줄만. 값은 부호 규칙(abs) 적용 전 원본 */
-    private Map<String, RawLine> collect(StdAccount acc, List<RawLine> lines, java.util.Set<String> claimed,
+    private Map<String, RawLine> collect(StdAccount acc, List<RawLine> lines, Set<String> claimed,
                                          Map<String, String> sectionOf, List<CompiledRule> rules) {
         Map<String, RawLine> matched = new LinkedHashMap<>();
-        Map<String, String> nameAt = new java.util.HashMap<>();
+        Map<String, String> nameAt = new HashMap<>();
         lines.forEach(l -> nameAt.put(l.sjDiv() + "#" + l.lineNo(), normalize(l.accountNm())));
         List<RawLine> ordered = lines.stream().sorted(Comparator.comparingInt(RawLine::lineNo)).toList();
         for (CompiledRule r : rules) {

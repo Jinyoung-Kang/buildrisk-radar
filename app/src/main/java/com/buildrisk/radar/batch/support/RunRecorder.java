@@ -1,6 +1,9 @@
 package com.buildrisk.radar.batch.support;
 
+import com.buildrisk.radar.common.KeyMasker;
+
 import org.springframework.batch.core.BatchStatus;
+import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.listener.JobExecutionListener;
 import org.springframework.batch.core.step.StepExecution;
@@ -102,8 +105,8 @@ public class RunRecorder {
         String cause = "원인: " + root.getClass().getSimpleName() + (root.getMessage() == null ? "" : " — " + root.getMessage())
                 + (at == null ? "" : " (" + at.getClassName().replaceAll(".*\\.", "") + ":" + at.getLineNumber() + ")");
         String old = je.getExitStatus().getExitDescription();
-        je.setExitStatus(new org.springframework.batch.core.ExitStatus(je.getExitStatus().getExitCode(),
-                com.buildrisk.radar.common.KeyMasker.mask(cause) + (old == null || old.isBlank() ? "" : "\n" + old)));
+        je.setExitStatus(new ExitStatus(je.getExitStatus().getExitCode(),
+                KeyMasker.mask(cause) + (old == null || old.isBlank() ? "" : "\n" + old)));
     }
 
     private String status(JobExecution je) {

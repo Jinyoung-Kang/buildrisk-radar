@@ -3,10 +3,12 @@ package com.buildrisk.radar.domain.rule;
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.common.AppProperties;
 import com.buildrisk.radar.domain.disclosure.DisclosureRepository;
+import com.buildrisk.radar.domain.filing.ExposureRepository;
 import com.buildrisk.radar.domain.metric.MetricRepository;
 import com.buildrisk.radar.domain.rule.RuleModels.DisclosureEvent;
 import com.buildrisk.radar.domain.rule.RuleModels.MetricPoint;
 import com.buildrisk.radar.domain.rule.RuleModels.TargetType;
+
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -19,10 +21,10 @@ public class DbRuleData implements RuleData {
     private final MetricRepository metrics;
     private final DisclosureRepository disclosures;
     private final AppProperties.Batch cfg;
-    private final com.buildrisk.radar.domain.filing.ExposureRepository exposure;
+    private final ExposureRepository exposure;
 
     public DbRuleData(MetricRepository metrics, DisclosureRepository disclosures, AppProperties props,
-                      com.buildrisk.radar.domain.filing.ExposureRepository exposure) {
+                      ExposureRepository exposure) {
         this.exposure = exposure;
         this.metrics = metrics;
         this.disclosures = disclosures;

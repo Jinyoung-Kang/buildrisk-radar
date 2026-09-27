@@ -40,6 +40,9 @@ function AuditTable() {
                 </tr>))}</tbody>
             </table>
           </div>
+          <div className="text-xs text-muted px-4 py-2 border-t border-line">
+            최근 {data.items.length}건{data.items.length >= 200 ? " (최대 200건 — 사용자 · 행위로 좁혀 보세요)" : ""}
+          </div>
         </Card>
       )}
     </>

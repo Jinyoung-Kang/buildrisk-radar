@@ -4,8 +4,8 @@ import com.buildrisk.radar.batch.support.BatchKeys;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.domain.account.AccountStandardizer;
-import com.buildrisk.radar.domain.account.FsRepository;
 import com.buildrisk.radar.domain.account.FsRepository.StdRow;
+import com.buildrisk.radar.domain.account.FsRepository;
 import com.buildrisk.radar.domain.metric.CompanyMetricCalculator;
 import com.buildrisk.radar.domain.metric.MetricRepository;
 import com.buildrisk.radar.domain.metric.MetricValue;
@@ -21,13 +21,16 @@ import com.buildrisk.radar.domain.rule.RuleModels.TargetType;
 import com.buildrisk.radar.domain.rule.RuleRegistry;
 import com.buildrisk.radar.domain.rule.RuleRepository;
 import com.buildrisk.radar.domain.universe.CompanyRepository;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.listener.StepExecutionListener;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.Step;
+import org.springframework.batch.core.step.StepExecution;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.infrastructure.item.ItemProcessor;
 import org.springframework.batch.infrastructure.item.support.ListItemReader;
@@ -82,9 +85,9 @@ public class CalcJobsConfig {
                 .writer(chunk -> {
                     for (StdResult r : chunk.getItems()) fs.replaceStd(r.corpCode(), r.rows(), null);
                 })
-                .listener(new org.springframework.batch.core.listener.StepExecutionListener() {
+                .listener(new StepExecutionListener() {
                     @Override
-                    public void beforeStep(org.springframework.batch.core.step.StepExecution se) { std[0] = null; }
+                    public void beforeStep(StepExecution se) { std[0] = null; }
                 })
                 .build();
     }

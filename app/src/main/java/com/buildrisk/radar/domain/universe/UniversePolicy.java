@@ -2,6 +2,7 @@ package com.buildrisk.radar.domain.universe;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 유니버스 판정 (FR-103): 수동 제외 > 수동 포함 > 현재 상장(유가 Y · 코스닥 K) && 업종코드 접두사.
@@ -18,7 +19,7 @@ public final class UniversePolicy {
         this.overrides = overrides;
     }
 
-    public static final java.util.Set<String> LISTED = java.util.Set.of("Y", "K");
+    public static final Set<String> LISTED = Set.of("Y", "K");
 
     public Decision decide(String corpCode, String stockCode, String corpCls, String indutyCode) {
         Boolean o = overrides.get(corpCode);

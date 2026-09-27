@@ -312,6 +312,73 @@
           "legendFormat": "{{service}} pending"
         }
       ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "조회 캐시 적중률 · 요청 (hit · miss · error)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "적중률"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "max",
+                "value": 1
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(buildrisk_cache_requests_total{result=\"hit\"}[5m])) / clamp_min(sum(rate(buildrisk_cache_requests_total[5m])), 1e-9)",
+          "legendFormat": "적중률"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (result) (rate(buildrisk_cache_requests_total[5m]))",
+          "legendFormat": "{{result}} /s"
+        }
+      ]
     }
   ]
 }

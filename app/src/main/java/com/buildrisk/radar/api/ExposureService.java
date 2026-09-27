@@ -1,16 +1,19 @@
 package com.buildrisk.radar.api;
 
+import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.domain.filing.ExposureRepository;
 import com.buildrisk.radar.domain.market.StockRepository;
+
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -101,7 +104,7 @@ public class ExposureService {
 
     /** 유니버스 기업별 노출 요약: 최근 days 일 현재 수주 중 위험 지역 비중 · 최신 보증 잔액/자기자본 · PF 보증 */
     public Exposure exposure(int days, BigDecimal unsoldTh) {
-        LocalDate since = LocalDate.now(com.buildrisk.radar.adapters.common.ApiQuotaService.KST).minusDays(days);
+        LocalDate since = LocalDate.now(ApiQuotaService.KST).minusDays(days);
         List<ExposureRow> rows = jdbc.sql("WITH u AS (" + LATEST_UNSOLD + "), " + """
                 cur AS (SELECT c.* , u.value AS unsold FROM dart.contract c LEFT JOIN u ON u.region_cd = c.region_cd
                          WHERE c.rcept_dt >= :since AND""" + " " + ExposureRepository.CURRENT + " " + """
@@ -156,7 +159,7 @@ public class ExposureService {
                 .query(String.class).optional()
                 .orElseThrow(() -> ApiException.notFound(ErrorCode.COMPANY_NOT_FOUND, "기업 " + corpCode));
         if (stock == null) return new Prices(corpCode, null, List.of(), List.of(), null);
-        LocalDate from = LocalDate.now(com.buildrisk.radar.adapters.common.ApiQuotaService.KST).minusDays(days);
+        LocalDate from = LocalDate.now(ApiQuotaService.KST).minusDays(days);
         var bars = stocks.bars(stock, from).stream()
                 .map(b -> new PricePoint(b.basDt().toString(), b.clpr(), b.mrktTotAmt())).toList();
         // 표시일 = 경보 근거 공시가 공개된 날(백테스트와 같은 point-in-time 기준) — 배치를 돌린 날이 아님
@@ -169,7 +172,7 @@ public class ExposureService {
                     LocalDate d = backtest.eventDate(rs.getString(3), rs.getString(4));
                     return d == null || d.isBefore(from) ? null
                             : new AlertMarker(rs.getLong(1), rs.getString(2), d.toString(), rs.getString(5), rs.getString(6));
-                }).list().stream().filter(a -> a != null).sorted(java.util.Comparator.comparing(AlertMarker::date)).toList();
+                }).list().stream().filter(a -> a != null).sorted(Comparator.comparing(AlertMarker::date)).toList();
         return new Prices(corpCode, stock, bars, alerts, "금융위원회 주식시세 (종가, 수정주가 아님)");
     }
 

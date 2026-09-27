@@ -2,11 +2,18 @@ package com.buildrisk.radar.batch.support;
 
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.adapters.dart.DartClient;
+import com.buildrisk.radar.adapters.datagokr.RtmsClient;
+import com.buildrisk.radar.adapters.datagokr.StockPriceClient;
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.domain.account.FsRepository;
 import com.buildrisk.radar.domain.account.PeriodKeys;
+import com.buildrisk.radar.domain.filing.FilingRepository;
+import com.buildrisk.radar.domain.market.AptTradeRepository;
+import com.buildrisk.radar.domain.market.TradeWindow;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.BatchStatus;
@@ -15,17 +22,25 @@ import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.JobInstance;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
+import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException;
+import org.springframework.batch.core.launch.JobExecutionNotRunningException;
 import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
-
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
+import javax.sql.DataSource;
 
 /**
  * Job 실행 창구 (API · CLI · 스케줄러 공용).
@@ -43,17 +58,17 @@ public class BatchLauncher {
     private final FsRepository fs;
     private final ApiQuotaService quota;
     private final AppProperties props;
-    private final org.springframework.jdbc.core.simple.JdbcClient jdbc;
+    private final JdbcClient jdbc;
     private final DataSource dataSource;
-    private final com.buildrisk.radar.domain.market.AptTradeRepository trades;
-    private final com.buildrisk.radar.domain.filing.FilingRepository filings;
-    private final com.buildrisk.radar.common.cache.JsonCache cache;
+    private final AptTradeRepository trades;
+    private final FilingRepository filings;
+    private final JsonCache cache;
 
     public BatchLauncher(JobOperator operator, JobRepository repository, List<Job> jobList, FsRepository fs,
-                         ApiQuotaService quota, AppProperties props, org.springframework.jdbc.core.simple.JdbcClient jdbc,
-                         DataSource dataSource, com.buildrisk.radar.domain.market.AptTradeRepository trades,
-                         com.buildrisk.radar.domain.filing.FilingRepository filings,
-                         com.buildrisk.radar.common.cache.JsonCache cache) {
+                         ApiQuotaService quota, AppProperties props, JdbcClient jdbc,
+                         DataSource dataSource, AptTradeRepository trades,
+                         FilingRepository filings,
+                         JsonCache cache) {
         this.cache = cache;
         this.trades = trades;
         this.filings = filings;
@@ -61,7 +76,7 @@ public class BatchLauncher {
         this.dataSource = dataSource;
         this.operator = operator;
         this.repository = repository;
-        this.jobs = new java.util.LinkedHashMap<>();
+        this.jobs = new LinkedHashMap<>();
         jobList.forEach(j -> this.jobs.put(j.getName(), j));
         this.fs = fs;
         this.quota = quota;
@@ -80,14 +95,14 @@ public class BatchLauncher {
         try {
             JobExecution je = repository.getJobExecution(executionId);
             return je != null && je.isRunning() && operator.stop(je);
-        } catch (org.springframework.batch.core.launch.JobExecutionNotRunningException e) {
+        } catch (JobExecutionNotRunningException e) {
             return false;
         }
     }
 
     /** 마지막 하트비트: Job·Step 실행의 last_updated 중 가장 최근 (Step 은 청크 커밋마다 갱신) */
-    public java.time.LocalDateTime heartbeat(JobExecution je) {
-        java.time.LocalDateTime hb = je.getLastUpdated();
+    public LocalDateTime heartbeat(JobExecution je) {
+        LocalDateTime hb = je.getLastUpdated();
         for (var se : je.getStepExecutions()) {
             if (se.getLastUpdated() != null && (hb == null || se.getLastUpdated().isAfter(hb))) hb = se.getLastUpdated();
         }
@@ -96,7 +111,7 @@ public class BatchLauncher {
 
     public boolean stale(JobExecution je) {
         var hb = heartbeat(je);
-        return hb != null && hb.isBefore(java.time.LocalDateTime.now().minusMinutes(props.batch().staleMinutes()));
+        return hb != null && hb.isBefore(LocalDateTime.now().minusMinutes(props.batch().staleMinutes()));
     }
 
     /**
@@ -166,10 +181,10 @@ public class BatchLauncher {
                 case "aptTradeJob" -> {
                     int months = b.get("months") == null ? props.dataGoKr().tradeMonths() : Integer.parseInt(String.valueOf(b.get("months")));
                     if (months < 13 || months > 120) throw new ApiException(ErrorCode.VALIDATION_ERROR, "months 는 13~120");
-                    var w = com.buildrisk.radar.domain.market.TradeWindow.of(java.time.YearMonth.now(ApiQuotaService.KST), months);
+                    var w = TradeWindow.of(YearMonth.now(ApiQuotaService.KST), months);
                     planned = trades.pending(w.fromYm(), w.toYm(), w.refreshFromYm(), ApiQuotaService.today()).size();
                     limit = props.dataGoKr().dailyCallLimit();
-                    used = quota.used(com.buildrisk.radar.adapters.datagokr.RtmsClient.PROVIDER);
+                    used = quota.used(RtmsClient.PROVIDER);
                     pb.addLong("months", (long) months);
                     Long max = b.get("maxCalls") == null ? null : Long.parseLong(String.valueOf(b.get("maxCalls")));
                     int remaining = Math.max(0, limit - used);
@@ -202,7 +217,7 @@ public class BatchLauncher {
                         pb.addLong("years", years);
                     }
                     limit = props.dataGoKr().dailyCallLimit();
-                    used = quota.used(com.buildrisk.radar.adapters.datagokr.StockPriceClient.PROVIDER);
+                    used = quota.used(StockPriceClient.PROVIDER);
                 }
                 case "disclosureSyncJob" -> pb.addLong("days", b.get("days") == null ? 7L : Long.parseLong(String.valueOf(b.get("days"))));
                 case "sgisHouseholdJob" -> {
@@ -251,7 +266,7 @@ public class BatchLauncher {
             }
         } catch (ApiException e) {
             throw e;
-        } catch (org.springframework.batch.core.launch.JobExecutionAlreadyRunningException e) {
+        } catch (JobExecutionAlreadyRunningException e) {
             throw new ApiException(ErrorCode.JOB_ALREADY_RUNNING, jobName + " 이(가) 이미 실행 중입니다.");
         } catch (Exception e) {
             throw new ApiException(ErrorCode.INTERNAL_ERROR, jobName + " 실행 실패: " + e.getMessage());
@@ -265,22 +280,22 @@ public class BatchLauncher {
         for (int attempt = 1; ; attempt++) {
             try {
                 return s.start();
-            } catch (org.springframework.dao.ConcurrencyFailureException e) {
+            } catch (ConcurrencyFailureException e) {
                 if (attempt >= 3) throw e;
                 log.warn("Job 실행 레코드 생성 충돌 — {}번째 재시도: {}", attempt, e.getMostSpecificCause().getMessage());
-                Thread.sleep(100L * attempt + java.util.concurrent.ThreadLocalRandom.current().nextLong(100));
+                Thread.sleep(100L * attempt + ThreadLocalRandom.current().nextLong(100));
             }
         }
     }
 
-    private static boolean tryLock(Connection c, long key) throws java.sql.SQLException {
+    private static boolean tryLock(Connection c, long key) throws SQLException {
         try (var ps = c.prepareStatement("SELECT pg_try_advisory_lock(?)")) {
             ps.setLong(1, key);
             try (var rs = ps.executeQuery()) { return rs.next() && rs.getBoolean(1); }
         }
     }
 
-    private static void unlock(Connection c, long key) throws java.sql.SQLException {
+    private static void unlock(Connection c, long key) throws SQLException {
         try (var ps = c.prepareStatement("SELECT pg_advisory_unlock(?)")) {
             ps.setLong(1, key);
             ps.execute();

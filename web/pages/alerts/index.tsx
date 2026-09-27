@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import EvidenceView from "@/components/EvidenceView";
 import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
-import { Card, Empty, ErrorBox, Loading, PageTitle, Segmented, SeverityBadge, StatusPill, TargetLink } from "@/components/ui";
+import { Card, Empty, ErrorBox, Loading, PageTitle, Segmented, SeverityBadge, StatusPill, TargetLink, Pager } from "@/components/ui";
 import { api, qs, type AlertDetail, type AlertRow, type Page } from "@/lib/api";
 import { dt } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -55,7 +55,9 @@ export default function Alerts() {
   const q = router.query as Record<string, string>;
   const status = q.status ?? "OPEN,ACK";
   // 알려진 키만 URL 에 둠 (쿼리 문자열의 임의 키를 객체에 펼치지 않음)
-  const KEYS = ["status", "severity", "targetType", "id"] as const;
+  const KEYS = ["status", "severity", "targetType", "id", "p"] as const;
+  const PAGE = 100;
+  const page = /^\d{1,4}$/.test(q.p ?? "") ? Number(q.p) : 0;
   const set = (patch: Partial<Record<(typeof KEYS)[number], string | undefined>>) => {
     const next: Record<string, string> = {};
     for (const k of KEYS) {
@@ -68,16 +70,16 @@ export default function Alerts() {
   useEffect(() => {
     if (q.id && window.innerWidth < 1024) detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [q.id]);
-  const list = useApi<Page<AlertRow>>(router.isReady ? `/alerts${qs({ status, severity: q.severity, targetType: q.targetType, size: 200 })}` : null);
+  const list = useApi<Page<AlertRow>>(router.isReady ? `/alerts${qs({ status, severity: q.severity, targetType: q.targetType, page, size: PAGE })}` : null);
   return (
     <Layout title="경보">
       <PageTitle title="경보" sub="규칙 = 조건 + 파라미터 + 심각도(버전 관리). 경보마다 근거(값·임계·기간·원천)가 붙습니다."
         right={<div className="flex flex-wrap gap-2">
-          <Segmented label="상태" value={status} onChange={(v) => set({ status: v, id: undefined })}
+          <Segmented label="상태" value={status} onChange={(v) => set({ status: v, id: undefined, p: undefined })}
             options={[{ value: "OPEN,ACK", label: "열림" }, { value: "CLOSED", label: "닫힘" }, { value: "OPEN,ACK,CLOSED", label: "전체" }]} />
-          <Segmented label="대상" value={q.targetType ?? ""} onChange={(v) => set({ targetType: v || undefined })}
+          <Segmented label="대상" value={q.targetType ?? ""} onChange={(v) => set({ targetType: v || undefined, p: undefined })}
             options={[{ value: "", label: "전체" }, { value: "COMPANY", label: "기업" }, { value: "REGION", label: "지역" }]} />
-          <Segmented label="심각도" value={q.severity ?? ""} onChange={(v) => set({ severity: v || undefined })}
+          <Segmented label="심각도" value={q.severity ?? ""} onChange={(v) => set({ severity: v || undefined, p: undefined })}
             options={[{ value: "", label: "전체" }, { value: "HIGH", label: "높음" }, { value: "MEDIUM", label: "중간" }, { value: "LOW", label: "낮음" }]} />
         </div>} />
       <ErrorBox error={list.error} />
@@ -101,7 +103,8 @@ export default function Alerts() {
               </table>
             </div>
           )}
-          {list.data && <div className="text-xs text-muted px-4 py-2 border-t border-line">{list.data.total}건</div>}
+          {/* 전에는 200건만 받고 "522건"이라고만 써서 나머지 경보를 볼 방법이 없었음 */}
+          {list.data && <Pager total={list.data.total} page={page} size={PAGE} onPage={(p) => set({ p: p ? String(p) : undefined })} />}
         </Card>
         <div ref={detailRef} className="scroll-mt-20">
           <Card className="lg:sticky lg:top-20">{q.id && /^\d{1,18}$/.test(q.id) ? <Detail key={q.id} id={q.id} onChanged={list.reload} /> : <Empty>목록에서 경보를 고르면 조건·관측값·원천 근거가 보입니다.</Empty>}</Card>

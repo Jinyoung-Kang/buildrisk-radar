@@ -64,7 +64,7 @@ export default function Dashboard() {
                         <td className="py-1.5 text-right tabular w-40 whitespace-nowrap">
                           <div className="flex items-center justify-end gap-2">
                             <div className="h-2 rounded-full bg-[#3987e5]" style={{ width: `${(Number(r.per1kHh) / maxUnsold) * 80}px` }} aria-hidden />
-                            {num(Number(r.per1kHh), 2)}
+                            {num(Number(r.per1kHh), 2, true)}
                           </div>
                         </td>
                         <td className="py-1.5 text-right tabular text-ink2 whitespace-nowrap">{int(Number(r.units))}호</td>

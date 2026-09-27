@@ -1,15 +1,17 @@
 package com.buildrisk.radar.batch.jobs;
 
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
-import com.buildrisk.radar.adapters.datagokr.StockPriceClient;
 import com.buildrisk.radar.adapters.datagokr.StockPriceClient.Daily;
+import com.buildrisk.radar.adapters.datagokr.StockPriceClient;
 import com.buildrisk.radar.batch.support.BatchKeys;
 import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.AppProperties;
-import com.buildrisk.radar.domain.market.StockRepository;
+import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.domain.market.StockRepository.Target;
+import com.buildrisk.radar.domain.market.StockRepository;
+
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -38,7 +40,7 @@ public class StockJobConfig {
 
     @Bean
     Job stockPriceJob(JobRepository repo, Step stockPriceStep, RunRecorder runs,
-                  com.buildrisk.radar.common.cache.JsonCache cache) {
+                  JsonCache cache) {
         return new JobBuilder("stockPriceJob", repo).listener(runs.collect("FSC", cache::invalidateAll)).start(stockPriceStep).build();
     }
 

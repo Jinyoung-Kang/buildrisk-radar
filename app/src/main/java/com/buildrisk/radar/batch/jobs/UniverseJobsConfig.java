@@ -9,15 +9,19 @@ import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.domain.universe.CompanyRepository;
 import com.buildrisk.radar.domain.universe.UniversePolicy;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.listener.SkipListener;
 import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 import org.springframework.batch.core.step.Step;
 import org.springframework.batch.core.step.StepExecution;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.infrastructure.item.ItemProcessor;
 import org.springframework.batch.infrastructure.item.database.JdbcPagingItemReader;
 import org.springframework.batch.infrastructure.item.database.Order;
 import org.springframework.batch.infrastructure.item.database.support.PostgresPagingQueryProvider;
@@ -27,9 +31,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import javax.sql.DataSource;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import javax.sql.DataSource;
 
 /**
  * EPIC-1 기업 유니버스
@@ -53,7 +58,7 @@ public class UniverseJobsConfig {
         return new StepBuilder("corpCodeDownloadStep", repo).tasklet((contribution, chunk) -> {
             var je = chunk.getStepContext().getStepExecution().getJobExecution();
             // 소유자 전용 권한(rwx------)의 새 임시 디렉터리 — 예측 가능한 공유 경로를 쓰지 않음. 경로는 실행 컨텍스트에 남아 restart 때 재사용
-            Path dir = java.nio.file.Files.createTempDirectory("buildrisk-corp-" + je.getJobInstance().getInstanceId() + "-");
+            Path dir = Files.createTempDirectory("buildrisk-corp-" + je.getJobInstance().getInstanceId() + "-");
             Path xml = dart.downloadCorpCodeXml(dir);
             je.getExecutionContext().putString("corpCodeXml", xml.toString());
             log.info("CORPCODE.xml 저장: {}", xml);
@@ -81,12 +86,12 @@ public class UniverseJobsConfig {
                 .writer(chunk -> {
                     // write 건수는 읽은 전체, 실제로 바뀐 행(modify_date 변경분)은 따로 셈 (FR-101)
                     int changed = companies.upsertCorpCodes(chunk.getItems());
-                    var ctx = org.springframework.batch.core.scope.context.StepSynchronizationManager.getContext()
+                    var ctx = StepSynchronizationManager.getContext()
                             .getStepExecution().getExecutionContext();
                     ctx.putLong("changedRows", ctx.getLong("changedRows", 0L) + changed);
                 })
                 .faultTolerant().skip(IllegalArgumentException.class).skipLimit(100)
-                .skipListener(new org.springframework.batch.core.listener.SkipListener<CorpCode, CorpCode>() {
+                .skipListener(new SkipListener<CorpCode, CorpCode>() {
                     @Override
                     public void onSkipInProcess(CorpCode item, Throwable t) {
                         skips.record(null, "corpCodeSyncJob", "corpCodeLoadStep", String.valueOf(item.corpCode()),
@@ -143,7 +148,7 @@ public class UniverseJobsConfig {
     }
 
     /** DART 기업개황 호출. 013 → 스킵 기록, 020·일일 상한 → Step 을 STOPPED 로 */
-    public static class ProfileProcessor implements org.springframework.batch.infrastructure.item.ItemProcessor<String, CompanyProfile> {
+    public static class ProfileProcessor implements ItemProcessor<String, CompanyProfile> {
         private final DartClient dart;
         private final CompanyRepository companies;
         private final SkipRecorder skips;

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
-import { Card, Empty, ErrorBox, Loading, MetricStatus, PageTitle, Segmented, SeverityBadge } from "@/components/ui";
+import { Card, Empty, ErrorBox, Loading, MetricStatus, PageTitle, Segmented, SeverityBadge, Pager } from "@/components/ui";
 import { qs, type CompanyRow, type Page } from "@/lib/api";
 import { num, pk } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -13,16 +13,22 @@ export default function Companies() {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [term, setTerm] = useState("");
-  const sort = ((router.query.sort as Sort) || "alerts");
+  const SORTS: Sort[] = ["alerts", "debtRatio", "interestCoverage", "name"];
+  const sort = SORTS.includes(router.query.sort as Sort) ? (router.query.sort as Sort) : "alerts";
+  const PAGE = 100;
+  const page = /^\d{1,4}$/.test(String(router.query.p ?? "")) ? Number(router.query.p) : 0;
+  // 알려진 키만 URL 에 (쿼리의 임의 키를 펼치지 않음)
+  const go = (next: { sort?: Sort; p?: number }) =>
+    router.replace({ query: { sort: next.sort ?? sort, ...((next.p ?? 0) > 0 ? { p: String(next.p) } : {}) } }, undefined, { shallow: true });
   useEffect(() => { const t = setTimeout(() => setTerm(q.trim()), 250); return () => clearTimeout(t); }, [q]);
-  const { data, error, loading } = useApi<Page<CompanyRow>>(router.isReady ? `/companies${qs({ q: term, sort, size: 200 })}` : null);
+  const { data, error, loading } = useApi<Page<CompanyRow>>(router.isReady ? `/companies${qs({ q: term, sort, page: term ? 0 : page, size: PAGE })}` : null);
   return (
     <Layout title="기업">
       <PageTitle title="건설업 유니버스" sub="DART 기업개황 업종코드 41(종합 건설업)·421(토목 기반조성 전문공사업) 유가·코스닥 상장사 + 수동 포함. 지표는 최신 분기, 연결 우선."
         right={<div className="flex gap-2 items-center">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="기업명·종목코드"
             aria-label="기업 검색" className="bg-raised border border-line rounded-lg px-3 py-1.5 text-sm w-48 focus-ring" />
-          <Segmented label="정렬" value={sort} onChange={(v) => router.replace({ query: { ...router.query, sort: v } }, undefined, { shallow: true })}
+          <Segmented label="정렬" value={sort} onChange={(v) => go({ sort: v as Sort })}
             options={[{ value: "alerts", label: "경보" }, { value: "debtRatio", label: "부채비율" },
               { value: "interestCoverage", label: "이자보상배율" }, { value: "name", label: "이름" }]} />
         </div>} />
@@ -49,9 +55,9 @@ export default function Companies() {
                       <div className="text-xs text-muted">{c.stockCode} · {c.corpCls === "Y" ? "유가" : c.corpCls === "K" ? "코스닥" : c.corpCls} · {c.indutyCode}</div>
                     </td>
                     <td className="px-3 whitespace-nowrap">{c.openAlerts ? <span className="flex items-center gap-1.5"><SeverityBadge s={c.maxSeverity} /><span className="text-xs text-ink2">{c.openAlerts}건</span></span> : <span className="text-muted text-xs">없음</span>}</td>
-                    <td className="num">{num(c.debtRatio)}{c.debtRatio != null && "%"}<MetricStatus status={c.debtRatioStatus} /></td>
-                    <td className="num">{num(c.interestCoverage, 2)}{c.interestCoverage != null && "배"}<MetricStatus status={c.interestCoverageStatus} /></td>
-                    <td className="num hidden md:table-cell">{num(c.borrowingDep)}{c.borrowingDep != null && "%"}</td>
+                    <td className="num">{num(c.debtRatio, 1, true)}{c.debtRatio != null && "%"}<MetricStatus status={c.debtRatioStatus} /></td>
+                    <td className="num">{num(c.interestCoverage, 2, true)}{c.interestCoverage != null && "배"}{c.interestCoverage != null && c.interestCoverage < 0 && <div className="text-[11px] text-muted">영업손실</div>}<MetricStatus status={c.interestCoverageStatus} /></td>
+                    <td className="num hidden md:table-cell">{num(c.borrowingDep, 1, true)}{c.borrowingDep != null && "%"}</td>
                     <td className="px-3 text-xs text-ink2 hidden md:table-cell">{pk(c.latestPeriod)}</td>
                     <td className="px-3 text-xs text-ink2 max-w-xs truncate hidden lg:table-cell" title={c.lastDisclosure}>{c.lastDisclosureDate ?? ""} {c.lastDisclosure ?? ""}</td>
                   </tr>
@@ -60,8 +66,8 @@ export default function Companies() {
             </table>
           </div>
         )}
+        {data && <Pager total={data.total} page={term ? 0 : page} size={PAGE} unit="곳" onPage={(p) => go({ p })} />}
       </Card>
-      {data && <p className="text-xs text-muted mt-2">{data.total}곳</p>}
     </Layout>
   );
 }

@@ -2,11 +2,12 @@ import Link from "next/link";
 import { SignedBars, TrendLine } from "@/components/Charts";
 import { DartLink, Empty, Loading, SeverityBadge, StatusPill } from "@/components/ui";
 import type { RegionContracts, RegionSeries } from "@/lib/api";
-import { eok, int, num, ym } from "@/lib/format";
+import { eok, int, num, ym, signed } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
 /** 지역 카드 — 미분양 추이 · 가격지수 추이 · 경보 (지도 옆, 지역 상세 화면 공용) */
-export default function RegionPanel({ regionCd, compact }: { regionCd: string; compact?: boolean }) {
+/** headingAs: 지도 옆 패널은 h3, 지역 상세 페이지에서는 이 이름이 페이지 제목이라 h1 */
+export default function RegionPanel({ regionCd, compact, headingAs: H = "h3" }: { regionCd: string; compact?: boolean; headingAs?: "h1" | "h3" }) {
   const { data } = useApi<RegionSeries>(`/regions/${encodeURIComponent(regionCd)}/series`);
   const contracts = useApi<RegionContracts>(`/regions/${encodeURIComponent(regionCd)}/contracts`);
   if (!data) return <Loading />;
@@ -23,12 +24,12 @@ export default function RegionPanel({ regionCd, compact }: { regionCd: string; c
   const trades = stat("TRADE_CNT").slice(compact ? -13 : -25).map((p) => ({ x: ym(p.period), v: p.value ?? null }));
   const priceM2 = stat("PRICE_M2").slice(compact ? -13 : -25).map((p) => ({ x: ym(p.period), v: p.value ?? null }));
   const tYoy = latest("TRADE_YOY"), cancel = latest("CANCEL_RATE"), pYoy = latest("PRICE_M2_YOY"), tCnt = latest("TRADE_COUNT");
-  const sign = (v?: number | null) => (v == null ? "–" : `${v > 0 ? "+" : ""}${num(v)}%`);
+  const sign = (v?: number | null) => (v == null ? "–" : `${signed(v)}%`);
   return (
     <div className="space-y-4">
       <div>
         <div className="text-xs text-muted">{data.sidoName}</div>
-        <h3 className="text-lg font-semibold">{data.name}</h3>
+        <H className="text-lg font-semibold">{data.name}</H>
         {data.children.length > 0 && <div className="text-xs text-muted">일반구 {data.children.join(", ")} 합산</div>}
       </div>
       <dl className="grid grid-cols-3 gap-2 text-center">
@@ -44,7 +45,7 @@ export default function RegionPanel({ regionCd, compact }: { regionCd: string; c
       </div>
       <div>
         <div className="text-xs font-medium mb-1">아파트 가격지수 (R-ONE)</div>
-        {idx.length ? <TrendLine data={idx} series={[{ key: "sale", name: "매매" }, { key: "jeonse", name: "전세" }]} height={compact ? 160 : 220} fmt={(v) => num(v, 1)} />
+        {idx.length ? <TrendLine data={idx} series={[{ key: "sale", name: "매매" }, { key: "jeonse", name: "전세" }]} height={compact ? 160 : 220} fmt={(v) => num(v, 1)} zero={false} />
           : <Empty>R-ONE 아파트 가격지수 조사 대상이 아니거나 아직 수집 전입니다</Empty>}
       </div>
       <div>
@@ -60,7 +61,7 @@ export default function RegionPanel({ regionCd, compact }: { regionCd: string; c
             {priceM2.length > 0 && !compact && (
               <div className="mt-2">
                 <div className="text-[11px] text-ink2 mb-1">㎡당 중위 매매가 (만원) · 전년 동월 대비 {sign(pYoy?.value)}</div>
-                <TrendLine data={priceM2} series={[{ key: "v", name: "㎡당 중위가" }]} height={180} fmt={(v) => int(v)} />
+                <TrendLine data={priceM2} series={[{ key: "v", name: "㎡당 중위가" }]} height={180} fmt={(v) => int(v)} zero={false} />
               </div>
             )}
             <div className="text-[11px] text-muted">계약월 기준 · 신고가 계속 들어오는 최근 두 달은 제외</div>

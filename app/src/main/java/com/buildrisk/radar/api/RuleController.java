@@ -3,6 +3,8 @@ package com.buildrisk.radar.api;
 import com.buildrisk.radar.api.dto.AlertDtos.RuleHistory;
 import com.buildrisk.radar.api.dto.AlertDtos.RuleUpdate;
 import com.buildrisk.radar.api.dto.AlertDtos.RuleView;
+import com.buildrisk.radar.common.role.ApiRole;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,8 +13,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import com.buildrisk.radar.common.role.ApiRole;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -34,7 +36,7 @@ public class RuleController {
 
     @PutMapping("/{ruleCode}")
     @Operation(summary = "⑫ 파라미터·심각도 변경 → 새 버전 (ADMIN)")
-    public RuleView update(@PathVariable String ruleCode, @RequestBody RuleUpdate body, java.security.Principal principal) {
+    public RuleView update(@PathVariable String ruleCode, @RequestBody RuleUpdate body, Principal principal) {
         return svc.update(ruleCode, body, principal == null ? "anonymous" : principal.getName());
     }
 }

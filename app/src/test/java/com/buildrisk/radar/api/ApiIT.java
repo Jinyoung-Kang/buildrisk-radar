@@ -22,6 +22,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ApiIT extends IntegrationTest {
     @Autowired
     MockMvc mvc;
+    @Autowired
+    io.micrometer.core.instrument.MeterRegistry meters;
 
     @Test
     void 없는_기업은_404_와_오류_형식() throws Exception {
@@ -119,6 +121,17 @@ class ApiIT extends IntegrationTest {
         mvc.perform(get("/api/v1/regions/boundaries").param("simplify", "137")).andExpect(status().isBadRequest());
         mvc.perform(put("/api/v1/rules/R-C01").header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON).content("{"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 조회_캐시는_처음엔_miss_다음엔_hit_으로_지표에_남는다() throws Exception {
+        java.util.function.ToDoubleFunction<String> n = r -> meters.counter("buildrisk.cache.requests", "cache", "redis", "result", r).count();
+        String sido = "99";                                   // 다른 테스트와 겹치지 않는 캐시 키
+        double miss0 = n.applyAsDouble("miss"), hit0 = n.applyAsDouble("hit");
+        mvc.perform(get("/api/v1/regions").param("sido", sido)).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/regions").param("sido", sido)).andExpect(status().isOk());
+        org.assertj.core.api.Assertions.assertThat(n.applyAsDouble("miss") - miss0).isEqualTo(1);
+        org.assertj.core.api.Assertions.assertThat(n.applyAsDouble("hit") - hit0).isEqualTo(1);
     }
 
     @Test

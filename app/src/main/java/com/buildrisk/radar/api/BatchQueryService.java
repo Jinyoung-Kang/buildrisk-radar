@@ -1,11 +1,13 @@
 package com.buildrisk.radar.api;
 
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
+import com.buildrisk.radar.batch.queue.WorkerRegistry;
 import com.buildrisk.radar.batch.support.BatchLauncher;
 import com.buildrisk.radar.batch.support.JobCatalog;
 import com.buildrisk.radar.common.AppProperties;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
+
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -23,10 +25,10 @@ public class BatchQueryService {
     private final Environment env;
     private final AppProperties props;
 
-    private final com.buildrisk.radar.batch.queue.WorkerRegistry workers;
+    private final WorkerRegistry workers;
 
     public BatchQueryService(JdbcClient jdbc, BatchLauncher launcher, Environment env, AppProperties props,
-                             com.buildrisk.radar.batch.queue.WorkerRegistry workers) {
+                             WorkerRegistry workers) {
         this.workers = workers;
         this.jdbc = jdbc;
         this.launcher = launcher;

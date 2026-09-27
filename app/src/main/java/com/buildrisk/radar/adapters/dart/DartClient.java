@@ -2,6 +2,7 @@ package com.buildrisk.radar.adapters.dart;
 
 import com.buildrisk.radar.adapters.common.ApiKeyMissingException;
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
+import com.buildrisk.radar.adapters.common.ExternalApiMetrics;
 import com.buildrisk.radar.adapters.common.HttpSupport;
 import com.buildrisk.radar.adapters.common.Json;
 import com.buildrisk.radar.adapters.common.Throttle;
@@ -12,15 +13,22 @@ import com.buildrisk.radar.adapters.dart.DartModels.DisclosurePage;
 import com.buildrisk.radar.adapters.dart.DartModels.FsResponse;
 import com.buildrisk.radar.adapters.dart.DartModels.FsRow;
 import com.buildrisk.radar.common.AppProperties;
+
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.util.UriBuilder;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,6 +38,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.UnaryOperator;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -47,10 +57,10 @@ public class DartClient {
     private final ObjectMapper mapper;
     private final ApiQuotaService quota;
     private final Throttle throttle;
-    private final com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics;
+    private final ExternalApiMetrics metrics;
 
     public DartClient(AppProperties props, ObjectMapper mapper, ApiQuotaService quota,
-                      com.buildrisk.radar.adapters.common.ExternalApiMetrics metrics) {
+                      ExternalApiMetrics metrics) {
         this.metrics = metrics;
         this.cfg = props.dart();
         this.http = HttpSupport.client(cfg.baseUrl(), Duration.ofSeconds(60));
@@ -81,7 +91,7 @@ public class DartClient {
             checkStatus(status, message);
             throw new UpstreamException(PROVIDER, "corpCode.xml 응답이 Zip 이 아닙니다.");
         }
-        try (ZipInputStream zip = new ZipInputStream(new java.io.ByteArrayInputStream(body))) {
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(body))) {
             ZipEntry e;
             while ((e = zip.getNextEntry()) != null) {
                 if (e.getName().toLowerCase().endsWith(".xml")) {
@@ -98,13 +108,13 @@ public class DartClient {
     }
 
     /** document.xml — 공시서류 원본(Zip 안 HTML). 파일 없음(013·014)이면 empty. 압축 해제는 5MB 상한(zip bomb 방지) */
-    public java.util.Optional<String> document(String rceptNo) {
+    public Optional<String> document(String rceptNo) {
         return metrics.time(PROVIDER, "document", () -> document0(rceptNo));
     }
 
     private static final int DOC_LIMIT = 5 * 1024 * 1024;
 
-    private java.util.Optional<String> document0(String rceptNo) {
+    private Optional<String> document0(String rceptNo) {
         byte[] body = call("/api/document.xml", u -> u.queryParam("rcept_no", rceptNo));
         if (body.length < 4 || body[0] != 'P' || body[1] != 'K') {
             String text = new String(body, StandardCharsets.UTF_8);
@@ -119,12 +129,12 @@ public class DartClient {
                     // 형식을 모르는 응답
                 }
             }
-            if (DartStatus.NO_DATA.equals(status) || "014".equals(status)) return java.util.Optional.empty();
+            if (DartStatus.NO_DATA.equals(status) || "014".equals(status)) return Optional.empty();
             checkStatus(status, message);
             throw new UpstreamException(PROVIDER, "document.xml 응답이 Zip 이 아닙니다.");
         }
         byte[] best = null;
-        try (ZipInputStream zip = new ZipInputStream(new java.io.ByteArrayInputStream(body))) {
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(body))) {
             ZipEntry e;
             while ((e = zip.getNextEntry()) != null) {
                 byte[] data = zip.readNBytes(DOC_LIMIT + 1);
@@ -135,17 +145,17 @@ public class DartClient {
         } catch (IOException ex) {
             throw new UpstreamException(PROVIDER, "document Zip 해제 실패: " + ex.getMessage(), ex);
         }
-        return best == null ? java.util.Optional.empty() : java.util.Optional.of(decode(best));
+        return best == null ? Optional.empty() : Optional.of(decode(best));
     }
 
     /** 원문은 대부분 UTF-8, 오래된 서식은 EUC-KR(MS949) */
     static String decode(byte[] b) {
         try {
             return StandardCharsets.UTF_8.newDecoder()
-                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
-                    .decode(java.nio.ByteBuffer.wrap(b)).toString();
-        } catch (java.nio.charset.CharacterCodingException e) {
-            return new String(b, java.nio.charset.Charset.forName("MS949"));
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(b)).toString();
+        } catch (CharacterCodingException e) {
+            return new String(b, Charset.forName("MS949"));
         }
     }
 
@@ -202,11 +212,11 @@ public class DartClient {
 
     // ---------------------------------------------------------------------
 
-    private JsonNode json(String path, java.util.function.UnaryOperator<org.springframework.web.util.UriBuilder> q) {
+    private JsonNode json(String path, UnaryOperator<UriBuilder> q) {
         return metrics.time(PROVIDER, path.replace("/api/", "").replace(".json", ""), () -> json0(path, q));
     }
 
-    private JsonNode json0(String path, java.util.function.UnaryOperator<org.springframework.web.util.UriBuilder> q) {
+    private JsonNode json0(String path, UnaryOperator<UriBuilder> q) {
         byte[] body = call(path, q);
         JsonNode n;
         try {
@@ -225,7 +235,7 @@ public class DartClient {
         throw new UpstreamException(PROVIDER, "status " + status + " " + message);
     }
 
-    private byte[] call(String path, java.util.function.UnaryOperator<org.springframework.web.util.UriBuilder> q) {
+    private byte[] call(String path, UnaryOperator<UriBuilder> q) {
         if (!configured()) throw new ApiKeyMissingException("DART_API_KEY");
         int used = quota.used(PROVIDER);
         if (used >= cfg.dailyCallLimit()) {

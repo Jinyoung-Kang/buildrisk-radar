@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.zip.Deflater;
@@ -46,7 +47,7 @@ public class PayloadCache {
     /** Accept-Encoding 에 gzip 이 있고 q=0 으로 거부하지 않았는지 */
     public static boolean acceptsGzip(String acceptEncoding) {
         if (acceptEncoding == null) return false;
-        for (String part : acceptEncoding.toLowerCase(java.util.Locale.ROOT).split(",")) {
+        for (String part : acceptEncoding.toLowerCase(Locale.ROOT).split(",")) {
             String[] p = part.trim().split(";");
             if (!p[0].trim().equals("gzip") && !p[0].trim().equals("*")) continue;
             boolean zero = false;

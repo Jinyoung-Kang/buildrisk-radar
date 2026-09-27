@@ -2,6 +2,7 @@ package com.buildrisk.radar.adapters.datagokr;
 
 import com.buildrisk.radar.adapters.common.Json;
 import com.buildrisk.radar.adapters.common.UpstreamException;
+
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -10,6 +11,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +59,7 @@ public class StockPriceClient {
             p.items().stream().filter(d -> stockCode.equals(d.srtnCd())).forEach(out::add);
             page++;
         } while (!p.items().isEmpty() && seen < p.totalCount());
-        out.sort(java.util.Comparator.comparing(Daily::basDt));
+        out.sort(Comparator.comparing(Daily::basDt));
         return out;
     }
 

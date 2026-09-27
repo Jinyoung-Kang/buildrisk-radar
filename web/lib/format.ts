@@ -1,10 +1,25 @@
 const nf = new Intl.NumberFormat("ko-KR");
 
-export function num(v: number | null | undefined, digits = 1): string {
+/**
+ * 숫자 표시. fixed = 소수 자릿수를 고정(표의 열에서 자릿수가 들쭉날쭉하지 않게 — 45% · 45.7% 대신 45.0% · 45.7%).
+ * signDisplay "negative": 반올림해 0 이 된 음수를 "-0" 으로 쓰지 않음 (백테스트 비교 기준 -0.03% → "-0%" 이던 문제)
+ */
+export function num(v: number | null | undefined, digits = 1, fixed = false): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "–";
   const abs = Math.abs(v);
   const d = abs >= 1000 ? 0 : abs >= 100 ? Math.min(digits, 1) : digits;
-  return new Intl.NumberFormat("ko-KR", { maximumFractionDigits: d, minimumFractionDigits: 0 }).format(v);
+  return new Intl.NumberFormat("ko-KR", { maximumFractionDigits: d, minimumFractionDigits: fixed ? d : 0, signDisplay: "negative" }).format(v);
+}
+
+/** 부호를 붙인 고정 소수 (+1.2 · −3.0 · 0.0). 0 으로 반올림되면 부호 없음 */
+export function signed(v: number | null | undefined, digits = 1): string {
+  if (v === null || v === undefined || Number.isNaN(v)) return "–";
+  return new Intl.NumberFormat("ko-KR", { minimumFractionDigits: digits, maximumFractionDigits: digits, signDisplay: "exceptZero" }).format(v);
+}
+
+/** 반올림한 표시값 기준으로 음수인지 — "-0.0%" 를 빨갛게 칠하지 않도록 */
+export function isNeg(v: number | null | undefined, digits = 1): boolean {
+  return v != null && Math.round(v * 10 ** digits) < 0;
 }
 
 export function int(v: number | null | undefined): string {

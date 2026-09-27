@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import { useCallback, useMemo } from "react";
 import Layout from "@/components/Layout";
 import RegionMap from "@/components/RegionMap";
-import RegionPanel from "@/components/RegionPanel";
+import { RegionPanel } from "@/components/LazyCharts";
 import { Card, ErrorBox } from "@/components/ui";
 import { qs, type Boundaries, type GeoJson, type Meta, type RegionList, type RegionProps } from "@/lib/api";
 import { makeScale, MISSING } from "@/lib/colors";
