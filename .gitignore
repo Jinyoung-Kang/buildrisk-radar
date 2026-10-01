@@ -20,3 +20,6 @@ web/playwright-report/
 *.iml
 .DS_Store
 __pycache__/
+
+# Claude Code 개인 설정 (공유 설정은 .claude/settings.json)
+.claude/settings.local.json
