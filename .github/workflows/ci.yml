@@ -17,7 +17,7 @@ jobs:
         run: ./gradlew test --no-daemon
       - name: 테스트 리포트
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with: { name: app-test-report, path: app/build/reports/tests/test }
       - name: bootJar
         run: ./gradlew bootJar -x test --no-daemon
