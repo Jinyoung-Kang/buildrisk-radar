@@ -35,9 +35,16 @@ cd web && CAPTURE=1 E2E_CHANNEL=chrome npx playwright test capture   # README �
 - **문제는 재현 → 수정 → 회귀 테스트 순서로.** 고친 문제는 `docs/VERIFICATION.md` 에 이어지는 번호로 기록한다(증상 · 원인 · 해결 · 고정/확인).
   설계를 바꿨으면 ADR 을 추가하거나 기존 ADR 에 덧붙이고 `docs/adr/README.md` 표를 갱신한다.
 - **성능 · 개선 주장은 측정값으로.** EXPLAIN ANALYZE · k6 · `next build` 결과를 적는다. 효과가 없으면 넣지 않는다(인덱스는 롤백되는 트랜잭션에서 먼저 재 본다).
-- **커밋 전**: 전체 테스트 → 유출 검사(`.env` 의 값이 `git diff --cached` 에 없는지, 이름만 출력) → 커밋.
-  커밋 메시지 끝에는 세션이 안내하는 `Co-Authored-By` 줄을 붙인다. push 뒤 CI · CodeQL 결과와 열린 보안 경고를 확인한다.
 - **숫자를 함께 맞춘다.** 테스트 개수 · 문제 건수 · ADR 건수 · 부하 수치가 바뀌면 README · VERIFICATION · 포트폴리오 PDF 를 같이 갱신한다.
+
+## 전달 방식
+
+- 작업 커밋은 `main` 에 직접 한다(브랜치 보호 없음, PR 은 Dependabot 만). 커밋 전: 전체 테스트 → 유출 검사(`.env` 의 값이
+  `git diff --cached` 에 없는지, 이름만 출력) → 커밋.
+- 커밋 메시지는 `type(scope): 요약`, **요약은 한국어**. 여러 문제를 한 번에 고친 점검은 VERIFICATION 번호 범위를 적는다
+  (예: `fix+perf: 4차 전수 점검 — … (문제 62~75)`). 끝에는 세션이 안내하는 `Co-Authored-By` 줄.
+- **push 는 사용자가 요청할 때.** push 뒤 CI · CodeQL 결과와 열린 보안 경고를 확인한다.
+- Dependabot PR 은 CI 통과를 확인한 뒤 squash 병합. 같은 파일을 고치는 PR 은 하나씩 병합하고, Dependabot 이 다시 맞춘 뒤 다음 것을 병합한다.
 
 ## 알아 둘 함정 (실제로 겪은 것)
 
