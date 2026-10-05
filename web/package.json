@@ -10,7 +10,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "next": "15.5.26",
+    "next": "15.5.27",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-is": "18.3.1",
@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
-    "@types/node": "22.20.4",
+    "@types/node": "22.20.5",
     "@types/react": "18.3.31",
     "@types/react-dom": "18.3.7",
     "autoprefixer": "10.6.1",
