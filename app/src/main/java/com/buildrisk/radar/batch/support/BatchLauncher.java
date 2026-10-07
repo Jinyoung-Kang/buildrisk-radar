@@ -32,8 +32,10 @@ import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -219,7 +221,19 @@ public class BatchLauncher {
                     limit = props.dataGoKr().dailyCallLimit();
                     used = quota.used(StockPriceClient.PROVIDER);
                 }
-                case "disclosureSyncJob" -> pb.addLong("days", b.get("days") == null ? 7L : Long.parseLong(String.valueOf(b.get("days"))));
+                case "disclosureSyncJob" -> {
+                    long days = b.get("days") == null ? 7L : Long.parseLong(String.valueOf(b.get("days")));
+                    if (days < 1 || days > 3650) throw new ApiException(ErrorCode.VALIDATION_ERROR, "days 는 1~3650");
+                    pb.addLong("days", days);
+                    // from: 과거 공시 백필 시작일 (예: 경보 성적표의 부실 사건을 재무제표 기간과 맞출 때)
+                    if (b.get("from") != null) {
+                        LocalDate from = LocalDate.parse(String.valueOf(b.get("from")));
+                        if (from.isBefore(LocalDate.of(2015, 1, 1)) || from.isAfter(ApiQuotaService.today()))
+                            throw new ApiException(ErrorCode.VALIDATION_ERROR, "from 은 2015-01-01 ~ 오늘");
+                        pb.addString("from", from.toString());
+                        warning = "기업마다 " + from + " 부터 공시 목록을 받습니다 (기업당 100건 단위 페이지 호출).";
+                    }
+                }
                 case "sgisHouseholdJob" -> {
                     if (b.get("year") != null) pb.addLong("year", Long.parseLong(String.valueOf(b.get("year"))));
                 }
@@ -235,6 +249,8 @@ public class BatchLauncher {
             }
         } catch (NumberFormatException e) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "숫자 파라미터 형식이 올바르지 않습니다: " + e.getMessage());
+        } catch (DateTimeParseException e) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "날짜 파라미터는 YYYY-MM-DD 형식입니다: " + e.getParsedString());
         }
         return new Plan(pb.toJobParameters(), planned, limit, used, warning, !Boolean.FALSE.equals(b.get("restart")));
     }

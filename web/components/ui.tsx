@@ -9,8 +9,8 @@ export function Card({ title, sub, right, children, className = "", pad = true, 
   return (
     <section className={`bg-raised rounded-xl shadow-card ${className}`}>
       {(title || right) && (
-        <div className="flex items-start justify-between gap-3 px-4 pt-4">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 px-4 pt-4">
+          <div className="min-w-0 flex-1 basis-60">
             {title && <H className="text-sm font-semibold">{title}</H>}
             {sub && <p className="text-xs text-muted mt-0.5">{sub}</p>}
           </div>
@@ -114,7 +114,7 @@ export function Loading() {
 export function Segmented<T extends string>({ value, options, onChange, label }:
   { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; label: string }) {
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex bg-line/60 rounded-lg p-0.5 text-xs">
+    <div role="radiogroup" aria-label={label} className="inline-flex max-w-full overflow-x-auto bg-line/60 rounded-lg p-0.5 text-xs whitespace-nowrap">
       {options.map((o) => (
         <button key={o.value} role="radio" aria-checked={value === o.value} onClick={() => onChange(o.value)}
           className={`px-2.5 py-1 rounded-md focus-ring ${value === o.value ? "bg-raised shadow-card font-medium" : "text-ink2"}`}>

@@ -24,3 +24,4 @@
 | [020](020-map-boundaries-cache.md) | 지도 — 경계(버전 URL · immutable, 프로세스 안 gzip 바이트)와 지표 값 분리 | 채택 |
 | [021](021-container-memory.md) | 컨테이너 메모리 예산 · JVM 힙 60% · G1 명시 (부하 중 OOM 킬에서 발견) | 채택 |
 | [022](022-read-cache.md) | 조회 캐시를 목록까지, 무효화는 모든 Job 이 끝나는 한 곳에서 | 채택 |
+| [023](023-alert-scorecard.md) | 경보 성적표 — 실제 부실 사건 대비 정밀도 · 재현율 · 선행 기간 (규칙을 전체 기간에 point-in-time 재평가) | 채택 |

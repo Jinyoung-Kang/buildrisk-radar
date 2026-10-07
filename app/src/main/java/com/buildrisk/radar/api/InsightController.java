@@ -27,11 +27,13 @@ import java.time.Duration;
 public class InsightController {
     private final ExposureService exposure;
     private final BacktestService backtest;
+    private final ScorecardService scorecard;
     private final JsonCache cache;
 
-    public InsightController(ExposureService exposure, BacktestService backtest, JsonCache cache) {
+    public InsightController(ExposureService exposure, BacktestService backtest, ScorecardService scorecard, JsonCache cache) {
         this.exposure = exposure;
         this.backtest = backtest;
+        this.scorecard = scorecard;
         this.cache = cache;
     }
 
@@ -69,5 +71,13 @@ public class InsightController {
     @Operation(summary = "경보 백테스트 — 규칙별 경보 뒤 h 거래일 초과수익률 (point-in-time)")
     public BacktestService.Result backtest(@RequestParam(defaultValue = "60") int horizon) {
         return cache.get("backtest:" + horizon, Duration.ofMinutes(30), BacktestService.Result.class, () -> backtest.run(horizon));
+    }
+
+    @GetMapping("/scorecard")
+    @Operation(summary = "경보 성적표 — 재무 규칙이 실제 부실 사건(회생 · 워크아웃 · 부도 · 감사의견 비적정)을 얼마나 미리 잡았는지",
+            description = "정밀도 · 재현율(Wilson 95% 구간) · 선행 기간 · 기준선 대비 lift. horizonMonths = 6 · 12 · 24 (ADR-023)")
+    public ScorecardService.Response scorecard(@RequestParam(defaultValue = "12") int horizonMonths) {
+        return cache.get("scorecard:" + horizonMonths, Duration.ofMinutes(30), ScorecardService.Response.class,
+                () -> scorecard.run(horizonMonths));
     }
 }

@@ -25,7 +25,7 @@ export default function Companies() {
   return (
     <Layout title="기업">
       <PageTitle title="건설업 유니버스" sub="DART 기업개황 업종코드 41(종합 건설업)·421(토목 기반조성 전문공사업) 유가·코스닥 상장사 + 수동 포함. 지표는 최신 분기, 연결 우선."
-        right={<div className="flex gap-2 items-center">
+        right={<div className="flex flex-wrap gap-2 items-center">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="기업명·종목코드"
             aria-label="기업 검색" className="bg-raised border border-line rounded-lg px-3 py-1.5 text-sm w-48 focus-ring" />
           <Segmented label="정렬" value={sort} onChange={(v) => go({ sort: v as Sort })}

@@ -4,6 +4,8 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.type.TypeReference;
@@ -76,6 +78,13 @@ public class JsonCache {
         }
         return value;
     }
+
+    /**
+     * 기동할 때 세대를 올림 — 계산 방식이 바뀐 새 버전을 배포해도 옛 코드가 만든 결과가 TTL 동안 나가던 문제
+     * (경보 성적표의 판정 기준을 고친 뒤 12개월 결과만 옛 값 — 실제 스택에서 확인). 인스턴스가 여럿이면 재시작마다 한 번씩 비워질 뿐
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void onStartup() { invalidateAll(); }
 
     /** 새 calc_run 이 끝났을 때 호출 — 이전 세대 키는 TTL 로 사라집니다. */
     public void invalidateAll() {

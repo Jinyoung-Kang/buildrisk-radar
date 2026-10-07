@@ -98,6 +98,23 @@ export type Backtest = {
   priceFrom?: string; priceTo?: string; stocks: number; method: string[]; limitations: string[]; disclaimer: string;
 };
 
+/** 경보 성적표 (ADR-023) — 재무 규칙 × 실제 부실 사건 */
+export type ScInterval = { low: number; high: number };
+export type ScRule = {
+  ruleCode: string; episodes: number; hits: number; misses: number; pending: number; afterEvent: number;
+  precision?: number; precisionCi?: ScInterval; lift?: number; events: number; caught: number; recall?: number; recallCi?: ScInterval;
+  medianLeadDays?: number;
+};
+export type ScOutcome = "HIT" | "MISS" | "PENDING" | "AFTER_EVENT";
+export type Scorecard = {
+  horizonMonths: number; observedFrom?: string; observedTo: string; baseRate?: number; baseSamples: number;
+  ruleNames: Record<string, string>; companyNames: Record<string, string>; rules: ScRule[];
+  events: { corpCode: string; corpName: string; date: string; kind: string; rceptNo: string; reportNm: string }[];
+  catches: { ruleCode: string; corpCode: string; eventDate: string; evaluable: boolean; caught: boolean; firstSignal?: string; leadDays?: number }[];
+  episodes: { ruleCode: string; corpCode: string; start: string; last: string; signals: number; outcome: ScOutcome; eventDate?: string; leadDays?: number }[];
+  method: string[]; limitations: string[]; disclaimer: string;
+};
+
 export type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export class ApiError extends Error {

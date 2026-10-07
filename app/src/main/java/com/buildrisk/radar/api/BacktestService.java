@@ -6,28 +6,24 @@ import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.domain.backtest.EventStudy;
 import com.buildrisk.radar.domain.backtest.EventStudy.Event;
 import com.buildrisk.radar.domain.backtest.EventStudy.Outcome;
+import com.buildrisk.radar.domain.backtest.PointInTime;
 import com.buildrisk.radar.domain.market.StockRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 /** 경보 백테스트 (ADR-017) — 규칙별 경보 뒤 h 거래일 초과수익률 */
 @Service
 public class BacktestService {
     public static final Set<Integer> HORIZONS = Set.of(20, 60, 120);
-    private static final Pattern RCEPT = Pattern.compile("^\\d{14}$");
-    private static final DateTimeFormatter YMD = DateTimeFormatter.BASIC_ISO_DATE;
     private final JdbcClient jdbc;
     private final StockRepository stocks;
     private final ObjectMapper mapper;
@@ -106,18 +102,10 @@ public class BacktestService {
                 }).list().stream().filter(a -> a != null).toList();
     }
 
-    /** 근거 공시 접수번호(앞 8자리 = 접수일) 중 가장 늦은 날 — as_of 가 접수번호인 공시 규칙은 그 자체 */
+    /** 근거 공시 접수번호 중 가장 늦은 날 (PointInTime) — as_of 가 접수번호인 공시 규칙은 그 자체 */
     public LocalDate eventDate(String asOf, String sourcesJson) {
-        LocalDate best = RCEPT.matcher(asOf).matches() ? LocalDate.parse(asOf.substring(0, 8), YMD) : null;
-        if (sourcesJson != null) {
-            JsonNode arr = mapper.readTree(sourcesJson);
-            for (JsonNode s : arr.values()) {
-                String no = s.path("rceptNo").asString(null);
-                if (no == null || !RCEPT.matcher(no).matches()) continue;
-                LocalDate d = LocalDate.parse(no.substring(0, 8), YMD);
-                if (best == null || d.isAfter(best)) best = d;
-            }
-        }
-        return best;
+        List<String> nos = new ArrayList<>();
+        if (sourcesJson != null) mapper.readTree(sourcesJson).values().forEach(s -> nos.add(s.path("rceptNo").asString(null)));
+        return PointInTime.of(asOf, nos);
     }
 }

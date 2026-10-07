@@ -1,5 +1,6 @@
 package com.buildrisk.radar.batch.jobs;
 
+import com.buildrisk.radar.common.AppProperties;
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.adapters.dart.DartClient;
 import com.buildrisk.radar.adapters.dart.DartModels.Disclosure;
@@ -36,7 +37,10 @@ import java.util.Map;
 
 /**
  * disclosureSyncJob (FR-301~302)
- *   step1: 유니버스 기업 × 최근 N일(days, 기본 7 — 처음이면 365) list.json → 키워드 사전 분류 → UPSERT (chunk 20 기업)
+ *   step1: 유니버스 기업 × 최근 N일(days, 기본 7) list.json → 키워드 사전 분류 → UPSERT (chunk 20 기업)
+ *          처음 수집하는 기업은 재무제표와 같은 기간(FS_FROM_YEAR 1월 1일)부터 — 재무 악화와 공시 사건을 같은 기간에서 비교하기 위해
+ *          (예전에는 1년만 받아 2021~2024 의 회생 · 워크아웃 사건이 빠졌음). from 파라미터로 기존 기업도 백필
+ *          (corp_code 를 주면 list.json 의 3개월 기간 제한이 없음 — OpenDART 공시검색 가이드)
  *   step2: 저장된 전체 공시를 현재 사전으로 다시 분류 (사전을 고쳐도 과거 공시에 반영)
  */
 @Configuration
@@ -67,15 +71,19 @@ public class DisclosureSyncJobConfig {
     @StepScope
     ItemProcessor<String, List<Classified>> disclosureProcessor(DartClient dart, SeedCatalog seed,
             DisclosureRepository repo, SkipRecorder skips, @Value("#{stepExecution}") StepExecution se,
-            @Value("#{jobParameters['days']}") Long days) {
+            @Value("#{jobParameters['days']}") Long days, @Value("#{jobParameters['from']}") String fromParam,
+            AppProperties props) {
         EventClassifier classifier = seed.eventClassifier();
         QuotaGuard guard = new QuotaGuard(se, skips, Long.MAX_VALUE);
         LocalDate today = ApiQuotaService.today();
+        LocalDate backfill = fromParam == null ? null : LocalDate.parse(fromParam);
+        LocalDate firstFetch = LocalDate.of(props.dart().fromYear(), 1, 1);
         return corp -> guard.call(corp, () -> {
             LocalDate latest = repo.latestDate(corp);
-            // 처음 수집하는 기업은 1년, 이후는 최근 days(기본 7)일. 오래 안 돌렸으면 마지막 공시일부터 (누락 방지)
+            // 처음 수집하는 기업은 재무제표 기간 시작부터, 이후는 최근 days(기본 7)일. 오래 안 돌렸으면 마지막 공시일부터 (누락 방지)
             LocalDate window = today.minusDays(days == null ? 7 : days);
-            LocalDate from = latest == null ? today.minusDays(365) : latest.isBefore(window) ? latest : window;
+            LocalDate from = backfill != null ? backfill
+                    : latest == null ? firstFetch : latest.isBefore(window) ? latest : window;
             List<Classified> out = new ArrayList<>();
             int page = 1;
             DisclosurePage p;

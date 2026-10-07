@@ -1,8 +1,10 @@
 package com.buildrisk.radar.common.seed;
 
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.domain.backtest.CreditEventRule;
 import com.buildrisk.radar.domain.disclosure.EventClassifier;
 import com.buildrisk.radar.domain.region.RegionAliases;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -23,9 +25,17 @@ import java.util.Map;
 public class SeedCatalog {
     private final Path dir;
 
+    @Autowired      // 생성자가 둘(테스트용 at())이라 스프링이 쓸 생성자를 명시
     public SeedCatalog(AppProperties props) {
         this.dir = Path.of(props.seedDir()).toAbsolutePath().normalize();
     }
+
+    private SeedCatalog(Path dir) {
+        this.dir = dir.toAbsolutePath().normalize();
+    }
+
+    /** 테스트에서 저장소의 실제 seed 폴더를 읽을 때 (사전에 빠진 키워드를 실제 파일로 검증) */
+    public static SeedCatalog at(Path dir) { return new SeedCatalog(dir); }
 
     public Path dir() { return dir; }
 
@@ -100,6 +110,14 @@ public class SeedCatalog {
         return new EventClassifier(types.stream().map(t -> new EventClassifier.EventType(
                 String.valueOf(t.get("code")), String.valueOf(t.get("name")),
                 ((List<Object>) t.get("keywords")).stream().map(String::valueOf).toList())).toList(), neutral);
+    }
+
+    /** 경보 성적표의 부실 사건 정의 (event_keywords.yml 의 credit_events) */
+    @SuppressWarnings("unchecked")
+    public CreditEventRule creditEventRule() {
+        Map<String, Object> c = (Map<String, Object>) yaml("event_keywords.yml").get("credit_events");
+        return new CreditEventRule(((List<Object>) c.get("include")).stream().map(String::valueOf).toList(),
+                ((List<Object>) c.getOrDefault("exclude", List.of())).stream().map(String::valueOf).toList());
     }
 
     @SuppressWarnings("unchecked")
