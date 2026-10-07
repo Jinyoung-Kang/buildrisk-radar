@@ -55,6 +55,10 @@ cd web && CAPTURE=1 E2E_CHANNEL=chrome npx playwright test capture   # README �
 - **레이트리밋**: IP 당 분당 1,200. API 를 전수 호출하는 스크립트를 연달아 돌리면 429 — Redis 의 `br:rl:*` 를 비우거나 1분 기다린다. E2E 로그인 잠금은 `br:login:*`.
 - **SQL**: 텍스트 블록과 문자열을 이을 때 공백 누락(`WHEREc` · `NULLORDER`)을 조심. `char(n)` 열과 `text` 를 비교하면 인덱스를 못 쓴다 — 계산한 키는 cast.
 - **외부 API 한도**: DART 일 15,000 · 공공데이터포털 일 9,000(기본값). 검증만 필요하면 외부 호출이 없는 Job(`standardizeMetricJob` · `ruleEvalJob`)을 쓴다.
+- **Flyway**: 한 번이라도 적용된 마이그레이션은 주석까지 고치지 않는다(체크섬) — 새 버전으로 덧붙인다. 로컬 DB 테이블을 지우고 다시 적용하는 방법은 쓰지 않는다.
+- **원문 파서(공시 · PF)를 고치면** 보관 구간을 호출 없이 전수 재파싱해 이전 버전 결과와 비교한다 — 한 회사를 고치다 다른 회사가 깨진 적이 있음(VERIFICATION 89).
+  기대값은 원문 표에서 직접 계산해 적고, 원문과 어긋나면 먼저 파서를 의심한다(88: '원문 탓'으로 고정했던 테스트가 파서 탓이었음).
+- **셸**: `while read` 안의 `docker compose exec` 는 표준입력을 먹어 첫 줄만 처리된다 — 한 번의 쿼리로 묶거나 `</dev/null`. 이 맥의 기본 JDK 는 21 이라 임시 Java 실행은 Gradle(툴체인 25)로.
 
 ## 포트폴리오 PDF
 

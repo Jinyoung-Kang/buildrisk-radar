@@ -79,8 +79,11 @@ class ApiIT extends IntegrationTest {
         mvc.perform(post("/api/v1/batch/jobs/boundaryLoadJob/launch").header("X-Admin-Token", ADMIN)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"source\":\"NOPE\"}"))
                 .andExpect(status().isBadRequest());                                                   // 큐에 넣기 전 검증
+        mvc.perform(post("/api/v1/batch/jobs/pfExposureJob/launch").header("X-Admin-Token", ADMIN)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"fromPeriod\":\"2023Q5\"}"))
+                .andExpect(status().isBadRequest());                                                   // 분기 형식 검증
         jdbc.update("DELETE FROM ops.job_request");
-        mvc.perform(get("/api/v1/batch/jobs")).andExpect(jsonPath("$.jobs", hasSize(13)));
+        mvc.perform(get("/api/v1/batch/jobs")).andExpect(jsonPath("$.jobs", hasSize(14)));
     }
 
     @Test

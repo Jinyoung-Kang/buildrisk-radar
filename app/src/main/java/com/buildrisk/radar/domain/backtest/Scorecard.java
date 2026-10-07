@@ -47,7 +47,7 @@ public final class Scorecard {
 
     public record Interval(double low, double high) {}
 
-    public record RuleScore(String ruleCode, int episodes, int hits, int misses, int pending, int afterEvent,
+    public record RuleScore(String ruleCode, LocalDate observedFrom, int episodes, int hits, int misses, int pending, int afterEvent,
                             Double precision, Interval precisionCi, Double lift,
                             int events, int caught, Double recall, Interval recallCi, Integer medianLeadDays) {}
 
@@ -62,6 +62,15 @@ public final class Scorecard {
      */
     public static Result score(List<String> ruleCodes, List<Signal> signals, Collection<String> corps,
                                Map<String, CreditEvent> events, LocalDate observedFrom, LocalDate observedTo, int horizonMonths) {
+        return score(ruleCodes, signals, corps, events, observedFrom, Map.of(), observedTo, horizonMonths);
+    }
+
+    /**
+     * @param ruleFrom 규칙별 관측 시작 (그 규칙의 지표가 처음 생긴 날 — 예: PF 표준 서식은 2023 사업보고서부터).
+     *                 그보다 이른 사건은 그 규칙으로는 '평가 불가'. 없으면 observedFrom
+     */
+    public static Result score(List<String> ruleCodes, List<Signal> signals, Collection<String> corps, Map<String, CreditEvent> events,
+                               LocalDate observedFrom, Map<String, LocalDate> ruleFrom, LocalDate observedTo, int horizonMonths) {
         List<Episode> allEpisodes = new ArrayList<>();
         List<Catch> allCatches = new ArrayList<>();
         Double base = baseRate(corps, events, observedFrom, observedTo, horizonMonths);
@@ -71,7 +80,8 @@ public final class Scorecard {
             List<Signal> mine = signals.stream().filter(s -> ANY.equals(rule) || s.ruleCode().equals(rule))
                     .map(s -> ANY.equals(rule) ? new Signal(ANY, s.corpCode(), s.period(), s.date()) : s).toList();
             List<Episode> eps = episodes(mine, events, observedTo, horizonMonths);
-            List<Catch> catches = catches(rule, mine, events, observedFrom, horizonMonths);
+            LocalDate from = ruleFrom.getOrDefault(rule, observedFrom);
+            List<Catch> catches = catches(rule, mine, events, from, horizonMonths);
             allEpisodes.addAll(eps);
             allCatches.addAll(catches);
             int hits = count(eps, Outcome.HIT), misses = count(eps, Outcome.MISS);
@@ -80,7 +90,7 @@ public final class Scorecard {
             int caught = (int) evaluable.stream().filter(Catch::caught).count();
             Double recall = evaluable.isEmpty() ? null : (double) caught / evaluable.size();
             List<Integer> leads = evaluable.stream().filter(Catch::caught).map(Catch::leadDays).sorted().toList();
-            scores.add(new RuleScore(rule, eps.size(), hits, misses, count(eps, Outcome.PENDING), count(eps, Outcome.AFTER_EVENT),
+            scores.add(new RuleScore(rule, from, eps.size(), hits, misses, count(eps, Outcome.PENDING), count(eps, Outcome.AFTER_EVENT),
                     precision, wilson(hits, hits + misses), precision == null || base == null || base == 0 ? null : precision / base,
                     evaluable.size(), caught, recall, wilson(caught, evaluable.size()), median(leads)));
         }

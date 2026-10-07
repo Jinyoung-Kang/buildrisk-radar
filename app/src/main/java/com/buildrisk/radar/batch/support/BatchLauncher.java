@@ -10,7 +10,9 @@ import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.domain.account.FsRepository;
 import com.buildrisk.radar.domain.account.PeriodKeys;
+import com.buildrisk.radar.batch.jobs.PfExposureJobConfig;
 import com.buildrisk.radar.domain.filing.FilingRepository;
+import com.buildrisk.radar.domain.filing.PfExposureRepository;
 import com.buildrisk.radar.domain.market.AptTradeRepository;
 import com.buildrisk.radar.domain.market.TradeWindow;
 
@@ -65,13 +67,15 @@ public class BatchLauncher {
     private final AptTradeRepository trades;
     private final FilingRepository filings;
     private final JsonCache cache;
+    private final PfExposureRepository pf;
 
     public BatchLauncher(JobOperator operator, JobRepository repository, List<Job> jobList, FsRepository fs,
                          ApiQuotaService quota, AppProperties props, JdbcClient jdbc,
                          DataSource dataSource, AptTradeRepository trades,
                          FilingRepository filings,
-                         JsonCache cache) {
+                         JsonCache cache, PfExposureRepository pf) {
         this.cache = cache;
+        this.pf = pf;
         this.trades = trades;
         this.filings = filings;
         this.jdbc = jdbc;
@@ -208,6 +212,21 @@ public class BatchLauncher {
                     int remaining = Math.max(0, limit - used);
                     if (planned > remaining) {
                         warning = "원문 " + planned + "건이 오늘 남은 DART 호출 " + remaining + "건보다 많아 상한까지만 받습니다.";
+                        max = max == null ? remaining : Math.min(max, remaining);
+                    }
+                    if (max != null) pb.addLong("maxCalls", max);
+                }
+                case "pfExposureJob" -> {
+                    String from = b.get("fromPeriod") == null ? PfExposureJobConfig.DEFAULT_FROM : String.valueOf(b.get("fromPeriod"));
+                    if (!from.matches("20[12]\\dQ[1-4]")) throw new ApiException(ErrorCode.VALIDATION_ERROR, "fromPeriod 는 2010Q1 ~ 2029Q4 형식");
+                    planned = pf.pending(from).size();
+                    limit = props.dart().dailyCallLimit();
+                    used = quota.used(DartClient.PROVIDER);
+                    pb.addString("fromPeriod", from);
+                    Long max = b.get("maxCalls") == null ? null : Long.parseLong(String.valueOf(b.get("maxCalls")));
+                    int remaining = Math.max(0, limit - used);
+                    if (planned > remaining) {
+                        warning = "정기보고서 " + planned + "건이 오늘 남은 DART 호출 " + remaining + "건보다 많아 상한까지만 받습니다.";
                         max = max == null ? remaining : Math.min(max, remaining);
                     }
                     if (max != null) pb.addLong("maxCalls", max);

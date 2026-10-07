@@ -49,7 +49,8 @@ public class ExposureService {
 
     public record ExposureRow(String corpCode, String corpName, int contracts, BigDecimal totalAmount, BigDecimal mappedAmount,
                               BigDecimal riskAmount, BigDecimal riskSharePct, int riskContracts, BigDecimal latestBalanceToEquityPct,
-                              String latestGuaranteeDt, BigDecimal pfAmount, int openAlerts) {}
+                              String latestGuaranteeDt, BigDecimal pfAmount, int openAlerts,
+                              String pfPeriod, BigDecimal pfGuaranteeToEquityPct, BigDecimal pfDue12mToEquityPct) {}
 
     public record Exposure(int days, BigDecimal unsoldPer1kHh, String asOf, List<ExposureRow> items, String method,
                            String disclaimer) {}
@@ -66,7 +67,7 @@ public class ExposureService {
     public record Prices(String corpCode, String stockCode, List<PricePoint> bars, List<AlertMarker> alerts, String source) {}
 
     /** 지역별 최신 '천 가구당 미분양' (위험 지역 판단 기준) */
-    private static final String LATEST_UNSOLD = """
+    static final String LATEST_UNSOLD = """
             SELECT DISTINCT ON (region_cd) region_cd, value, period FROM mkt.region_metric
              WHERE metric_code = 'UNSOLD_PER_1K_HH' AND status = 'OK' ORDER BY region_cd, period DESC""";
 
@@ -121,22 +122,31 @@ public class ExposureService {
                 pf AS (SELECT corp_code, sum(pf_amount) AS pf FROM dart.guarantee
                         WHERE superseded_by IS NULL AND rcept_dt >= :since GROUP BY corp_code),
                 al AS (SELECT target_key, count(*) AS n FROM risk.alert
-                        WHERE target_type = 'COMPANY' AND status IN ('OPEN', 'ACK') GROUP BY target_key)
+                        WHERE target_type = 'COMPANY' AND status IN ('OPEN', 'ACK') GROUP BY target_key),
+                pg AS (SELECT DISTINCT ON (corp_code) corp_code, period_key, value FROM risk.company_metric
+                        WHERE metric_code = 'PF_GUARANTEE_TO_EQUITY' AND status = 'OK' ORDER BY corp_code, period_key DESC),
+                pd AS (SELECT corp_code, period_key, value FROM risk.company_metric
+                        WHERE metric_code = 'PF_DUE_12M_TO_EQUITY' AND status = 'OK')
                 SELECT co.corp_code, co.corp_name, coalesce(agg.n, 0), agg.total, agg.mapped, agg.risky,
                        CASE WHEN agg.mapped > 0 THEN round(coalesce(agg.risky, 0) * 100 / agg.mapped, 2) END,
-                       coalesce(agg.risky_n, 0), g.ratio, g.rcept_dt::text, pf.pf, coalesce(al.n, 0)
+                       coalesce(agg.risky_n, 0), g.ratio, g.rcept_dt::text, pf.pf, coalesce(al.n, 0),
+                       pg.period_key, pg.value, pd.value
                   FROM ref.company co
                   LEFT JOIN agg ON agg.corp_code = co.corp_code LEFT JOIN g ON g.corp_code = co.corp_code
                   LEFT JOIN pf ON pf.corp_code = co.corp_code LEFT JOIN al ON al.target_key = co.corp_code
+                  LEFT JOIN pg ON pg.corp_code = co.corp_code
+                  LEFT JOIN pd ON pd.corp_code = pg.corp_code AND pd.period_key = pg.period_key
                  WHERE co.is_target
                  ORDER BY 7 DESC NULLS LAST, 9 DESC NULLS LAST, co.corp_name""")
                 .param("since", since).param("th", unsoldTh)
                 .query((rs, i) -> new ExposureRow(rs.getString(1), rs.getString(2), rs.getInt(3), rs.getBigDecimal(4),
                         rs.getBigDecimal(5), rs.getBigDecimal(6), rs.getBigDecimal(7), rs.getInt(8), rs.getBigDecimal(9),
-                        rs.getString(10), rs.getBigDecimal(11), rs.getInt(12))).list();
+                        rs.getString(10), rs.getBigDecimal(11), rs.getInt(12), rs.getString(13), rs.getBigDecimal(14),
+                        rs.getBigDecimal(15))).list();
         return new Exposure(days, unsoldTh, since.toString(), rows,
                 "현재 수주 = 정정으로 대체되지 않고 해지되지 않은 공급계약 공시. 위험 지역 비중 = 시군구로 매핑된 수주 금액 중 "
-                        + "최신 '천 가구당 미분양' ≥ 기준인 지역의 비중. 보증 비율 = 가장 최근 채무보증 결정 공시의 채무보증 총 잔액 / 자기자본.",
+                        + "최신 '천 가구당 미분양' ≥ 기준인 지역의 비중. 보증 비율 = 가장 최근 채무보증 결정 공시의 채무보증 총 잔액 / 자기자본. "
+                        + "PF 비율 = 가장 최근 정기보고서의 부동산 PF 보증금액(단독 + 컨소시엄 회사분) · 12개월 내 만기 PF 대출잔액 / 같은 분기 자본총계.",
                 Disclaimer.TEXT);
     }
 

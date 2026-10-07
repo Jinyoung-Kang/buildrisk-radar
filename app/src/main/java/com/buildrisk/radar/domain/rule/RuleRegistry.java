@@ -5,6 +5,7 @@ import com.buildrisk.radar.domain.rule.rules.RC02InterestCoverage;
 import com.buildrisk.radar.domain.rule.rules.RC03NegativeOcf;
 import com.buildrisk.radar.domain.rule.rules.RC04MaterialDisclosure;
 import com.buildrisk.radar.domain.rule.rules.RC05GuaranteeBalance;
+import com.buildrisk.radar.domain.rule.rules.RC06PfExposure;
 import com.buildrisk.radar.domain.rule.rules.RX01RiskRegionContracts;
 import com.buildrisk.radar.domain.rule.rules.RR01UnsoldSurge;
 import com.buildrisk.radar.domain.rule.rules.RR02PriceDeclineUnsold;
@@ -24,7 +25,7 @@ public class RuleRegistry {
     public RuleRegistry() {
         List.of(new RC01DebtRatioSurge(), new RC02InterestCoverage(), new RC03NegativeOcf(),
                 new RC04MaterialDisclosure(), new RR01UnsoldSurge(), new RR02PriceDeclineUnsold(),
-                new RR03TradeCliffUnsold(), new RC05GuaranteeBalance(), new RX01RiskRegionContracts())
+                new RR03TradeCliffUnsold(), new RC05GuaranteeBalance(), new RX01RiskRegionContracts(), new RC06PfExposure())
                 .forEach(r -> byCode.put(r.code(), r));
     }
 

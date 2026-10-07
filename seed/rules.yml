@@ -50,6 +50,12 @@ rules:
     description: 가장 최근 '타인에 대한 채무보증 결정' 공시의 채무보증 총 잔액이 자기자본에 비해 큰 기업 (PF 보증 등 우발채무)
     severity: HIGH
     params: { balanceToEquityPct: 100, windowDays: 365 }
+  - code: R-C06
+    target: COMPANY
+    name: PF 우발채무 과다
+    description: 정기보고서 부동산 PF 종합요약표(단독 + 컨소시엄 회사분)의 보증금액이나 12개월 안에 만기가 돌아오는 PF 대출이 자기자본에 비해 큰 기업 — 분기마다 회사 전체 PF 를 봄
+    severity: HIGH
+    params: { guaranteeToEquityPct: 100, due12mToEquityPct: 50 }
   - code: R-X01
     target: COMPANY
     name: 위험 지역 수주 집중

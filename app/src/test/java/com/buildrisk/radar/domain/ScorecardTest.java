@@ -89,6 +89,20 @@ class ScorecardTest {
     }
 
     @Test
+    void 규칙별_관측_시작보다_이른_사건은_그_규칙으로는_평가_불가() {
+        // PF 지표는 2024-03 부터 있음 → 2023-12 사건은 PF 규칙으로 평가하지 않고, 재무 규칙(2021 부터)으로는 평가
+        var events = Map.of("A", ev("A", "2023-12-28"), "B", ev("B", "2025-04-01"));
+        var r = Scorecard.score(List.of("R", "PF"), List.of(s("PF", "B", "2024-08-14")), List.of("A", "B"), events,
+                FROM, Map.of("PF", LocalDate.of(2024, 3, 15)), TO, 12);
+        var pf = r.rules().get(1);
+        assertThat(pf.observedFrom()).isEqualTo(LocalDate.of(2024, 3, 15));
+        assertThat(pf.events()).isEqualTo(1);                    // B 만
+        assertThat(pf.caught()).isEqualTo(1);
+        assertThat(r.rules().getFirst().events()).isEqualTo(2);  // R 은 둘 다 평가
+        assertThat(r.rules().getFirst().observedFrom()).isEqualTo(FROM);
+    }
+
+    @Test
     void 기준선은_아무_기업_아무_분기말에서_H개월_안_사건_비율() {
         // 기업 2곳, 2024-01-01 ~ 2025-12-31: 표본 시점 2024-01 · 04 · 07 · 10 (t+12개월 ≤ to) × 2
         // A 는 2024-09 사건 → 사건 전 3개 표본 모두 적중, 10월 표본은 이미 부실이라 제외 → 4 + 3 = 7, 적중 3

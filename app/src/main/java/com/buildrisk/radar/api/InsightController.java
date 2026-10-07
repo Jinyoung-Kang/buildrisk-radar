@@ -28,12 +28,15 @@ public class InsightController {
     private final ExposureService exposure;
     private final BacktestService backtest;
     private final ScorecardService scorecard;
+    private final PfExposureService pf;
     private final JsonCache cache;
 
-    public InsightController(ExposureService exposure, BacktestService backtest, ScorecardService scorecard, JsonCache cache) {
+    public InsightController(ExposureService exposure, BacktestService backtest, ScorecardService scorecard, PfExposureService pf,
+                             JsonCache cache) {
         this.exposure = exposure;
         this.backtest = backtest;
         this.scorecard = scorecard;
+        this.pf = pf;
         this.cache = cache;
     }
 
@@ -50,6 +53,13 @@ public class InsightController {
     public ExposureService.CompanyFilings filings(@PathVariable @Pattern(regexp = "\\d{8}") String corpCode) {
         return cache.get("filings:" + corpCode, Duration.ofMinutes(10), ExposureService.CompanyFilings.class,
                 () -> exposure.companyFilings(corpCode));
+    }
+
+    @GetMapping("/companies/{corpCode}/pf")
+    @Operation(summary = "기업 PF 우발채무 — 정기보고서 부동산 PF 종합요약표 · 사업장별 내역 (분기별 추이 · 만기 구간 · 지역 위험)",
+            description = "회사 노출 = 단독 + 컨소시엄 회사분. 비율은 R-C06 과 같은 risk.company_metric 값 (ADR-024)")
+    public PfExposureService.CompanyPf companyPf(@PathVariable @Pattern(regexp = "\\d{8}") String corpCode) {
+        return cache.get("pf:" + corpCode, Duration.ofMinutes(10), PfExposureService.CompanyPf.class, () -> pf.company(corpCode));
     }
 
     @GetMapping("/companies/{corpCode}/prices")

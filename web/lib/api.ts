@@ -87,6 +87,28 @@ export type CompanyFilings = { corpCode: string; contracts: ContractRow[]; guara
 export type ExposureRow = {
   corpCode: string; corpName: string; contracts: number; totalAmount?: number; mappedAmount?: number; riskAmount?: number; riskSharePct?: number;
   riskContracts: number; latestBalanceToEquityPct?: number; latestGuaranteeDt?: string; pfAmount?: number; openAlerts: number;
+  pfPeriod?: string; pfGuaranteeToEquityPct?: number; pfDue12mToEquityPct?: number;
+};
+/** 기업 PF 우발채무 (ADR-024) — 금액은 원 단위, 회사 노출 = 단독 + 컨소시엄 회사분 */
+export type PfDue = { m3?: number; m6?: number; m12?: number; y2?: number; y3?: number; over3?: number };
+export type PfStatus = "PARSED" | "NO_STANDARD" | "NONE" | "NO_SECTION" | "NO_DOC";
+export type PfReport = {
+  rceptNo: string; periodKey: string; rceptDt: string; reportNm: string; status: PfStatus; message?: string;
+  limit?: number; guarantee?: number; balance?: number; bridgeGuarantee?: number; bridgeBalance?: number; due?: PfDue; priorBalance?: number;
+  sitesGuarantee?: number; reconciled?: boolean; statedTotal?: number; statedMatch?: boolean; truncated: boolean;
+  equity?: number; equityFsDiv?: string; guaranteeToEquityPct?: number; due12mToEquityPct?: number; bridgeSharePct?: number; metricStatus?: string;
+};
+export type PfScope = "SOLE" | "CONSORTIUM_ALL" | "CONSORTIUM_SHARE";
+export type PfSummaryRow = { scope: PfScope; category?: string; pfType?: string; total: boolean; limit?: number; guarantee?: number; balance?: number; due?: PfDue; priorBalance?: number };
+export type PfSite = {
+  seq: number; category?: string; regionText: string; regionCd?: string; regionName?: string; regionMatch: string; sidoName?: string;
+  siteType?: string; pfType?: string; enhancement?: string; limitTotal?: number; sharePct?: number; guarantee: number; debtor?: string;
+  related?: boolean; lenderType?: string; balance?: number; priorBalance?: number; loanPeriod?: string; maturity?: string; kind?: string;
+  completionAmount?: number; unsoldPer1kHh?: number; unsoldPeriod?: string;
+};
+export type CompanyPf = {
+  corpCode: string; current?: PfReport; history: PfReport[]; summary: PfSummaryRow[]; sites: PfSite[];
+  coverage: { parsed: number; noStandard: number; none: number; noSection: number; noDoc: number }; method: string[]; disclaimer: string;
 };
 export type Exposure = { days: number; unsoldPer1kHh: number; asOf: string; items: ExposureRow[]; method: string; disclaimer: string };
 export type RegionContracts = { regionCd: string; totalAmount: number; companies: number; items: { rceptNo: string; rceptDt: string; corpCode: string; corpName: string; name: string; amount?: number; counterparty?: string; endDate?: string }[] };

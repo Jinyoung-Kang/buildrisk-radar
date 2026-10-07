@@ -148,6 +148,50 @@ public class DartClient {
         return best == null ? Optional.empty() : Optional.of(decode(best));
     }
 
+    /** 정기보고서 한 구간 — 압축 해제한 바이트를 끝까지 메모리에 올리지 않고 표지 사이만 모음 */
+    public record Section(String html, long scannedBytes, boolean truncated) {}
+
+    private static final long SECTION_SCAN_LIMIT = 120L * 1024 * 1024;   // 문서 하나에서 풀어 볼 최대 바이트 (zip bomb 방지)
+    private static final int SECTION_KEEP_LIMIT = 4 * 1024 * 1024;       // 보관할 구간 최대 크기
+
+    /**
+     * document.xml 에서 AASSOCNOTE 표지로 한 구간만 꺼냄 (예: D-0-11-2-0 '우발부채 등에 관한 사항' ~ D-0-11-3-0 직전).
+     * 정기보고서 본문은 10~15 MB 라 통째로 DOM 에 올리면 worker 메모리를 크게 씀 — 표지는 ASCII 라 디코딩 없이 바이트에서 찾음.
+     * 구간이 없으면 empty, 파일 없음(013 · 014)도 empty.
+     */
+    public Optional<Section> documentSection(String rceptNo, String startCode, String endCode) {
+        return metrics.time(PROVIDER, "document-section", () -> documentSection0(rceptNo, startCode, endCode));
+    }
+
+    private Optional<Section> documentSection0(String rceptNo, String startCode, String endCode) {
+        byte[] body = call("/api/document.xml", u -> u.queryParam("rcept_no", rceptNo));
+        if (body.length < 4 || body[0] != 'P' || body[1] != 'K') {
+            String text = new String(body, StandardCharsets.UTF_8);
+            String status = between(text, "<status>", "</status>");
+            if (DartStatus.NO_DATA.equals(status) || "014".equals(status)) return Optional.empty();
+            checkStatus(status, between(text, "<message>", "</message>"));
+            throw new UpstreamException(PROVIDER, "document.xml 응답이 Zip 이 아닙니다.");
+        }
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(body))) {
+            long scanned = 0;
+            while (zip.getNextEntry() != null) {
+                SectionScanner sc = new SectionScanner(("AASSOCNOTE=\"" + startCode + "\"").getBytes(StandardCharsets.US_ASCII),
+                        ("AASSOCNOTE=\"" + endCode + "\"").getBytes(StandardCharsets.US_ASCII), SECTION_KEEP_LIMIT);
+                byte[] buf = new byte[64 * 1024];
+                int n;
+                while ((n = zip.read(buf)) > 0) {
+                    scanned += n;
+                    if (scanned > SECTION_SCAN_LIMIT) throw new UpstreamException(PROVIDER, "document.xml 압축 해제 크기 상한 초과: " + rceptNo);
+                    if (sc.feed(buf, n)) break;
+                }
+                if (sc.found()) return Optional.of(new Section(decode(sc.bytes()), scanned, sc.truncated()));
+            }
+            return Optional.empty();
+        } catch (IOException ex) {
+            throw new UpstreamException(PROVIDER, "document Zip 해제 실패: " + ex.getMessage(), ex);
+        }
+    }
+
     /** 원문은 대부분 UTF-8, 오래된 서식은 EUC-KR(MS949) */
     static String decode(byte[] b) {
         try {

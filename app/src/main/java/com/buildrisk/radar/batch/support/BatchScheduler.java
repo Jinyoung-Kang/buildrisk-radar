@@ -41,6 +41,10 @@ public class BatchScheduler {
     @Scheduled(cron = "0 45 3 * * *", zone = Z)
     void filings() { run("filingParseJob"); }
 
+    /** 공시 목록(03:30) 뒤 — 새 정기보고서만 받음 (기업 · 분기마다 최신 제출본) */
+    @Scheduled(cron = "0 0 4 * * *", zone = Z)
+    void pf() { run("pfExposureJob"); }
+
     @Scheduled(cron = "0 0 4 20 * *", zone = Z)
     void unsold() { run("kosisUnsoldJob"); }
 

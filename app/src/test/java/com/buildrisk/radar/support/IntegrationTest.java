@@ -72,7 +72,7 @@ public abstract class IntegrationTest {
         WM.resetAll();
         jdbc.execute("""
                 TRUNCATE risk.alert, risk.company_metric, mkt.region_metric, mkt.region_stat, dart.fs_std, dart.fs_raw,
-                  dart.fs_fetch, dart.disclosure, ref.universe_history, ops.skip_log, ops.api_quota, ops.collect_run CASCADE""");
+                  dart.fs_fetch, dart.disclosure, dart.pf_report, ref.universe_history, ops.skip_log, ops.api_quota, ops.collect_run CASCADE""");
         jdbc.execute("DELETE FROM ops.calc_run");
         jdbc.execute("DELETE FROM ref.company");
         jdbc.execute("DELETE FROM risk.rule WHERE version > 1");

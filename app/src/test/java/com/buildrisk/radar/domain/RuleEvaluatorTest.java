@@ -111,6 +111,29 @@ class RuleEvaluatorTest {
     }
 
     @Test
+    void R_C06_PF_보증이나_12개월_내_만기가_자기자본_대비_임계를_넘으면_참() {
+        var d = new Mem();
+        java.util.function.BiConsumer<String, Object[]> put = (metric, v) -> d.metrics.computeIfAbsent(metric, k -> new TreeMap<>())
+                .put((String) v[0], new MetricPoint((String) v[0], new BigDecimal((String) v[1]), "OK", Map.of(
+                        "rceptNo", "20260814003287", "reconciled", true,
+                        "numerator", Map.of("amount", v[2]), "denominator", Map.of("amount", v[3]))));
+        // 태영건설 2026 반기 실측 규모: PF 보증 2조 3,544억 · 12개월 내 만기 1조 3,122억, 자기자본 7,409억으로 가정
+        put.accept("PF_GUARANTEE_TO_EQUITY", new Object[]{"2026Q2", "317.8", 2_354_379_000_000L, 740_900_000_000L});
+        put.accept("PF_DUE_12M_TO_EQUITY", new Object[]{"2026Q2", "177.1", 1_312_155_000_000L, 740_900_000_000L});
+        put.accept("PF_BRIDGE_SHARE", new Object[]{"2026Q2", "34.2", 804_782_000_000L, 2_354_379_000_000L});
+        var r = rule("R-C06", TargetType.COMPANY, Map.of("guaranteeToEquityPct", 100, "due12mToEquityPct", 50));
+        var f = registry.get("R-C06").evaluate(r, "c", d).findings().getFirst();
+        assertThat(f.message()).isEqualTo("2026Q2 부동산 PF 보증 2조 3,544억원으로 자기자본(7,409억원)의 318%, "
+                + "12개월 안에 만기가 돌아오는 PF 대출이 1조 3,122억원(자기자본의 177%)입니다. 보증 중 브릿지론 비중 34.2%.");
+        // 둘 다 임계 아래면 거짓
+        var low = rule("R-C06", TargetType.COMPANY, Map.of("guaranteeToEquityPct", 400, "due12mToEquityPct", 200));
+        assertThat(registry.get("R-C06").evaluate(low, "c", d).findings()).isEmpty();
+        // 12개월 내 만기만 넘어도 참
+        var dueOnly = rule("R-C06", TargetType.COMPANY, Map.of("guaranteeToEquityPct", 400, "due12mToEquityPct", 100));
+        assertThat(registry.get("R-C06").evaluate(dueOnly, "c", d).findings()).hasSize(1);
+    }
+
+    @Test
     void R_C02_중간_분기가_비면_연속이_아니다() {
         var d = new Mem().put("DEBT_RATIO", "2026Q2", "1").put("INTEREST_COVERAGE", "2025Q4", "0.2")
                 .put("INTEREST_COVERAGE", "2026Q2", "0.2");
