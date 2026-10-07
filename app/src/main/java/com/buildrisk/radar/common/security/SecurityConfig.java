@@ -47,7 +47,8 @@ import java.util.List;
 /**
  * 인증·인가 (ADR-013).
  * <ul>
- *   <li>조회(GET)는 공개 — 공개 데이터 기반 모니터. 변경은 역할 필요: 경보 확인(ACK) = ANALYST 이상, 규칙·배치·매핑·감사 = ADMIN.</li>
+ *   <li>조회(GET)는 공개 — 공개 데이터 기반 모니터. 변경은 역할 필요: 경보 확인(ACK) = ANALYST 이상, 규칙·배치·매핑·감사 = ADMIN.
+ *       예외: 본인 알림함 · 구독 · 관심 목록(/api/v1/me/**)은 조회도 로그인 필요, 웹훅(/api/v1/admin/**)은 ADMIN (ADR-025).</li>
  *   <li>브라우저: 세션 로그인(Spring Session Redis, HttpOnly · SameSite=Strict 쿠키) + CSRF(XSRF-TOKEN 쿠키 → X-XSRF-TOKEN 헤더).</li>
  *   <li>스크립트: 서비스 토큰(X-Admin-Token) — 요청 단위 인증, 세션·CSRF 없음.</li>
  *   <li>레이트리밋(IP·분) · 로그인 잠금 · 변경 요청 감사 로그 · 보안 헤더.</li>
@@ -71,6 +72,7 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/error").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/me/**").hasAnyRole("ANALYST", "ADMIN")   // 알림함 · 구독 — 조회도 본인 로그인 필요
                         .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/api/**").permitAll()
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/alerts/*").hasAnyRole("ANALYST", "ADMIN")

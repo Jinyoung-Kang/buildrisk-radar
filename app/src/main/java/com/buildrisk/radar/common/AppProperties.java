@@ -15,7 +15,8 @@ public record AppProperties(
         Vworld vworld,
         DataGoKr dataGoKr,
         Batch batch,
-        Security security) {
+        Security security,
+        Notification notification) {
 
     public record Dart(String baseUrl, String apiKey, int dailyCallLimit, long minIntervalMs, int fromYear) {}
 
@@ -40,6 +41,17 @@ public record AppProperties(
      */
     public record Security(String adminUsername, String adminPassword, String analystUsername, String analystPassword,
                            boolean cookieSecure, int rateLimitPerMinute, int loginMaxFailures, int loginLockMinutes) {}
+
+    /**
+     * 알림 (ADR-025). secretKey: 웹훅 주소 · 서명 비밀 암호화 키(NOTIFY_SECRET_KEY, 비면 웹훅 기능 끔 — 알림함은 동작).
+     * publicBaseUrl: 웹훅 메시지 속 화면 링크. allowInsecureTargets: http · 사설망 웹훅 허용 — 테스트 전용(운영 false)
+     */
+    public record Notification(String secretKey, String publicBaseUrl, boolean allowInsecureTargets, long dispatchIntervalMs) {
+        public Notification {
+            if (publicBaseUrl == null || publicBaseUrl.isBlank()) publicBaseUrl = "http://localhost:3400";
+            if (dispatchIntervalMs <= 0) dispatchIntervalMs = 30_000;
+        }
+    }
 
     /** apiConcurrency: 외부 API 를 부르는 Step 의 청크 안 동시 처리 수 (호출 간격 Throttle 은 그대로 지킴) */
     public record Batch(boolean schedulingEnabled, int companyWindowQuarters, int regionWindowMonths, String runJobs,

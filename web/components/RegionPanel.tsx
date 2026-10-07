@@ -4,6 +4,7 @@ import { DartLink, Empty, Loading, SeverityBadge, StatusPill } from "@/component
 import type { RegionContracts, RegionSeries } from "@/lib/api";
 import { eok, int, num, ym, signed } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
+import WatchButton from "@/components/WatchButton";
 
 /** 지역 카드 — 미분양 추이 · 가격지수 추이 · 경보 (지도 옆, 지역 상세 화면 공용) */
 /** headingAs: 지도 옆 패널은 h3, 지역 상세 페이지에서는 이 이름이 페이지 제목이라 h1 */
@@ -29,7 +30,7 @@ export default function RegionPanel({ regionCd, compact, headingAs: H = "h3" }: 
     <div className="space-y-4">
       <div>
         <div className="text-xs text-muted">{data.sidoName}</div>
-        <H className="text-lg font-semibold">{data.name}</H>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><H className="text-lg font-semibold">{data.name}</H><WatchButton type="REGION" keyCd={regionCd} /></div>
         {data.children.length > 0 && <div className="text-xs text-muted">일반구 {data.children.join(", ")} 합산</div>}
       </div>
       <dl className="grid grid-cols-3 gap-2 text-center">

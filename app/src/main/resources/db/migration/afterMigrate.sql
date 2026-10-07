@@ -23,7 +23,7 @@ BEGIN
     EXECUTE format('GRANT USAGE ON SCHEMA public TO %I', app);                 -- PostGIS 타입·함수
     EXECUTE format('GRANT SELECT ON public.spatial_ref_sys TO %I', app);
     EXECUTE format('REVOKE ALL ON public.flyway_schema_history FROM %I', app);
-    FOREACH s IN ARRAY ARRAY['ref', 'dart', 'mkt', 'risk', 'ops'] LOOP
+    FOREACH s IN ARRAY ARRAY['ref', 'dart', 'mkt', 'risk', 'ops', 'notify'] LOOP
         EXECUTE format('REVOKE CREATE ON SCHEMA %I FROM %I', s, app);
         EXECUTE format('GRANT USAGE ON SCHEMA %I TO %I', s, app);
         EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA %I TO %I', s, app);

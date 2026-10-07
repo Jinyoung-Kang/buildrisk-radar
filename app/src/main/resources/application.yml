@@ -102,6 +102,11 @@ buildrisk:
     rate-limit-per-minute: ${RATE_LIMIT_PER_MINUTE:1200}   # IP 당 API 요청 (0 = 끔)
     login-max-failures: 5
     login-lock-minutes: 15
+  notification:
+    secret-key: ${NOTIFY_SECRET_KEY:}                     # 웹훅 주소 · 서명 비밀 암호화 (비면 웹훅 끔)
+    public-base-url: ${PUBLIC_BASE_URL:http://localhost:3400}
+    allow-insecure-targets: false                         # http · 사설망 웹훅 — 테스트에서만 true
+    dispatch-interval-ms: ${NOTIFY_DISPATCH_INTERVAL_MS:30000}
   dart:
     base-url: ${DART_BASE_URL:https://opendart.fss.or.kr}
     api-key: ${DART_API_KEY:}

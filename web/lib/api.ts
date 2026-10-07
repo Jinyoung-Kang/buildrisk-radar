@@ -193,3 +193,22 @@ export function qs(params: Record<string, string | number | boolean | undefined 
   const s = p.toString();
   return s ? `?${s}` : "";
 }
+
+/** 알림 (ADR-025) */
+export type InboxItem = {
+  inboxId: number; alertId: number; kind: "NEW" | "REOPENED"; createdAt: string; readAt?: string; ruleCode: string; severity: Severity;
+  title: string; targetType: "COMPANY" | "REGION"; targetKey: string; targetName?: string; asOf: string; alertStatus: string;
+};
+export type Inbox = { items: InboxItem[]; unread: number; total: number; page: number; size: number };
+export type Subscription = {
+  subscriptionId: number; name: string; minSeverity: Severity; ruleCodes?: string[]; targetType?: "COMPANY" | "REGION"; watchOnly: boolean;
+  channel: "IN_APP" | "WEBHOOK"; webhookId?: number; webhookName?: string; enabled: boolean; createdAt: string;
+};
+export type SubscriptionInput = Omit<Subscription, "subscriptionId" | "webhookName" | "createdAt">;
+export type Watch = { targetType: "COMPANY" | "REGION"; targetKey: string; name?: string; createdAt: string };
+export type Webhook = {
+  webhookId: number; name: string; kind: "SLACK" | "GENERIC"; urlHint: string; signed: boolean; enabled: boolean; createdBy: string;
+  createdAt: string; lastStatus?: string; lastSentAt?: string; pending: number; dead: number; subscriptions: number;
+};
+export type WebhookList = { available: boolean; items: Webhook[] };
+export type WebhookDelivery = { deliveryId: number; alertId: number; title: string; kind: string; status: string; attempts: number; lastError?: string; createdAt: string; nextAt: string; sentAt?: string };

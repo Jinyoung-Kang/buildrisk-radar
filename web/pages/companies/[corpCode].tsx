@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import EvidenceView from "@/components/EvidenceView";
 import CompanyFilings from "@/components/CompanyFilings";
 import CompanyPf from "@/components/CompanyPf";
+import WatchButton from "@/components/WatchButton";
 import Layout from "@/components/Layout";
 import { PriceChart, SignedBars, TrendLine } from "@/components/LazyCharts";
 import Tabs, { TabPanel, useTab } from "@/components/Tabs";
@@ -65,7 +66,7 @@ export default function CompanyDetail() {
       {!s ? <Loading /> : (
         <>
           <PageTitle title={<>{s.corpName} <span className="text-sm font-normal text-muted">{s.stockCode} · {s.corpCode}</span></>}
-            sub={<>{s.indutyCode} · {s.address ?? ""} {s.homepage && <a className="text-accent ml-1" href={s.homepage.startsWith("http") ? s.homepage : `http://${s.homepage}`} target="_blank" rel="noreferrer">홈페이지</a>}</>}
+            sub={<>{s.indutyCode} · {s.address ?? ""} {s.homepage && <a className="text-accent ml-1" href={s.homepage.startsWith("http") ? s.homepage : `http://${s.homepage}`} target="_blank" rel="noreferrer">홈페이지</a>} <span className="ml-2 align-middle"><WatchButton type="COMPANY" keyCd={s.corpCode} /></span></>}
             right={<div className="text-xs text-muted text-right">
               기준 {s.latest ? `${pk(s.latest.periodKey)} · ${s.latest.fsDiv === "OFS" ? "별도" : "연결"}` : "–"} · 원천 <DartLink rceptNo={s.latest?.rceptNo} /><br />
               수집 보고서 {s.fetch.reportsOk}건 (없음 {s.fetch.reportsNoData}) · {s.fetch.lastFetchedAt ?? "미수집"}

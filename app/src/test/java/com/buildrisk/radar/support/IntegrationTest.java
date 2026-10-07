@@ -24,6 +24,7 @@ public abstract class IntegrationTest {
     public static final String APP_ROLE_PASSWORD = "test-app-role-password";
     public static final String ADMIN_PASSWORD = "test-admin-password";
     public static final String ANALYST_PASSWORD = "test-analyst-password";
+    public static final String NOTIFY_KEY = "test-notify-secret-key-0123456789";
     static final PostgreSQLContainer PG = new PostgreSQLContainer(
             DockerImageName.parse(System.getProperty("test.pg.image", "imresamu/postgis:16-3.6-bookworm"))
                     .asCompatibleSubstituteFor("postgres"));
@@ -59,6 +60,8 @@ public abstract class IntegrationTest {
         r.add("buildrisk.data-go-kr.base-url", WM::baseUrl);
         r.add("buildrisk.data-go-kr.service-key", () -> "test-data-key");
         r.add("buildrisk.data-go-kr.min-interval-ms", () -> 0);
+        r.add("buildrisk.notification.secret-key", () -> NOTIFY_KEY);
+        r.add("buildrisk.notification.allow-insecure-targets", () -> true);      // WireMock(http · 127.0.0.1) — 운영은 false
     }
 
     @Autowired
@@ -73,6 +76,7 @@ public abstract class IntegrationTest {
         jdbc.execute("""
                 TRUNCATE risk.alert, risk.company_metric, mkt.region_metric, mkt.region_stat, dart.fs_std, dart.fs_raw,
                   dart.fs_fetch, dart.disclosure, dart.pf_report, ref.universe_history, ops.skip_log, ops.api_quota, ops.collect_run CASCADE""");
+        jdbc.execute("TRUNCATE notify.outbox, notify.inbox, notify.delivery, notify.subscription, notify.webhook, notify.watch CASCADE");
         jdbc.execute("DELETE FROM ops.calc_run");
         jdbc.execute("DELETE FROM ref.company");
         jdbc.execute("DELETE FROM risk.rule WHERE version > 1");

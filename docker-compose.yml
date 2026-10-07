@@ -24,6 +24,8 @@ x-app-env: &app-env
   DB_APP_PASSWORD: ${DB_APP_PASSWORD:?make env 로 .env 를 채우세요}
   REDIS_URL: redis://:${REDIS_PASSWORD:?make env 로 .env 를 채우세요}@redis:6379
   ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+  NOTIFY_SECRET_KEY: ${NOTIFY_SECRET_KEY:-}
+  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3400}
   LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
   TZ: Asia/Seoul
 

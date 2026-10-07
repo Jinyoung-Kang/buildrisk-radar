@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState, type ReactNode } from "react";
 import AuthMenu from "./AuthMenu";
+import NotificationBell from "./NotificationBell";
 import ThemeToggle from "./ThemeToggle";
 import { useAuth } from "@/lib/auth";
 
@@ -42,10 +43,11 @@ export default function Layout({ title, children }: { title: string; children: R
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 bg-raised px-3 py-2 rounded-md shadow-card">본문으로 건너뛰기</a>
       <div className="min-h-screen flex flex-col">
         <header className="sticky top-0 z-30 border-b border-line bg-surface/90 backdrop-blur">
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2 shrink-0 focus-ring rounded">
-              <img src="/favicon.svg" alt="" className="w-6 h-6" />
-              <span className="font-semibold tracking-tight">건설·부동산 위험 모니터</span>
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-14 flex items-center gap-2 sm:gap-4">
+            {/* 좁은 화면에서는 이름이 줄어 머리말 버튼(알림 · 테마 · 메뉴)과 겹치지 않게 — 넓은 화면은 그대로 */}
+            <Link href="/" className="flex items-center gap-2 min-w-0 xl:shrink-0 focus-ring rounded">
+              <img src="/favicon.svg" alt="" className="w-6 h-6 shrink-0" />
+              <span className="font-semibold tracking-tight truncate">건설·부동산 위험 모니터</span>
             </Link>
             <nav className="hidden xl:flex items-center gap-0.5 text-sm flex-1 min-w-0" aria-label="주 메뉴">
               {groups.map((g, gi) => (
@@ -54,7 +56,8 @@ export default function Layout({ title, children }: { title: string; children: R
                 </div>
               ))}
             </nav>
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex items-center gap-1 sm:gap-2 shrink-0">
+              <NotificationBell />
               <div className="hidden sm:block"><AuthMenu /></div>
               <ThemeToggle />
               <button className="xl:hidden p-2 rounded-md hover:bg-line/60 focus-ring" aria-expanded={open} aria-controls="mobile-nav"

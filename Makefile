@@ -24,7 +24,7 @@ help:
 
 # .env 가 없으면 만들고, 비어 있는 비밀값(서비스 토큰 · DB 앱 계정 · Redis · 관리자 · 분석가 · Grafana)을 무작위로 채웁니다.
 # 값은 화면에 출력하지 않습니다 — 로그인 비밀번호는 .env 에서 확인하세요.
-SECRETS := ADMIN_TOKEN DB_APP_PASSWORD REDIS_PASSWORD ADMIN_PASSWORD ANALYST_PASSWORD GRAFANA_ADMIN_PASSWORD
+SECRETS := ADMIN_TOKEN DB_APP_PASSWORD REDIS_PASSWORD ADMIN_PASSWORD ANALYST_PASSWORD GRAFANA_ADMIN_PASSWORD NOTIFY_SECRET_KEY
 env:
 	@test -f .env || (cp .env.example .env && echo "→ .env 를 만들었습니다. 외부 API 키 값을 채워 주세요.")
 	@for k in $(SECRETS); do \
@@ -81,7 +81,7 @@ test-web:
 e2e:
 	@# 반복 실행하면 같은 IP 의 로그인 실패가 쌓여 잠금(설계대로)이 걸리므로 잠금 카운터만 비움
 	@$(COMPOSE) exec -T redis sh -c 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli --scan --pattern "br:login:*" | xargs -r env REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli del' > /dev/null
-	cd web && npx playwright install chromium && E2E_ADMIN_PASSWORD="$$(grep -E '^ADMIN_PASSWORD=' ../.env | cut -d= -f2-)" npx playwright test smoke security insight
+	cd web && npx playwright install chromium && E2E_ADMIN_PASSWORD="$$(grep -E '^ADMIN_PASSWORD=' ../.env | cut -d= -f2-)" npx playwright test smoke security insight notify
 
 # k6 부하 (compose 네트워크 안에서 web 프록시 경유). 레이트리밋은 IP 당이라 부하 측정 동안만 끔
 load:

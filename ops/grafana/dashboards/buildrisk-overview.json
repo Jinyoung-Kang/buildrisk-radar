@@ -379,6 +379,48 @@
           "legendFormat": "{{result}} /s"
         }
       ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "알림 — 나누지 않은 사건 · 웹훅 전송 (sent · retry · dead, 15분)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(buildrisk_notify_outbox_pending)",
+          "legendFormat": "나누지 않은 사건"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (result) (increase(buildrisk_notify_deliveries_total[15m]))",
+          "legendFormat": "웹훅 {{result}}"
+        }
+      ]
     }
   ]
 }
