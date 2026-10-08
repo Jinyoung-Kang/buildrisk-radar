@@ -28,7 +28,7 @@ export default function Layout({ title, children }: { title: string; children: R
   const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !i.admin || has("ADMIN")) }));
   const link = (n: Item, mobile = false) => (
     <Link key={n.href} href={n.href} aria-current={active(n.href) ? "page" : undefined}
-      className={`${mobile ? "block px-3 py-2" : "px-2.5 py-1.5"} rounded-md whitespace-nowrap focus-ring ${active(n.href)
+      className={`${mobile ? "block px-3 py-2" : "px-2 py-1.5"} rounded-md whitespace-nowrap focus-ring ${active(n.href)
         ? "bg-accent/10 text-accent font-medium" : "text-ink2 hover:bg-line/60"}`}>
       {n.label}
     </Link>
@@ -45,10 +45,8 @@ export default function Layout({ title, children }: { title: string; children: R
         <header className="sticky top-0 z-30 border-b border-line bg-surface/90 backdrop-blur">
           <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-14 flex items-center gap-2 sm:gap-4">
             {/* 좁은 화면에서는 이름이 줄어 머리말 버튼(알림 · 테마 · 메뉴)과 겹치지 않게 — 넓은 화면은 그대로 */}
-            <Link href="/" className="flex items-center gap-2 min-w-0 xl:shrink-0 focus-ring rounded">
-              <img src="/favicon.svg" alt="" className="w-6 h-6 shrink-0" />
-              {/* 로그인하면 알림 · 계정 메뉴가 붙어 1280~1439px 에서 주 메뉴가 잘렸음 (VERIFICATION 101) — 그 구간은 이름을 시각적으로만 숨김 */}
-              <span className={`font-semibold tracking-tight truncate ${has("ANALYST") ? "xl:max-[1439px]:sr-only" : ""}`}>건설·부동산 위험 모니터</span>
+            <Link href="/" className="flex items-center min-w-0 xl:shrink-0 focus-ring rounded">
+              <span className="font-semibold tracking-tight truncate">건설·부동산 위험 모니터</span>
             </Link>
             <nav className="hidden xl:flex items-center gap-0.5 text-sm flex-1 min-w-0" aria-label="주 메뉴">
               {groups.map((g, gi) => (
