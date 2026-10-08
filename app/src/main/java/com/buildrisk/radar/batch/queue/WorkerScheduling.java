@@ -25,8 +25,11 @@ public class WorkerScheduling {
 
     @EventListener(ApplicationReadyEvent.class)
     void onStart() {
+        String reason = "worker 가 멈춰 중단 — 같은 Job 을 다시 요청하면 restart 로 이어갑니다";
+        int prev = registry.abandonPreviousBoots(worker.workerId(), reason);
+        if (prev > 0) log.warn("이 컨테이너의 이전 기동이 남긴 실행 요청 {}건을 FAILED 로 정리했습니다", prev);
         registry.heartbeat(worker.workerId(), 0, worker.maxConcurrent());
-        int n = registry.abandonOrphans("worker 가 멈춰 중단 — 같은 Job 을 다시 요청하면 restart 로 이어갑니다");
+        int n = registry.abandonOrphans(reason);
         if (n > 0) log.warn("이전 worker 가 남긴 실행 요청 {}건을 FAILED 로 정리했습니다", n);
         log.info("{} 대기 — 실행 요청 큐 소비 시작", worker.workerId());
     }

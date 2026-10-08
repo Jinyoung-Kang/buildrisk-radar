@@ -65,6 +65,20 @@ public class WorkerRegistry {
         return out;
     }
 
+    /**
+     * 같은 프로세스 자리(pid@hostname)의 이전 기동이 잡고 있던 RUNNING 요청 — 그 프로세스는 이미 없으므로 하트비트가 끊기기를
+     * 기다리지 않고 바로 FAILED. 같은 호스트의 다른 프로세스(pid 가 다름)는 건드리지 않음. 기동 구분이 없던 옛 ID 도 포함
+     */
+    public int abandonPreviousBoots(String workerId, String reason) {
+        int hash = workerId.indexOf('#');
+        String base = hash < 0 ? workerId : workerId.substring(0, hash);
+        return jdbc.sql("""
+                UPDATE ops.job_request SET status = 'FAILED', message = :m, finished_at = now()
+                 WHERE status = 'RUNNING' AND claimed_by <> :self
+                   AND (claimed_by = :base OR left(claimed_by, length(:base) + 1) = :base || '#')""")
+                .param("m", reason).param("self", workerId).param("base", base).update();
+    }
+
     /** 죽은 worker(하트비트 끊김)가 잡고 있던 RUNNING 요청만 FAILED — 다른 살아 있는 worker 의 실행은 건드리지 않음 */
     public int abandonOrphans(String reason) {
         return jdbc.sql("""

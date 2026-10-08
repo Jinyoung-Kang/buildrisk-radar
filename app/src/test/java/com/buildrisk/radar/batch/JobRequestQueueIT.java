@@ -54,6 +54,29 @@ class JobRequestQueueIT extends IntegrationTest {
                 .isEqualTo("FAILED");
     }
 
+    @Autowired
+    com.buildrisk.radar.batch.queue.WorkerRegistry registry;
+
+    @Test
+    void 같은_컨테이너에서_다시_뜨면_이전_기동이_잡고_있던_요청을_정리한다() {
+        // 컨테이너 안 pid 는 늘 1, hostname 은 컨테이너 ID — 재시작해도 worker ID 가 같아 이전 기동의 RUNNING 요청이
+        // '살아 있는 worker 것'으로 보여 영구히 남고, 부분 유니크 인덱스가 그 Job 의 재요청을 막았음 (VERIFICATION 120)
+        String self = worker.workerId();
+        assertThat(self).matches("worker-.+@.+#[0-9a-f]{8}");      // 기동마다 다른 꼬리
+        String base = self.substring(0, self.indexOf('#'));
+        String insert = "INSERT INTO ops.job_request (job_name, params, requested_by, status, claimed_by) VALUES (?, '{}', 't', 'RUNNING', ?)";
+        jdbc.update(insert, "ruleEvalJob", base);                    // 기동 구분이 없던 옛 ID
+        jdbc.update(insert, "standardizeMetricJob", base + "#0000aaaa");   // 같은 자리의 이전 기동
+        jdbc.update(insert, "pfExposureJob", "worker-77@" + base.substring(base.indexOf('@') + 1) + "#0000bbbb");   // 같은 호스트의 다른 프로세스
+        for (String id : List.of(base, base + "#0000aaaa", "worker-77@" + base.substring(base.indexOf('@') + 1) + "#0000bbbb")) {
+            registry.heartbeat(id, 1, 2);                              // 방금 전까지 살아 있었음 — 하트비트가 끊기기를 기다리지 않음
+        }
+        assertThat(registry.abandonPreviousBoots(self, "재기동")).isEqualTo(2);
+        assertThat(jdbc.queryForList("SELECT job_name FROM ops.job_request WHERE status = 'RUNNING'", String.class))
+                .containsExactly("pfExposureJob");
+        jdbc.update("DELETE FROM ops.worker WHERE worker_id <> ?", self);
+    }
+
     @Test
     void 같은_Job_은_대기_중에_한_번만_들어가고_worker_가_실행해_결과를_남긴다() throws Exception {
         var r = queue.enqueue("ruleEvalJob", Map.of("restart", false), "test");

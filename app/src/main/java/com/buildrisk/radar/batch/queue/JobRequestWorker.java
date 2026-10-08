@@ -12,11 +12,13 @@ import org.springframework.stereotype.Component;
 
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -31,7 +33,12 @@ public class JobRequestWorker {
     private final BatchLauncher launcher;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final AtomicInteger inFlight = new AtomicInteger();
-    private final String workerId = "worker-" + ManagementFactory.getRuntimeMXBean().getName();
+    /**
+     * pid@hostname + 기동마다 다른 값 — 컨테이너 안 pid 는 늘 1, hostname 은 컨테이너 ID 라 재시작해도 같은 ID 가 되어
+     * 이전 기동이 잡고 있던 요청이 '살아 있는 worker 것'으로 보였음 (VERIFICATION 120)
+     */
+    private final String workerId = "worker-" + ManagementFactory.getRuntimeMXBean().getName() + "#"
+            + HexFormat.of().toHexDigits(ThreadLocalRandom.current().nextInt());
     private final int maxConcurrent = 2;
     /** 실행 중인 요청 → Job 실행 번호 (종료 시 멈춤 요청 대상) */
     private final ConcurrentHashMap<Long, Long> running = new ConcurrentHashMap<>();
