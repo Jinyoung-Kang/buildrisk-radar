@@ -56,7 +56,8 @@ dependencies {
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
-    options.compilerArgs.addAll(listOf("-parameters", "-Xlint:deprecation"))
+    // 모든 javac 경고를 오류로 — 새 경고가 쌓이지 않게 (2026-10-09 기준 16건을 고친 뒤 켬)
+    options.compilerArgs.addAll(listOf("-parameters", "-Xlint:all", "-Werror"))
 }
 
 tasks.test {

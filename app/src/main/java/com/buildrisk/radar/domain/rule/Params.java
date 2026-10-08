@@ -1,5 +1,6 @@
 package com.buildrisk.radar.domain.rule;
 
+import java.io.Serial;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,9 @@ public final class Params {
     public Map<String, Object> raw() { return p; }
 
     public static class RuleParamException extends RuntimeException {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
         public RuleParamException(String m) { super(m); }
     }
 }

@@ -1,5 +1,6 @@
 package com.buildrisk.radar.domain.notify;
 
+import java.io.Serial;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -22,6 +23,9 @@ public final class WebhookGuard {
     private WebhookGuard() {}
 
     public static final class Rejected extends RuntimeException {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
         public Rejected(String message) { super(message); }
     }
 

@@ -2,8 +2,12 @@ package com.buildrisk.radar.adapters.common;
 
 import com.buildrisk.radar.common.KeyMasker;
 
+import java.io.Serial;
+
 /** 외부 API 네트워크·5xx·점검 등 일시 오류 — 재시도 대상. */
 public class UpstreamException extends RuntimeException {
+    @Serial
+    private static final long serialVersionUID = 1L;
     private final String provider;
 
     public UpstreamException(String provider, String message) {

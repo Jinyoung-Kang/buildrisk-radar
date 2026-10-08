@@ -79,7 +79,8 @@ public class DashboardService {
                        (SELECT max(period) FROM mkt.region_metric WHERE metric_code = 'UNSOLD_UNITS' AND value IS NOT NULL) AS "latestUnsold",
                        (SELECT max(period) FROM mkt.region_metric WHERE metric_code = 'PRICE_IDX_3M_CHG' AND value IS NOT NULL) AS "latestPrice",
                        (SELECT count(*) FROM ref.region WHERE level = 2) AS "regions",
-                       (SELECT max(finished_at) FROM ops.calc_run) AS "lastCalcAt" """).query().singleRow());
+                       (SELECT max(finished_at) FROM ops.calc_run) AS "lastCalcAt"
+                """).query().singleRow());
         out.put("personas", personas());
         out.put("disclaimer", Disclaimer.TEXT);
         return out;

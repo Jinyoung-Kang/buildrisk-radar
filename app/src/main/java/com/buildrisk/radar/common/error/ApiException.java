@@ -1,6 +1,10 @@
 package com.buildrisk.radar.common.error;
 
+import java.io.Serial;
+
 public class ApiException extends RuntimeException {
+    @Serial
+    private static final long serialVersionUID = 1L;
     private final ErrorCode code;
 
     public ApiException(ErrorCode code, String message) {

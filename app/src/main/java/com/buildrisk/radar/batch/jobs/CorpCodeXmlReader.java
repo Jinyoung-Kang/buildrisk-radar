@@ -22,6 +22,8 @@ public class CorpCodeXmlReader extends AbstractItemCountingItemStreamItemReader<
     private InputStream in;
     private XMLStreamReader xml;
 
+    // @StepScope 프록시(CGLIB 하위 클래스)가 있어 final 로 막을 수 없음 — setName 은 이름 필드만 정하는 부모 메서드
+    @SuppressWarnings("this-escape")
     public CorpCodeXmlReader(Path file) {
         this.file = file;
         setName("corpCodeXmlReader");

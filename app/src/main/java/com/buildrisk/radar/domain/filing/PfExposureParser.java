@@ -288,10 +288,10 @@ public final class PfExposureParser {
         return checked ? cand : null;
     }
 
-    /** 표 앞 문단으로 단독 · 컨소시엄(전체) · 컨소시엄(회사분) 구분. 표지가 없으면 순서(①②③)로 */
     /** 테스트용 — 표 앞 글자로 범위 판정 */
     public static Scope scopeOf(String ctx, int index) { return scope(ctx, index); }
 
+    /** 표 앞 문단으로 단독 · 컨소시엄(전체) · 컨소시엄(회사분) 구분. 표지가 없으면 순서(①②③)로 */
     static Scope scope(String ctx, int index) {
         String c = NO_CONSORTIUM.matcher(ctx.replaceAll("\\s+", "").replace("컨소시움", "컨소시엄")).replaceAll("");
         String t = c.substring(Math.max(0, c.length() - 60));       // 표 바로 앞의 짧은 꼬리표만 봄 (긴 설명 문단의 단어에 끌리지 않게)
@@ -354,7 +354,6 @@ public final class PfExposureParser {
         return out;
     }
 
-    /** 표 앞 문단에서 마지막으로 나온 쪽 — '① 정비사업 … (긴 설명) … (단위: 백만원)' 처럼 꼬리표와 표 사이에 문장이 끼어도 */
     /**
      * 특수관계자에게 제공한 보증만 모은 표인지 (위 내역의 일부라 더하면 이중 계산). 표 바로 앞 소개 문장만 봄 —
      * 앞선 설명 문단에 '특수관계자'가 나왔다고 일반 세부 표까지 건너뛰던 문제(서희건설)
@@ -378,6 +377,7 @@ public final class PfExposureParser {
         return COMPLETION_INTRO.matcher(t.substring(Math.max(0, t.length() - 150))).find();
     }
 
+    /** 표 앞 문단에서 마지막으로 나온 쪽 — '① 정비사업 … (긴 설명) … (단위: 백만원)' 처럼 꼬리표와 표 사이에 문장이 끼어도 */
     private static String category(String ctx) {
         int a = ctx.lastIndexOf("정비사업"), b = ctx.lastIndexOf("기타사업");
         return a < 0 && b < 0 ? null : a > b ? "정비사업" : "기타사업";

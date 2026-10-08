@@ -144,8 +144,8 @@ class AptTradeJobIT extends IntegrationTest {
                 String.class, region, code, period);
     }
 
-    /** SIGTERM(정상 종료): 청크 경계에서 STOPPED → 다시 요청하면 받은 곳 다음부터 이어서 완료 */
     /**
+     * SIGTERM(정상 종료): 청크 경계에서 STOPPED → 다시 요청하면 받은 곳 다음부터 이어서 완료.
      * 멈춤은 Step 이 청크 경계에 닿아 실제로 끝날 때까지 '실행 중'(STOPPING)이어야 함. 전에는 JobOperator.stop 이 Job · Step 을 곧바로
      * STOPPED 로 적어, Step 스레드가 청크를 처리하는 동안 재시작이 이전 실행과 겹쳤음 — 같은 대상을 두 실행이 동시에 받음 (VERIFICATION 102)
      */
