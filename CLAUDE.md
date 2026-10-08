@@ -19,7 +19,7 @@ docker compose ps              # 상태 — 다른 프로젝트 스택과 섞여
 make job JOB=ruleEvalJob       # Job 하나 (STOPPED 면 이어서). 여러 개는 쉼표로
 make test                      # 백엔드 전체(Testcontainers) + 웹 타입 검사
 cd app && ./gradlew test --tests '*ApiIT'   # 한 테스트 클래스
-make e2e                       # Playwright (스택이 떠 있어야 함, 로그인 잠금 카운터를 먼저 비움)
+make e2e                       # Playwright (스택이 떠 있어야 함, 로그인 잠금 카운터를 먼저 비움). 실패 기록은 web/e2e-failures/시각/
 make load                      # k6 50 VU · 90초 (레이트리밋을 잠시 끄고 api 를 재시작)
 cd web && CAPTURE=1 E2E_CHANNEL=chrome npx playwright test capture   # README 화면 캡처 갱신
 ```

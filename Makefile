@@ -81,7 +81,10 @@ test-web:
 e2e:
 	@# 반복 실행하면 같은 IP 의 로그인 실패가 쌓여 잠금(설계대로)이 걸리므로 잠금 카운터만 비움
 	@$(COMPOSE) exec -T redis sh -c 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli --scan --pattern "br:login:*" | xargs -r env REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli del' > /dev/null
-	cd web && npx playwright install chromium && E2E_ADMIN_PASSWORD="$$(grep -E '^ADMIN_PASSWORD=' ../.env | cut -d= -f2-)" npx playwright test smoke security insight notify
+	@# 실패하면 기록(트레이스 · 스크린샷 · HTML 보고서)을 시각별 폴더로 옮겨 둠 — 다음 실행이 test-results 를 비워도 남도록
+	@cd web && npx playwright install chromium && E2E_ADMIN_PASSWORD="$$(grep -E '^ADMIN_PASSWORD=' ../.env | cut -d= -f2-)" npx playwright test smoke security insight notify \
+	  || { d=e2e-failures/$$(date +%Y%m%d-%H%M%S); mkdir -p $$d && cp -R test-results playwright-report $$d/ 2>/dev/null; \
+	       echo "실패 기록: web/$$d — 보기: cd web && npx playwright show-report $$d/playwright-report"; exit 1; }
 
 # k6 부하 (compose 네트워크 안에서 web 프록시 경유). 레이트리밋은 IP 당이라 부하 측정 동안만 끔
 load:

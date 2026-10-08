@@ -41,8 +41,13 @@ test("경보 검증 · 성적표: 부실 사건 대비 규칙별 정밀도 · �
   await expect(page.getByText("규칙별 성적")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("img", { name: /정밀도 .*95% 구간/ }).first()).toBeVisible();   // 막대에도 숫자를 읽어 줌
   await expect(page.getByText(/부실 사건 \d+건과 그 전의 경보/)).toBeVisible();
+  // 응답이 늦어도 설명과 숫자가 같은 기간을 가리켜야 함 — 전에는 고르자마자 이름만 24개월로 바뀌었음 (VERIFICATION 103).
+  // 문구는 표 설명 줄만 (방법 설명에도 같은 말이 있어 응답이 빠르면 두 곳이 걸려 간헐 실패했음)
+  await page.route((u) => u.pathname.endsWith("/api/v1/scorecard") && u.searchParams.get("horizonMonths") === "24",
+    async (r) => { await new Promise((ok) => setTimeout(ok, 1500)); await r.continue(); });
   await page.getByRole("radio", { name: "24개월" }).click();
-  await expect(page.getByText(/경보 뒤 24개월 안에/)).toBeVisible();
+  await expect(page.getByText(/^정밀도 = 경보 뒤 12개월 안에/)).toBeVisible();          // 아직 12개월 숫자
+  await expect(page.getByText(/^정밀도 = 경보 뒤 24개월 안에/)).toBeVisible({ timeout: 10_000 });
 });
 
 test("경보 검증 · 주가 반응: 규칙별 표 · 비교 기준 · 한계", async ({ page }) => {

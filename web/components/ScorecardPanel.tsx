@@ -48,6 +48,9 @@ export default function ScorecardPanel() {
   const [h, setH] = useState<"6" | "12" | "24">("12");
   const [outcome, setOutcome] = useState<"" | ScOutcome>("MISS");
   const { data, error } = useApi<Scorecard>(`/scorecard?horizonMonths=${h}`);
+  // 기간 이름은 지금 보이는 숫자의 기간으로 — 새 기간을 불러오는 동안 이전 숫자에 새 이름이 붙지 않게 (VERIFICATION 103)
+  const shown = data ? data.horizonMonths : Number(h);
+  const loadingNew = !!data && data.horizonMonths !== Number(h);
   const ruleCodes = useMemo(() => (data?.rules ?? []).filter((r) => r.ruleCode !== "ANY").map((r) => r.ruleCode), [data]);
   const any = data?.rules.find((r) => r.ruleCode === "ANY");
   const best = useMemo(() => [...(data?.rules ?? [])].filter((r) => r.ruleCode !== "ANY" && r.precision != null && r.hits > 0)
@@ -64,12 +67,12 @@ export default function ScorecardPanel() {
       </div>
       <ErrorBox error={error} />
       {!data ? <Loading /> : (
-        <div className="space-y-5">
+        <div className={`space-y-5 transition-opacity ${loadingNew ? "opacity-50" : ""}`} aria-busy={loadingNew}>
           <div className="grid sm:grid-cols-3 gap-3">
             <div className="bg-raised rounded-xl shadow-card px-4 py-3">
               <div className="text-xs text-ink2">부실 사건을 미리 잡음 (재무 규칙 중 하나라도)</div>
               <div className="text-2xl font-semibold tabular mt-0.5">{any ? `${any.caught} / ${any.events}건` : "–"}</div>
-              <div className="text-[11px] text-muted">사건 전 {h}개월 안에 경보가 있었던 사건</div>
+              <div className="text-[11px] text-muted">사건 전 {shown}개월 안에 경보가 있었던 사건</div>
             </div>
             <div className="bg-raised rounded-xl shadow-card px-4 py-3">
               <div className="text-xs text-ink2">첫 경보 → 사건 (중앙값)</div>
@@ -80,16 +83,16 @@ export default function ScorecardPanel() {
               <div className="text-xs text-ink2">가장 정밀한 규칙{best ? ` · ${best.ruleCode}` : ""}</div>
               <div className="text-2xl font-semibold tabular mt-0.5">{best ? pct0(best.precision) : "–"}
                 {best?.lift != null && <span className="text-sm font-normal text-ink2"> · 기준선의 {num(best.lift, 1)}배</span>}</div>
-              <div className="text-[11px] text-muted">{best ? `경보가 울린 기업 ${best.hits + best.misses}곳 중 ${best.hits}곳이 ${h}개월 안에 부실 (기준선 ${num((data.baseRate ?? 0) * 100, 1)}%)` : "판정 가능한 경보 없음"}</div>
+              <div className="text-[11px] text-muted">{best ? `경보가 울린 기업 ${best.hits + best.misses}곳 중 ${best.hits}곳이 ${shown}개월 안에 부실 (기준선 ${num((data.baseRate ?? 0) * 100, 1)}%)` : "판정 가능한 경보 없음"}</div>
             </div>
           </div>
 
-          <Card title="규칙별 성적" sub={`정밀도 = 경보 뒤 ${h}개월 안에 부실로 이어진 비율 (점 · 선 = 95% 구간, 빨간 눈금 = 기준선) · 재현율 = 사건 전에 경보가 있었던 비율`} pad={false}>
+          <Card title="규칙별 성적" sub={`정밀도 = 경보 뒤 ${shown}개월 안에 부실로 이어진 비율 (점 · 선 = 95% 구간, 빨간 눈금 = 기준선) · 재현율 = 사건 전에 경보가 있었던 비율`} pad={false}>
             <div className="table-wrap">
               <table className="data-table">
                 <thead><tr><th>규칙</th><th>정밀도</th><th className="num hidden md:table-cell">기준선 대비</th><th className="num">재현율</th>
                   <th className="num hidden sm:table-cell">선행 (중앙값)</th></tr></thead>
-                <tbody>{data.rules.map((r) => <RuleRow key={r.ruleCode} r={r} name={data.ruleNames[r.ruleCode] ?? r.ruleCode} base={data.baseRate} h={Number(h)} />)}</tbody>
+                <tbody>{data.rules.map((r) => <RuleRow key={r.ruleCode} r={r} name={data.ruleNames[r.ruleCode] ?? r.ruleCode} base={data.baseRate} h={shown} />)}</tbody>
               </table>
             </div>
             <div className="text-xs text-muted px-4 py-2 border-t border-line">

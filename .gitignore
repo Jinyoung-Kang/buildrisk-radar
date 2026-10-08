@@ -13,6 +13,7 @@ web/.next/
 web/tsconfig.tsbuildinfo
 web/test-results/
 web/playwright-report/
+web/e2e-failures/
 
 # 로컬 도구
 .idea/
