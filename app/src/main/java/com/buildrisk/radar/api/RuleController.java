@@ -4,6 +4,7 @@ import com.buildrisk.radar.api.dto.AlertDtos.RuleHistory;
 import com.buildrisk.radar.api.dto.AlertDtos.RuleUpdate;
 import com.buildrisk.radar.api.dto.AlertDtos.RuleView;
 import com.buildrisk.radar.common.role.ApiRole;
+import com.buildrisk.radar.common.security.Viewer;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,11 +29,17 @@ public class RuleController {
 
     @GetMapping
     @Operation(summary = "⑫ 규칙 목록 (최신 버전)")
-    public List<RuleView> list() { return svc.list(); }
+    public List<RuleView> list() {
+        List<RuleView> rules = svc.list();
+        return Viewer.signedIn() ? rules : rules.stream().map(RuleView::withoutActor).toList();
+    }
 
     @GetMapping("/{ruleCode}")
     @Operation(summary = "규칙 버전 이력")
-    public RuleHistory history(@PathVariable String ruleCode) { return svc.history(ruleCode); }
+    public RuleHistory history(@PathVariable String ruleCode) {
+        RuleHistory h = svc.history(ruleCode);
+        return Viewer.signedIn() ? h : new RuleHistory(h.ruleCode(), h.versions().stream().map(RuleView::withoutActor).toList());
+    }
 
     @PutMapping("/{ruleCode}")
     @Operation(summary = "⑫ 파라미터·심각도 변경 → 새 버전 (ADMIN)")

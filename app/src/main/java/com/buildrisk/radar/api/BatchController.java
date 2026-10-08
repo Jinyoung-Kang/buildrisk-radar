@@ -1,8 +1,10 @@
 package com.buildrisk.radar.api;
 
 import com.buildrisk.radar.batch.queue.JobRequestService;
+import com.buildrisk.radar.batch.queue.WorkerRegistry;
 import com.buildrisk.radar.batch.support.BatchLauncher;
 import com.buildrisk.radar.common.role.ApiRole;
+import com.buildrisk.radar.common.security.Viewer;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -37,18 +40,18 @@ public class BatchController {
 
     @GetMapping("/jobs")
     @Operation(summary = "Job 목록 · 마지막 상태 · 키 설정 여부 · 오늘 API 호출 수")
-    public Map<String, Object> jobs() { return query.jobs(); }
+    public Map<String, Object> jobs() { return anonymize(query.jobs()); }
 
     @GetMapping("/executions")
     @Operation(summary = "⑭ Job 실행 이력 (BATCH_* 조회)")
     public List<Map<String, Object>> executions(@RequestParam(required = false) String jobName,
                                                 @RequestParam(defaultValue = "50") int limit) {
-        return query.executions(jobName, limit);
+        return anonymize(query.executions(jobName, limit));
     }
 
     @GetMapping("/executions/{id}")
     @Operation(summary = "실행 상세 — Step · 스킵 목록 · 같은 JobInstance 의 재시작 이력")
-    public Map<String, Object> execution(@PathVariable long id) { return query.execution(id); }
+    public Map<String, Object> execution(@PathVariable long id) { return anonymize(query.execution(id)); }
 
     @PostMapping("/executions/{id}/recover")
     @Operation(summary = "죽은 실행 정리 (ADMIN)", description = "프로세스가 비정상 종료돼 STARTED 로 남은 실행을 FAILED 로 바꿔 다음 실행이 restart 할 수 있게 합니다.")
@@ -69,9 +72,34 @@ public class BatchController {
 
     @GetMapping("/requests")
     @Operation(summary = "실행 요청 큐 (최근)")
-    public List<Map<String, Object>> requests(@RequestParam(defaultValue = "30") int limit) { return queue.recent(limit); }
+    public List<Map<String, Object>> requests(@RequestParam(defaultValue = "30") int limit) { return anonymize(queue.recent(limit)); }
 
     @GetMapping("/requests/{id}")
     @Operation(summary = "실행 요청 상태 — QUEUED → RUNNING(jobExecutionId) → DONE/FAILED")
     public Map<String, Object> request(@PathVariable long id) { return queue.get(id); }
+
+    /** 익명 응답 — 요청한 사람은 빼고, worker 는 별칭(호스트 = 컨테이너 ID 를 숨김), 실패 메시지는 첫 줄만 (VERIFICATION 110) */
+    @SuppressWarnings("unchecked")
+    private static <T> T anonymize(T body) {
+        return Viewer.signedIn() ? body : (T) mask(body);
+    }
+
+    private static Object mask(Object node) {
+        if (node instanceof Map<?, ?> m) {
+            Map<String, Object> out = new LinkedHashMap<>();
+            m.forEach((k, v) -> out.put(String.valueOf(k), switch (String.valueOf(k)) {
+                case "requestedBy" -> null;
+                case "claimedBy", "workerId" -> Viewer.alias((String) v);
+                case "exitMessage" -> Viewer.firstLine((String) v);
+                default -> mask(v);
+            }));
+            return out;
+        }
+        if (node instanceof List<?> l) return l.stream().map(BatchController::mask).toList();
+        if (node instanceof WorkerRegistry.Worker w) {
+            return new WorkerRegistry.Worker(Viewer.alias(w.workerId()), w.startedAt(), w.lastSeenAt(), w.configuredKeys(),
+                    w.inFlight(), w.maxConcurrent(), w.live());
+        }
+        return node;
+    }
 }

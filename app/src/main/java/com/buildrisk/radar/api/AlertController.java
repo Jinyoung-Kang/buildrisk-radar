@@ -6,6 +6,7 @@ import com.buildrisk.radar.api.dto.AlertDtos.StatusChange;
 import com.buildrisk.radar.api.dto.Page;
 import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.common.role.ApiRole;
+import com.buildrisk.radar.common.security.Viewer;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -65,7 +66,10 @@ public class AlertController {
 
     @GetMapping("/{alertId}")
     @Operation(summary = "⑩ 경보 상세 · 근거(evidence)")
-    public AlertDetail detail(@PathVariable long alertId) { return svc.detail(alertId); }
+    public AlertDetail detail(@PathVariable long alertId) {
+        AlertDetail d = svc.detail(alertId);
+        return Viewer.signedIn() ? d : d.withoutActor();
+    }
 
     @GetMapping("/{alertId}/lineage")
     @Operation(summary = "⑩-1 근거 계보 — 규칙 버전 · 지표 · 표준계정 · 원천 재무제표 줄(매핑 규칙) · 통계 · 공시 · 수집/계산 실행 (ADR-027)")

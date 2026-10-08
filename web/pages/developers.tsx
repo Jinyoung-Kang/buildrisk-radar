@@ -66,7 +66,7 @@ export default function Developers() {
         <Card title="시작하기">
           <ul className="text-sm space-y-1.5 list-disc pl-5">
             <li>기본 주소 <code className="tabular">{base}</code> — 응답은 JSON(UTF-8), 금액은 원 단위 숫자</li>
-            <li>읽기(GET)는 로그인 없이. 경보 확인(PATCH)은 분석가 로그인, 규칙 · 배치 · 매핑 변경은 관리자</li>
+            <li>읽기(GET)는 로그인 없이. 경보 확인(PATCH)은 분석가 로그인, 규칙 · 배치 · 매핑 변경은 관리자. 로그인하지 않은 응답에는 사용자 이름 · 서버(worker) 이름이 빠지고, 배치 실패 메시지는 첫 줄만</li>
             <li>한도: IP 당 분당 1,200 요청, CSV 내려받기는 분당 30회 — 넘으면 <code>429</code> + <code>Retry-After</code>(초)</li>
             <li>오류는 <code>{"{ code, message, traceId }"}</code> — traceId 는 서버 로그의 같은 요청을 찾는 값. 정해진 값이 있는 조건(정렬 · 상태 등)에 다른 값을 주면 <code>400</code></li>
             <li>전체 명세(OpenAPI): <a className="text-accent hover:underline" href="/swagger-ui/index.html">Swagger UI</a> · <a className="text-accent hover:underline" href="/v3/api-docs">/v3/api-docs</a></li>
