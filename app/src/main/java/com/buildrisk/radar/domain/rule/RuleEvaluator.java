@@ -4,6 +4,8 @@ import com.buildrisk.radar.domain.rule.RuleModels.Evaluation;
 import com.buildrisk.radar.domain.rule.RuleModels.RuleDefinition;
 import com.buildrisk.radar.domain.rule.RuleModels.TargetType;
 
+import java.util.List;
+
 /**
  * 규칙 로직 (ADR-006). 파라미터·심각도는 DB 버전, 조건은 코드 — 단위 테스트 가능.
  */
@@ -22,4 +24,10 @@ public interface RuleEvaluator {
     String condition(Params params);
 
     Evaluation evaluate(RuleDefinition rule, String targetKey, RuleData data);
+
+    /**
+     * 근거(observations)에 값이 들어가는 지표 코드 — 근거 계보(ADR-027)가 이 목록으로 지표 행을 찾습니다.
+     * 기업 규칙은 대상 기업, 지역 규칙은 대상 지역의 지표. 공시 · 계약 규칙은 비어 있음(원천이 공시 자체)
+     */
+    default List<String> evidenceMetrics() { return List.of(); }
 }

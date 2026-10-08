@@ -25,6 +25,8 @@ import java.util.NavigableMap;
 public class RR03TradeCliffUnsold implements RuleEvaluator {
     @Override public String code() { return "R-R03"; }
 
+    @Override public List<String> evidenceMetrics() { return List.of("TRADE_YOY", "UNSOLD_3M_CHG"); }
+
     @Override public TargetType targetType() { return TargetType.REGION; }
 
     @Override public void validate(Params p) {

@@ -37,6 +37,14 @@ public final class AccountStandardizer {
 
     public record Result(List<StdValue> values, List<String> missing) {}
 
+    /** 근거 계보 (ADR-027) — 표준계정 값에 들어간 원천 행 하나와 그 행을 고른 매핑 규칙. amount 는 부호 규칙(abs) 적용 후 */
+    public record Pick(String sjDiv, int lineNo, String accountId, String accountNm, BigDecimal amount, int mapId,
+                       String matchType, String pattern, int priority) {}
+
+    public record Trace(StdValue value, List<Pick> picks) {}
+
+    private record Matched(RawLine line, MapRule rule) {}
+
     private final List<StdAccount> accounts;
     private final Map<String, List<CompiledRule>> rulesByStd;
 
@@ -88,20 +96,30 @@ public final class AccountStandardizer {
         return out;
     }
 
-    public Result standardize(List<RawLine> lines) {
+    public Result standardize(List<RawLine> lines) { return run(lines, null); }
+
+    /** standardize 와 같은 경로로 계산하면서 표준계정마다 고른 원천 행 · 규칙을 남김 (값은 standardize 결과와 같음) */
+    public Map<String, Trace> explain(List<RawLine> lines) {
+        Map<String, List<Pick>> picks = new HashMap<>();
+        Map<String, Trace> out = new LinkedHashMap<>();
+        for (StdValue v : run(lines, picks).values()) out.put(v.stdCode(), new Trace(v, picks.getOrDefault(v.stdCode(), List.of())));
+        return out;
+    }
+
+    private Result run(List<RawLine> lines, Map<String, List<Pick>> trace) {
         Map<String, String> sectionOf = sections(lines);
         List<StdValue> out = new ArrayList<>();
         List<String> missing = new ArrayList<>();
         Set<String> claimed = new HashSet<>();
         for (StdAccount acc : accounts) {
-            StdValue v = acc.sum() ? sum(acc, lines, claimed, sectionOf) : first(acc, lines, sectionOf);
+            StdValue v = acc.sum() ? sum(acc, lines, claimed, sectionOf, trace) : first(acc, lines, sectionOf, trace);
             if (v == null) missing.add(acc.stdCode());
             else out.add(v);
         }
         return new Result(out, missing);
     }
 
-    private StdValue first(StdAccount acc, List<RawLine> lines, Map<String, String> sectionOf) {
+    private StdValue first(StdAccount acc, List<RawLine> lines, Map<String, String> sectionOf, Map<String, List<Pick>> trace) {
         for (CompiledRule r : rulesByStd.getOrDefault(acc.stdCode(), List.of())) {
             Set<String> sources = sources(acc, r.rule());
             RawLine best = lines.stream()
@@ -111,15 +129,17 @@ public final class AccountStandardizer {
                     .orElse(null);
             if (best != null) {
                 BigDecimal amt = r.rule().absValue() ? best.amountFor().abs() : best.amountFor();
+                if (trace != null) trace.put(acc.stdCode(), List.of(pick(best, amt, r.rule())));
                 return new StdValue(acc.stdCode(), basis(acc), amt, best.accountNm(), best.sjDiv());
             }
         }
         return null;
     }
 
-    private StdValue sum(StdAccount acc, List<RawLine> lines, Set<String> claimed, Map<String, String> sectionOf) {
+    private StdValue sum(StdAccount acc, List<RawLine> lines, Set<String> claimed, Map<String, String> sectionOf,
+                         Map<String, List<Pick>> trace) {
         List<CompiledRule> rules = rulesByStd.getOrDefault(acc.stdCode(), List.of());
-        Map<String, RawLine> matched = collect(acc, lines, claimed, sectionOf,
+        Map<String, Matched> matched = collect(acc, lines, claimed, sectionOf,
                 rules.stream().filter(r -> r.rule().priority() < FALLBACK_PRIORITY).toList());
         if (matched.isEmpty()) {
             matched = collect(acc, lines, claimed, sectionOf,
@@ -128,15 +148,16 @@ public final class AccountStandardizer {
         if (matched.isEmpty()) return null;
         claimed.addAll(matched.keySet());
         BigDecimal total = BigDecimal.ZERO;
-        for (var e : matched.entrySet()) total = total.add(e.getValue().amountFor());
-        String names = matched.values().stream().map(RawLine::accountNm).distinct().collect(Collectors.joining(" + "));
-        return new StdValue(acc.stdCode(), basis(acc), total, names, matched.values().iterator().next().sjDiv());
+        for (var e : matched.entrySet()) total = total.add(e.getValue().line().amountFor());
+        if (trace != null) trace.put(acc.stdCode(), matched.values().stream().map(m -> pick(m.line(), m.line().amountFor(), m.rule())).toList());
+        String names = matched.values().stream().map(m -> m.line().accountNm()).distinct().collect(Collectors.joining(" + "));
+        return new StdValue(acc.stdCode(), basis(acc), total, names, matched.values().iterator().next().line().sjDiv());
     }
 
     /** 규칙에 걸린 행: 이미 다른 표준계정이 가져간 행 제외, 같은 계정명은 첫 줄만. 값은 부호 규칙(abs) 적용 전 원본 */
-    private Map<String, RawLine> collect(StdAccount acc, List<RawLine> lines, Set<String> claimed,
+    private Map<String, Matched> collect(StdAccount acc, List<RawLine> lines, Set<String> claimed,
                                          Map<String, String> sectionOf, List<CompiledRule> rules) {
-        Map<String, RawLine> matched = new LinkedHashMap<>();
+        Map<String, Matched> matched = new LinkedHashMap<>();
         Map<String, String> nameAt = new HashMap<>();
         lines.forEach(l -> nameAt.put(l.sjDiv() + "#" + l.lineNo(), normalize(l.accountNm())));
         List<RawLine> ordered = lines.stream().sorted(Comparator.comparingInt(RawLine::lineNo)).toList();
@@ -148,12 +169,16 @@ public final class AccountStandardizer {
                 if (!sources.contains(l.sjDiv()) || !r.matches(l, sectionOf) || l.amountFor() == null) continue;
                 // 순액·액면 이중 표시: 바로 앞 줄과 이름이 같으면 액면 줄로 보고 건너뜀
                 if (normalize(l.accountNm()).equals(nameAt.get(l.sjDiv() + "#" + (l.lineNo() - 1)))) continue;
-                matched.put(id, r.rule().absValue()
+                matched.put(id, new Matched(r.rule().absValue()
                         ? new RawLine(l.sjDiv(), l.lineNo(), l.accountId(), l.accountNm(), abs(l.thstrmAmount()), abs(l.thstrmAddAmount()))
-                        : l);
+                        : l, r.rule()));
             }
         }
         return matched;
+    }
+
+    private static Pick pick(RawLine l, BigDecimal amount, MapRule r) {
+        return new Pick(l.sjDiv(), l.lineNo(), l.accountId(), l.accountNm(), amount, r.mapId(), r.matchType(), r.pattern(), r.priority());
     }
 
     private static BigDecimal abs(BigDecimal b) { return b == null ? null : b.abs(); }

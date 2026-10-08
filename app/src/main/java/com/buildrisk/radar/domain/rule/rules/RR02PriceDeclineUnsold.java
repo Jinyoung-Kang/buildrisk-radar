@@ -21,6 +21,8 @@ import java.util.stream.Collectors;
 public class RR02PriceDeclineUnsold implements RuleEvaluator {
     @Override public String code() { return "R-R02"; }
 
+    @Override public List<String> evidenceMetrics() { return List.of("PRICE_IDX_3M_CHG", "UNSOLD_3M_CHG"); }
+
     @Override public TargetType targetType() { return TargetType.REGION; }
 
     @Override public void validate(Params p) { p.count("consecutive", 1, 12); }

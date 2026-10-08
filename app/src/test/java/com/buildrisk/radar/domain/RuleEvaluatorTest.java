@@ -47,6 +47,27 @@ class RuleEvaluatorTest {
         @Override public LocalDate today() { return LocalDate.of(2026, 9, 24); }
     }
 
+    /** 근거 계보(ADR-027) 계약: 규칙이 선언한 근거 지표는 seed 파라미터로 평가할 때 실제로 읽는 지표여야 함 (오타 · 낡은 선언 방지) */
+    @Test
+    @SuppressWarnings("unchecked")
+    void 규칙이_선언한_근거_지표는_실제로_읽는_지표() {
+        var seed = com.buildrisk.radar.common.seed.SeedCatalog.at(java.nio.file.Path.of("../seed"));
+        List<Map<String, Object>> rules = (List<Map<String, Object>>) seed.yaml("rules.yml").get("rules");
+        int declared = 0;
+        for (Map<String, Object> r : rules) {
+            var ev = registry.get((String) r.get("code"));
+            java.util.Set<String> read = new java.util.HashSet<>();
+            var d = new Mem() {
+                @Override public NavigableMap<String, MetricPoint> companyMetric(String c, String m) { read.add(m); return super.companyMetric(c, m); }
+                @Override public NavigableMap<String, MetricPoint> regionMetric(String x, String m) { read.add(m); return super.regionMetric(x, m); }
+            };
+            ev.evaluate(rule(ev.code(), ev.targetType(), (Map<String, Object>) r.get("params")), "t", d);
+            assertThat(read).as(ev.code()).containsAll(ev.evidenceMetrics());
+            declared += ev.evidenceMetrics().isEmpty() ? 0 : 1;
+        }
+        assertThat(declared).as("지표 기반 규칙 수").isEqualTo(7);
+    }
+
     static RuleDefinition rule(String code, TargetType t, Map<String, Object> params) {
         return new RuleDefinition(code, 1, t, code, "", params, "HIGH", true);
     }

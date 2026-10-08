@@ -25,6 +25,8 @@ import java.util.NavigableMap;
 public class RC06PfExposure implements RuleEvaluator {
     @Override public String code() { return "R-C06"; }
 
+    @Override public List<String> evidenceMetrics() { return List.of("PF_GUARANTEE_TO_EQUITY", "PF_DUE_12M_TO_EQUITY", "PF_BRIDGE_SHARE"); }
+
     @Override public TargetType targetType() { return TargetType.COMPANY; }
 
     @Override public void validate(Params p) {

@@ -9,7 +9,7 @@ import WatchButton from "@/components/WatchButton";
 import Layout from "@/components/Layout";
 import { PriceChart, SignedBars, TrendLine } from "@/components/LazyCharts";
 import Tabs, { TabPanel, useTab } from "@/components/Tabs";
-import { Card, DartLink, Empty, ErrorBox, Loading, MetricStatus, PageTitle, Segmented, SeverityBadge, StatusPill } from "@/components/ui";
+import { Card, DartLink, DownloadLink, Empty, ErrorBox, Loading, MetricStatus, PageTitle, Segmented, SeverityBadge, StatusPill } from "@/components/ui";
 import { qs, type AlertDetail, type CompanySummary, type Disclosure, type Financials, type Metrics } from "@/lib/api";
 import { eok, num, pk, withUnit } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -99,6 +99,9 @@ export default function CompanyDetail() {
           </TabPanel>}
 
           {tab === "financials" && <TabPanel id="financials">
+          {corp && <div className="flex justify-end mb-2">
+            <DownloadLink path={`/export/companies/${encodeURIComponent(corp)}/metrics.csv`}>지표 CSV (모든 기간 · 분자 · 분모)</DownloadLink>
+          </div>}
           <div className="grid lg:grid-cols-2 gap-5 mb-5">
             <Card title="부채비율 (%)" sub="부채총계 ÷ 자본총계 × 100 · R-C01 임계 300%">
               <TrendLine data={(series.DEBT_RATIO ?? []).map((d) => ({ x: d.x, v: d.v }))} series={[{ key: "v", name: "부채비율" }]}

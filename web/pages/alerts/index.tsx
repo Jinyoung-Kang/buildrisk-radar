@@ -1,9 +1,10 @@
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
+import AlertLineage from "@/components/AlertLineage";
 import EvidenceView from "@/components/EvidenceView";
 import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
-import { Card, Empty, ErrorBox, Loading, PageTitle, Segmented, SeverityBadge, StatusPill, TargetLink, Pager } from "@/components/ui";
+import { Card, DownloadLink, Empty, ErrorBox, Loading, PageTitle, Segmented, SeverityBadge, StatusPill, TargetLink, Pager } from "@/components/ui";
 import { api, qs, type AlertDetail, type AlertRow, type Page } from "@/lib/api";
 import { dt } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -31,6 +32,7 @@ function Detail({ id, onChanged }: { id: string; onChanged: () => void }) {
       </div>
       <ErrorBox error={err} />
       <EvidenceView ev={data.evidence} />
+      <div className="mt-4"><AlertLineage id={data.alertId} /></div>
       <div className="flex gap-2 mt-4 items-center">
         {data.status !== "CLOSED" && <RequireRole role="ANALYST"><span className="flex gap-2">
         {data.status === "OPEN" && <button disabled={busy} onClick={() => change("ACK")} className="px-3 py-1.5 rounded-lg bg-accent text-white text-sm focus-ring disabled:opacity-50">확인(ACK)</button>}
@@ -81,6 +83,7 @@ export default function Alerts() {
             options={[{ value: "", label: "전체" }, { value: "COMPANY", label: "기업" }, { value: "REGION", label: "지역" }]} />
           <Segmented label="심각도" value={q.severity ?? ""} onChange={(v) => set({ severity: v || undefined, p: undefined })}
             options={[{ value: "", label: "전체" }, { value: "HIGH", label: "높음" }, { value: "MEDIUM", label: "중간" }, { value: "LOW", label: "낮음" }]} />
+          <DownloadLink path={`/export/alerts.csv${qs({ status, severity: q.severity, targetType: q.targetType })}`}>CSV</DownloadLink>
         </div>} />
       <ErrorBox error={list.error} />
       <div className="grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-4 items-start">

@@ -182,7 +182,7 @@ class SecurityIT extends IntegrationTest {
 
     @Test
     void IP_당_분당_요청_한도를_넘으면_429() throws Exception {
-        var filter = new RateLimitFilter(limiter, 3, mapper);
+        var filter = new RateLimitFilter(limiter, 3, 0, mapper);
         int[] statuses = new int[4];
         for (int i = 0; i < 4; i++) {
             var req = new MockHttpServletRequest("GET", "/api/v1/rules");
@@ -193,5 +193,27 @@ class SecurityIT extends IntegrationTest {
             if (i == 3) assertThat(res.getHeader("Retry-After")).isNotNull();
         }
         assertThat(statuses).containsExactly(200, 200, 200, 429);
+    }
+
+    @Test
+    void CSV_내려받기는_일반_한도와_따로_더_낮은_한도() throws Exception {
+        var filter = new RateLimitFilter(limiter, 100, 2, mapper);
+        java.util.function.Function<String, MockHttpServletResponse> hit = uri -> {
+            var req = new MockHttpServletRequest("GET", uri);
+            req.setRemoteAddr("10.9.9.10");
+            var res = new MockHttpServletResponse();
+            try {
+                filter.doFilter(req, res, new MockFilterChain());
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+            return res;
+        };
+        assertThat(hit.apply("/api/v1/export/alerts.csv").getStatus()).isEqualTo(200);
+        assertThat(hit.apply("/api/v1/export/exposure.csv").getStatus()).isEqualTo(200);
+        MockHttpServletResponse third = hit.apply("/api/v1/export/alerts.csv");
+        assertThat(third.getStatus()).isEqualTo(429);
+        assertThat(third.getContentAsString()).contains("내려받기");
+        assertThat(hit.apply("/api/v1/alerts").getStatus()).isEqualTo(200);        // 일반 조회는 영향 없음
     }
 }

@@ -55,6 +55,22 @@ export type Evidence = {
   ruleCode: string; ruleVersion: number; severity: Severity; condition: string; params: Record<string, unknown>;
   message: string; observations: Record<string, unknown>[]; sources: Record<string, unknown>[]; calcRunId?: string;
 };
+/** 근거 계보 (ADR-027) — 경보 → 규칙 버전 → 지표 → 표준계정 → 원천 줄(매핑 규칙) · 통계 · 공시 → 실행 */
+export type LineageLine = { sjDiv: string; lineNo: number; accountId?: string; accountNm: string; amount?: number; mapId: number; matchType: string; pattern: string };
+export type LineageStatement = {
+  corpCode: string; periodKey: string; fsDiv: string; stdCode: string; stdName?: string; basis: "POINT" | "CUM" | "QTR"; amount?: number; rceptNo?: string;
+  reprtCode?: string; dartUrl?: string; derivation?: string; reproduced: boolean; lines: LineageLine[]; derivedFrom: LineageStatement[];
+  jobExecutionId?: number; fetchedAt?: string;
+};
+export type LineageMetric = { scope: "COMPANY" | "REGION"; targetKey: string; period: string; metricCode: string; name?: string; unit?: string; formula?: string; value?: number; status: string; components: Record<string, unknown>; calcRunId?: string };
+export type LineageStat = { seriesId: string; name: string; unit: string; source: string; sourceTable: string; regionCd: string; period: string; value?: number; rawSymbol?: string; role: "OWN" | "CHILD"; collectRunId?: string; fetchedAt?: string };
+export type LineageFiling = { rceptNo: string; kind: string; reportNm?: string; rceptDt?: string; eventType?: string; keyword?: string; dartUrl: string; parseStatus?: string; parserVersion?: number; facts: Record<string, unknown>; jobExecutionId?: number; fetchedAt?: string };
+export type LineageRun = { kind: "RULE" | "METRIC" | "STANDARD" | "JOB" | "COLLECT"; id: string; name?: string; status?: string; startedAt?: string; finishedAt?: string };
+export type Lineage = {
+  alertId: number; targetType: string; targetKey: string; asOf: string;
+  rule: { code: string; version: number; nameKo: string; condition?: string; params: Record<string, unknown>; changeNote?: string; createdAt?: string };
+  metrics: LineageMetric[]; statements: LineageStatement[]; stats: LineageStat[]; filings: LineageFiling[]; runs: LineageRun[]; notes: string[]; disclaimer: string;
+};
 export type AlertDetail = AlertRow & {
   ruleDescription: string; message: string; evidence: Evidence; ackedAt?: string; ackedBy?: string; closedAt?: string; calcRunId?: string; disclaimer: string;
 };

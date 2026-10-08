@@ -109,7 +109,7 @@ public class SecurityConfig {
                         // JSON API 는 어떤 리소스도 불러오지 않음 — 응답이 문서로 해석돼도 스크립트 실행 불가
                         .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(req -> req.getRequestURI().startsWith("/api/"),
                                 new ContentSecurityPolicyHeaderWriter("default-src 'none'; frame-ancestors 'none'"))))
-                .addFilterBefore(new RateLimitFilter(limiter, props.security().rateLimitPerMinute(), mapper), DisableEncodeUrlFilter.class)
+                .addFilterBefore(new RateLimitFilter(limiter, props.security().rateLimitPerMinute(), props.security().exportLimitPerMinute(), mapper), DisableEncodeUrlFilter.class)
                 .addFilterBefore(new ServiceTokenFilter(props, mapper), CsrfFilter.class)
                 .addFilterBefore(new AuditFilter(audit, mapper, req -> routeTemplate(context, req)), ServiceTokenFilter.class);
         return http.build();

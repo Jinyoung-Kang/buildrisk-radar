@@ -40,7 +40,8 @@ public record AppProperties(
      * 값이 비어 있는 계정은 로그인 불가.
      */
     public record Security(String adminUsername, String adminPassword, String analystUsername, String analystPassword,
-                           boolean cookieSecure, int rateLimitPerMinute, int loginMaxFailures, int loginLockMinutes) {}
+                           boolean cookieSecure, int rateLimitPerMinute, int loginMaxFailures, int loginLockMinutes,
+                           int exportLimitPerMinute) {}
 
     /**
      * 알림 (ADR-025). secretKey: 웹훅 주소 · 서명 비밀 암호화 키(NOTIFY_SECRET_KEY, 비면 웹훅 기능 끔 — 알림함은 동작).

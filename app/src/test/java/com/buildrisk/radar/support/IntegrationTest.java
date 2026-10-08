@@ -49,6 +49,7 @@ public abstract class IntegrationTest {
         r.add("buildrisk.security.admin-password", () -> ADMIN_PASSWORD);
         r.add("buildrisk.security.analyst-password", () -> ANALYST_PASSWORD);
         r.add("buildrisk.security.rate-limit-per-minute", () -> 0);
+        r.add("buildrisk.security.export-limit-per-minute", () -> 0);
         r.add("buildrisk.dart.base-url", WM::baseUrl);
         r.add("buildrisk.dart.api-key", () -> "test-dart-key");
         r.add("buildrisk.dart.min-interval-ms", () -> 0);

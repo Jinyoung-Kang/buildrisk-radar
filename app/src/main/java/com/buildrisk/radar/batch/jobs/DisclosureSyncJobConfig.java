@@ -20,6 +20,7 @@ import org.springframework.batch.core.step.Step;
 import org.springframework.batch.core.step.StepExecution;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.infrastructure.item.ItemProcessor;
+import org.springframework.batch.infrastructure.item.ItemWriter;
 import org.springframework.batch.infrastructure.item.database.JdbcPagingItemReader;
 import org.springframework.batch.infrastructure.item.database.Order;
 import org.springframework.batch.infrastructure.item.database.support.PostgresPagingQueryProvider;
@@ -99,16 +100,22 @@ public class DisclosureSyncJobConfig {
         });
     }
 
+    /** 행마다 수집한 배치 실행을 남김 (NFR-04) — 전에는 null 을 넘겨 모든 공시의 job_execution_id 가 비어 있었음 (VERIFICATION 100) */
+    @Bean
+    @StepScope
+    ItemWriter<List<Classified>> disclosureWriter(DisclosureRepository disclosures, @Value("#{stepExecution}") StepExecution se) {
+        return chunk -> {
+            List<Classified> all = new ArrayList<>();
+            chunk.getItems().forEach(all::addAll);
+            disclosures.upsert(all, se.getJobExecutionId());
+        };
+    }
+
     @Bean
     Step disclosureFetchStep(JobRepository repo, PlatformTransactionManager tm, JdbcPagingItemReader<String> disclosureTargetReader,
-                             ItemProcessor<String, List<Classified>> disclosureProcessor, DisclosureRepository disclosures) {
+                             ItemProcessor<String, List<Classified>> disclosureProcessor, ItemWriter<List<Classified>> disclosureWriter) {
         return new StepBuilder("disclosureFetchStep", repo).<String, List<Classified>>chunk(20).transactionManager(tm)
-                .reader(disclosureTargetReader).processor(disclosureProcessor)
-                .writer(chunk -> {
-                    List<Classified> all = new ArrayList<>();
-                    chunk.getItems().forEach(all::addAll);
-                    disclosures.upsert(all, null);
-                })
+                .reader(disclosureTargetReader).processor(disclosureProcessor).writer(disclosureWriter)
                 .build();
     }
 

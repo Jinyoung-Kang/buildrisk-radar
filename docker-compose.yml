@@ -121,6 +121,7 @@ services:
       ANALYST_PASSWORD: ${ANALYST_PASSWORD:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-1200}
+      EXPORT_LIMIT_PER_MINUTE: ${EXPORT_LIMIT_PER_MINUTE:-30}
       TRUSTED_PROXY_REGEX: 10\.213\.0\.10          # edge(고정 IP)만 X-Forwarded-For 를 믿음
     volumes:
       - ./seed:/app/seed:ro

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Card, DartLink, Empty, ErrorBox, Loading } from "@/components/ui";
+import { Card, DartLink, DownloadLink, Empty, ErrorBox, Loading } from "@/components/ui";
 import { TrendLine } from "@/components/LazyCharts";
 import type { CompanyPf as Pf, PfDue, PfReport, PfScope, PfStatus } from "@/lib/api";
 import { eok, num, pk } from "@/lib/format";
@@ -131,7 +131,8 @@ export default function CompanyPf({ corp, riskTh = 5 }: { corp: string; riskTh?:
             <p className="text-[11px] text-muted px-4 py-2">컨소시엄 전체(회색)는 다른 참여사 몫이 섞여 회사 노출 합계에 넣지 않습니다.</p>
           </Card>
 
-          <Card title={`사업장별 PF 보증 ${data.sites.length}곳`} sub={`사업지역을 시군구로 해석해 그 지역의 최신 천 가구당 미분양과 잇습니다 (▲ = ${riskTh}호 이상)`} pad={false}>
+          <Card title={`사업장별 PF 보증 ${data.sites.length}곳`} sub={`사업지역을 시군구로 해석해 그 지역의 최신 천 가구당 미분양과 잇습니다 (▲ = ${riskTh}호 이상)`} pad={false}
+            right={data.sites.length > 0 && <DownloadLink path={`/export/companies/${encodeURIComponent(corp)}/pf-sites.csv`}>CSV</DownloadLink>}>
             {data.sites.length === 0 ? <Empty>사업장별 내역이 없습니다.</Empty> : (
               <div className="table-wrap max-h-[60vh]">
                 <table className="data-table">

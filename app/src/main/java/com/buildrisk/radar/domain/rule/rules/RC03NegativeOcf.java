@@ -22,6 +22,8 @@ public class RC03NegativeOcf implements RuleEvaluator {
 
     @Override public String code() { return "R-C03"; }
 
+    @Override public List<String> evidenceMetrics() { return List.of("OCF_QTR"); }
+
     @Override public TargetType targetType() { return TargetType.COMPANY; }
 
     @Override public void validate(Params p) { p.count("consecutive", 1, 8); }

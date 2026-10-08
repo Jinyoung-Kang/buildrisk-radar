@@ -133,6 +133,19 @@ export function DartLink({ rceptNo, children }: { rceptNo?: string | null; child
   );
 }
 
+/** 내려받기 (ADR-027) — 같은 출처 /api/v1/export/… · 서버가 파일 이름을 정함 (Content-Disposition) */
+export function DownloadLink({ path, children = "CSV" }: { path: string; children?: ReactNode }) {
+  return (
+    <a href={`/api/v1${path}`} download
+      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-line text-xs text-ink2 hover:bg-line/40 focus-ring whitespace-nowrap">
+      <svg aria-hidden="true" viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 2.5v7.5M4.75 7 8 10.25 11.25 7M3 13h10" />
+      </svg>
+      {children}
+    </a>
+  );
+}
+
 export function TargetLink({ type, keyCd, name }: { type: string; keyCd: string; name?: string | null }) {
   return (
     <Link className="hover:underline" href={type === "COMPANY" ? `/companies/${keyCd}` : `/regions/${keyCd}`}>

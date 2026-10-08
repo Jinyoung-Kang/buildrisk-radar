@@ -33,10 +33,12 @@ import java.time.OffsetDateTime;
 @Validated
 public class AlertController {
     private final AlertQueryService svc;
+    private final LineageService lineage;
     private final JsonCache cache;
 
-    public AlertController(AlertQueryService svc, JsonCache cache) {
+    public AlertController(AlertQueryService svc, LineageService lineage, JsonCache cache) {
         this.svc = svc;
+        this.lineage = lineage;
         this.cache = cache;
     }
 
@@ -61,6 +63,12 @@ public class AlertController {
     @GetMapping("/{alertId}")
     @Operation(summary = "⑩ 경보 상세 · 근거(evidence)")
     public AlertDetail detail(@PathVariable long alertId) { return svc.detail(alertId); }
+
+    @GetMapping("/{alertId}/lineage")
+    @Operation(summary = "⑩-1 근거 계보 — 규칙 버전 · 지표 · 표준계정 · 원천 재무제표 줄(매핑 규칙) · 통계 · 공시 · 수집/계산 실행 (ADR-027)")
+    public LineageService.Lineage lineage(@PathVariable long alertId) {
+        return cache.get("lineage:" + alertId, Duration.ofMinutes(10), LineageService.Lineage.class, () -> lineage.lineage(alertId));
+    }
 
     @PatchMapping("/{alertId}")
     @Operation(summary = "⑪ 상태 변경 (ACK · OPEN) — ANALYST 이상")

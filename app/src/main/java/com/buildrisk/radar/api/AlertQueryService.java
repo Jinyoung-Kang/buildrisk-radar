@@ -19,7 +19,7 @@ import java.util.Set;
 @Service
 public class AlertQueryService {
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {};
-    private static final String TARGET_NAME = """
+    static final String TARGET_NAME = """
             CASE a.target_type WHEN 'COMPANY' THEN (SELECT corp_name FROM ref.company c WHERE c.corp_code = a.target_key)
                                ELSE (SELECT full_name FROM ref.region r WHERE r.region_cd = a.target_key) END""";
     private final JdbcClient jdbc;
@@ -30,13 +30,18 @@ public class AlertQueryService {
         this.mapper = mapper;
     }
 
+    /** 목록 · CSV 내려받기가 같은 조건 (:tt :sev :st :since :tk :rc) */
+    static final String FILTER = """
+            (cast(:tt AS text) IS NULL OR a.target_type = :tt) AND (cast(:sev AS text) IS NULL OR a.severity = :sev)
+            AND (cast(:st AS text) IS NULL OR a.status = ANY(string_to_array(:st, ',')))
+            AND (cast(:since AS timestamptz) IS NULL OR a.last_evaluated_at >= :since)
+            AND (cast(:tk AS text) IS NULL OR a.target_key = :tk) AND (cast(:rc AS text) IS NULL OR a.rule_code = :rc)""";
+    static final String ORDER = "ORDER BY CASE a.status WHEN 'OPEN' THEN 0 WHEN 'ACK' THEN 1 ELSE 2 END, "
+            + "CASE a.severity WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END, a.as_of DESC, a.alert_id DESC";
+
     public Page<AlertRow> list(String targetType, String severity, String status, OffsetDateTime since, String targetKey,
                                String ruleCode, int page, int size) {
-        String where = """
-                (cast(:tt AS text) IS NULL OR a.target_type = :tt) AND (cast(:sev AS text) IS NULL OR a.severity = :sev)
-                AND (cast(:st AS text) IS NULL OR a.status = ANY(string_to_array(:st, ',')))
-                AND (cast(:since AS timestamptz) IS NULL OR a.last_evaluated_at >= :since)
-                AND (cast(:tk AS text) IS NULL OR a.target_key = :tk) AND (cast(:rc AS text) IS NULL OR a.rule_code = :rc)""";
+        String where = FILTER;
         String st = CompanyQueryService.blank(status);
         long total = jdbc.sql("SELECT count(*) FROM risk.alert a WHERE " + where)
                 .param("tt", CompanyQueryService.blank(targetType)).param("sev", CompanyQueryService.blank(severity))
@@ -45,9 +50,7 @@ public class AlertQueryService {
         List<AlertRow> rows = jdbc.sql("SELECT a.alert_id, a.rule_code, a.rule_version, r.name_ko, a.severity, a.target_type, "
                         + "a.target_key, " + TARGET_NAME + ", a.as_of, a.title, a.status, a.close_reason, a.first_seen_at, a.last_evaluated_at "
                         + "FROM risk.alert a JOIN risk.rule r ON r.rule_code = a.rule_code AND r.version = a.rule_version "
-                        + "WHERE " + where + " ORDER BY CASE a.status WHEN 'OPEN' THEN 0 WHEN 'ACK' THEN 1 ELSE 2 END, "
-                        + "CASE a.severity WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END, a.as_of DESC, a.alert_id DESC "
-                        + "LIMIT :lim OFFSET :off")
+                        + "WHERE " + where + " " + ORDER + " LIMIT :lim OFFSET :off")
                 .param("tt", CompanyQueryService.blank(targetType)).param("sev", CompanyQueryService.blank(severity))
                 .param("st", st).param("since", since).param("tk", CompanyQueryService.blank(targetKey))
                 .param("rc", CompanyQueryService.blank(ruleCode)).param("lim", size).param("off", (long) page * size)

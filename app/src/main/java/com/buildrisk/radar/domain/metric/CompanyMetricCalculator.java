@@ -38,18 +38,18 @@ public final class CompanyMetricCalculator {
         Map<String, MetricValue> borrowDep = new TreeMap<>();
         for (PeriodFacts f : sorted.values()) {
             String pk = f.periodKey();
-            MetricValue dr = ratio(corpCode, f, "DEBT_RATIO", f.point(), "TOTAL_LIABILITIES", "TOTAL_EQUITY", true, true);
+            MetricValue dr = ratio(corpCode, f, "DEBT_RATIO", f.point(), "POINT", "TOTAL_LIABILITIES", "TOTAL_EQUITY", true, true);
             debtRatio.put(pk, dr);
             out.add(dr);
-            out.add(ratio(corpCode, f, "CURRENT_RATIO", f.point(), "CURRENT_ASSETS", "CURRENT_LIABILITIES", true, false));
+            out.add(ratio(corpCode, f, "CURRENT_RATIO", f.point(), "POINT", "CURRENT_ASSETS", "CURRENT_LIABILITIES", true, false));
             MetricValue bd = borrowing(corpCode, f);
             borrowDep.put(pk, bd);
             out.add(bd);
-            out.add(ratio(corpCode, f, "INTEREST_COVERAGE", f.qtr(), "OPERATING_INCOME", "INTEREST_EXPENSE", false, false));
-            out.add(ratio(corpCode, f, "OCF_MARGIN", f.cum(), "OPERATING_CASH_FLOW", "REVENUE", true, false));
+            out.add(ratio(corpCode, f, "INTEREST_COVERAGE", f.qtr(), "QTR", "OPERATING_INCOME", "INTEREST_EXPENSE", false, false));
+            out.add(ratio(corpCode, f, "OCF_MARGIN", f.cum(), "CUM", "OPERATING_CASH_FLOW", "REVENUE", true, false));
             BigDecimal ocf = f.qtr().get("OPERATING_CASH_FLOW");
             out.add(new MetricValue(corpCode, pk, "OCF_QTR", ocf, ocf == null ? "MISSING" : MetricValue.OK,
-                    comp(f, Map.of("operatingCashFlowQtr", nz(ocf)))));
+                    comp(f, Map.of("operatingCashFlowQtr", nz(ocf), "numerator", leg("OPERATING_CASH_FLOW", "QTR", ocf, f)))));
         }
         for (PeriodFacts f : sorted.values()) {
             String pk = f.periodKey();
@@ -61,13 +61,11 @@ public final class CompanyMetricCalculator {
         return out;
     }
 
-    private static MetricValue ratio(String corp, PeriodFacts f, String code, Map<String, BigDecimal> src,
+    private static MetricValue ratio(String corp, PeriodFacts f, String code, Map<String, BigDecimal> src, String basis,
                                      String num, String den, boolean percent, boolean negDenIsEquity) {
         BigDecimal n = src.get(num);
         BigDecimal d = src.get(den);
-        Map<String, Object> c = comp(f, Map.of(
-                "numerator", Map.of("std", num, "amount", nz(n), "source", f.sources().getOrDefault(num, "-")),
-                "denominator", Map.of("std", den, "amount", nz(d), "source", f.sources().getOrDefault(den, "-"))));
+        Map<String, Object> c = comp(f, Map.of("numerator", leg(num, basis, n, f), "denominator", leg(den, basis, d, f)));
         if (n == null || d == null) return new MetricValue(corp, f.periodKey(), code, null, "MISSING", c);
         if (d.signum() == 0) return new MetricValue(corp, f.periodKey(), code, null, "ZERO_DENOM", c);
         // 자본 외 분모(이자비용·매출·유동부채)는 음수일 수 없음. 분기값이 음수면 누적 차분이 어긋난 것
@@ -76,6 +74,11 @@ public final class CompanyMetricCalculator {
         BigDecimal v = n.divide(d, MC);
         if (percent) v = v.multiply(HUNDRED);
         return new MetricValue(corp, f.periodKey(), code, scale(v), MetricValue.OK, c);
+    }
+
+    /** 분자 · 분모 한쪽 — basis 는 fs_std 의 기준(POINT · CUM · QTR), 근거 계보(ADR-027)가 이 값으로 원천 행을 찾음 */
+    private static Map<String, Object> leg(String std, String basis, BigDecimal amount, PeriodFacts f) {
+        return Map.of("std", std, "basis", basis, "amount", nz(amount), "source", f.sources().getOrDefault(std, "-"));
     }
 
     private static MetricValue borrowing(String corp, PeriodFacts f) {

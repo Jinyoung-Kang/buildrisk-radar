@@ -22,6 +22,8 @@ import java.util.stream.Collectors;
 public class RC02InterestCoverage implements RuleEvaluator {
     @Override public String code() { return "R-C02"; }
 
+    @Override public List<String> evidenceMetrics() { return List.of("INTEREST_COVERAGE"); }
+
     @Override public TargetType targetType() { return TargetType.COMPANY; }
 
     @Override public void validate(Params p) {

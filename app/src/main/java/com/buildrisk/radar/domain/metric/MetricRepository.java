@@ -85,7 +85,10 @@ public class MetricRepository {
                            'statedTotal', stated_total, 'statedMatch', stated_match,
                            'numerator', jsonb_build_object('label', num_label, 'amount', num, 'source', 'PF 종합요약표(단독 + 컨소시엄 회사분)'),
                            'denominator', jsonb_build_object('label', CASE code WHEN 'PF_BRIDGE_SHARE' THEN 'PF 보증금액' ELSE '자본총계' END,
-                               'amount', den, 'rceptNo', CASE code WHEN 'PF_BRIDGE_SHARE' THEN rcept_no ELSE equity_rcept END)),
+                               'amount', den, 'rceptNo', CASE code WHEN 'PF_BRIDGE_SHARE' THEN rcept_no ELSE equity_rcept END,
+                               -- 근거 계보(ADR-027): 자본총계는 fs_std 의 시점값
+                               'std', CASE code WHEN 'PF_BRIDGE_SHARE' THEN NULL ELSE 'TOTAL_EQUITY' END,
+                               'basis', CASE code WHEN 'PF_BRIDGE_SHARE' THEN NULL ELSE 'POINT' END)),
                        :run
                   FROM m
                 ON CONFLICT (corp_code, period_key, metric_code) DO UPDATE SET fs_div = EXCLUDED.fs_div, value = EXCLUDED.value,

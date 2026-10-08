@@ -15,7 +15,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
   { label: "운영", items: [
     { href: "/admin/rules", label: "규칙" }, { href: "/admin/batch", label: "배치" }, { href: "/admin/mapping", label: "매핑" },
     { href: "/admin/audit", label: "감사 로그", admin: true }] },
-  { label: "", items: [{ href: "/about", label: "지표·출처" }] },
+  { label: "", items: [{ href: "/about", label: "지표·출처" }, { href: "/developers", label: "API" }] },
 ];
 
 /** 모든 화면이 같은 폭(1440px)을 써서 메뉴를 바꿔도 상단 바 위치가 움직이지 않게 합니다. 1280px 미만은 메뉴 버튼. */
@@ -47,7 +47,8 @@ export default function Layout({ title, children }: { title: string; children: R
             {/* 좁은 화면에서는 이름이 줄어 머리말 버튼(알림 · 테마 · 메뉴)과 겹치지 않게 — 넓은 화면은 그대로 */}
             <Link href="/" className="flex items-center gap-2 min-w-0 xl:shrink-0 focus-ring rounded">
               <img src="/favicon.svg" alt="" className="w-6 h-6 shrink-0" />
-              <span className="font-semibold tracking-tight truncate">건설·부동산 위험 모니터</span>
+              {/* 로그인하면 알림 · 계정 메뉴가 붙어 1280~1439px 에서 주 메뉴가 잘렸음 (VERIFICATION 101) — 그 구간은 이름을 시각적으로만 숨김 */}
+              <span className={`font-semibold tracking-tight truncate ${has("ANALYST") ? "xl:max-[1439px]:sr-only" : ""}`}>건설·부동산 위험 모니터</span>
             </Link>
             <nav className="hidden xl:flex items-center gap-0.5 text-sm flex-1 min-w-0" aria-label="주 메뉴">
               {groups.map((g, gi) => (

@@ -60,6 +60,21 @@ class GoldenStandardizationTest {
                 src.put(x.stdCode(), x.sourceSjDiv() + ":" + x.sourceAccount());
             }
             assertThat(v.keySet()).as("핵심 표준계정 매핑").containsAll(REQUIRED);
+            // 근거 계보(ADR-027): explain 은 standardize 와 같은 값이고, 고른 원천 줄의 합 = 값, 줄은 실제 응답에 있는 줄
+            var traces = std.explain(lines);
+            assertThat(traces.values().stream().map(AccountStandardizer.Trace::value).toList()).isEqualTo(result.values());
+            Map<String, RawLine> byLine = new TreeMap<>();
+            lines.forEach(l -> byLine.put(l.sjDiv() + "#" + l.lineNo(), l));
+            traces.forEach((code, t) -> {
+                assertThat(t.picks()).as(code + " 원천 줄").isNotEmpty();
+                assertThat(t.picks().stream().map(AccountStandardizer.Pick::amount).reduce(BigDecimal.ZERO, BigDecimal::add))
+                        .as(code + " 원천 줄의 합").isEqualByComparingTo(t.value().amount());
+                t.picks().forEach(pk -> {
+                    assertThat(byLine.get(pk.sjDiv() + "#" + pk.lineNo())).as(code + " 원천 줄 존재").isNotNull()
+                            .extracting(RawLine::accountNm).isEqualTo(pk.accountNm());
+                    assertThat(pk.mapId()).as(code + " 매핑 규칙").isPositive();
+                });
+            });
             assertThat(v.get("TOTAL_ASSETS")).as("자산총계 = 부채총계 + 자본총계")
                     .isEqualByComparingTo(v.get("TOTAL_LIABILITIES").add(v.get("TOTAL_EQUITY")));
             assertThat(v.get("CURRENT_ASSETS")).isLessThanOrEqualTo(v.get("TOTAL_ASSETS"));

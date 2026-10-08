@@ -21,6 +21,8 @@ import java.util.NavigableMap;
 public class RR01UnsoldSurge implements RuleEvaluator {
     @Override public String code() { return "R-R01"; }
 
+    @Override public List<String> evidenceMetrics() { return List.of("UNSOLD_UNITS", "UNSOLD_3M_CHG", "UNSOLD_PER_1K_HH"); }
+
     @Override public TargetType targetType() { return TargetType.REGION; }
 
     @Override public void validate(Params p) {

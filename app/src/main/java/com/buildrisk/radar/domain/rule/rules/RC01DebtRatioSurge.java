@@ -22,6 +22,8 @@ import java.util.NavigableMap;
 public class RC01DebtRatioSurge implements RuleEvaluator {
     @Override public String code() { return "R-C01"; }
 
+    @Override public List<String> evidenceMetrics() { return List.of("DEBT_RATIO", "DEBT_RATIO_YOY"); }
+
     @Override public TargetType targetType() { return TargetType.COMPANY; }
 
     @Override public void validate(Params p) {

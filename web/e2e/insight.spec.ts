@@ -69,3 +69,34 @@ test("좁은 화면: 메뉴 버튼으로 이동", async ({ page }) => {
   await page.locator("#mobile-nav").getByRole("link", { name: "경보 검증" }).click();
   await expect(page).toHaveURL(/\/backtest/);
 });
+
+// ADR-027 근거 계보 · 내려받기 · API 안내
+test("근거 계보: 경보 상세에서 원천 재무제표 줄 · 매핑 규칙 · 실행까지", async ({ page, request }) => {
+  const res = await request.get("/api/v1/alerts?ruleCode=R-C02&status=OPEN,ACK,CLOSED&size=1");
+  const id = (await res.json()).items[0].alertId as number;
+  await page.goto(`/alerts?status=OPEN%2CACK%2CCLOSED&id=${id}`);
+  await page.locator("summary", { hasText: "근거 계보" }).click();
+  await expect(page.getByText("표준계정 → 원천 재무제표 줄")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("columnheader", { name: "고른 매핑 규칙" }).first()).toBeVisible();
+  await expect(page.getByText(/누적 − \d{4}Q\d 누적/).first()).toBeVisible();              // 분기값 = 누적 차분
+  await expect(page.getByText("✓ 지금의 매핑 규칙으로 다시 계산해도 같은 값").first()).toBeVisible();
+  await expect(page.getByRole("cell", { name: /financialStatementJob/ })).toBeVisible();
+});
+
+test("CSV 내려받기: 경보 목록 버튼이 BOM 으로 시작하는 CSV 를 받는다", async ({ page }) => {
+  await page.goto("/alerts");
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("link", { name: "CSV" }).click()]);
+  expect(download.suggestedFilename()).toMatch(/^alerts-\d{8}\.csv$/);
+  const body = await (await import("node:fs/promises")).readFile(await download.path());
+  expect(body.subarray(0, 3)).toEqual(Buffer.from([0xef, 0xbb, 0xbf]));
+  expect(body.toString("utf8", 3, 40)).toContain('"alertId","ruleCode"');
+});
+
+test("API 안내: 메뉴에서 열고 근거 계보 · CSV 규칙 · 호환 정책", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "API", exact: true }).first().click();
+  await expect(page.getByRole("heading", { name: /API 안내/ })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "GET /alerts/{alertId}/lineage" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "CSV 규칙" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "호환 정책 (v1)" })).toBeVisible();
+});

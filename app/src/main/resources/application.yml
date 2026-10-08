@@ -100,6 +100,7 @@ buildrisk:
     analyst-password: ${ANALYST_PASSWORD:}
     cookie-secure: ${COOKIE_SECURE:false}          # HTTPS 뒤에서는 true
     rate-limit-per-minute: ${RATE_LIMIT_PER_MINUTE:1200}   # IP 당 API 요청 (0 = 끔)
+    export-limit-per-minute: ${EXPORT_LIMIT_PER_MINUTE:30} # IP 당 CSV 내려받기 (0 = 끔, ADR-027)
     login-max-failures: 5
     login-lock-minutes: 15
   notification:
