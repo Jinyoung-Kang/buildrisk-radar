@@ -46,6 +46,17 @@ class ApiIT extends IntegrationTest {
     }
 
     @Test
+    void 기업_검색어의_LIKE_와일드카드는_글자로_보고_길이를_제한한다() throws Exception {
+        company("00000008", "가상건설");
+        company("00000009", "100%건설");
+        // '%' 가 와일드카드면 모든 기업이 걸림 — 검색어 한 글자로 전체 스캔을 일으킬 수 있었음 (VERIFICATION 114)
+        mvc.perform(get("/api/v1/companies").param("q", "%")).andExpect(jsonPath("$.items", hasSize(1)))
+                .andExpect(jsonPath("$.items[0].corpName").value("100%건설"));
+        mvc.perform(get("/api/v1/companies").param("q", "_")).andExpect(jsonPath("$.items", hasSize(0)));
+        mvc.perform(get("/api/v1/companies").param("q", "가".repeat(101))).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void 관리_API_는_토큰이_필요하고_규칙_변경은_새_버전을_만든다() throws Exception {
         String body = "{\"params\":{\"threshold\":0.9},\"changeNote\":\"테스트\"}";
         mvc.perform(put("/api/v1/rules/R-C02").contentType(MediaType.APPLICATION_JSON).content(body))

@@ -54,8 +54,10 @@ public class CompanyQueryService {
             case "name" -> "c.corp_name";
             default -> "sev_rank DESC, open_alerts DESC, dr.value DESC NULLS LAST, c.corp_name";
         };
-        String where = "c.is_target AND (cast(:q AS text) IS NULL OR c.corp_name ILIKE '%' || :q || '%' OR c.stock_code = :q)";
-        long total = jdbc.sql("SELECT count(*) FROM ref.company c WHERE " + where).param("q", blank(q))
+        // 검색어의 % _ 는 글자 그대로 — 와일드카드면 한 글자로 전체를 훑게 됨 (VERIFICATION 114)
+        String where = "c.is_target AND (cast(:q AS text) IS NULL OR c.corp_name ILIKE '%' || :like || '%' ESCAPE '\\' OR c.stock_code = :q)";
+        String like = blank(q) == null ? null : QueryParams.likeLiteral(q.strip());
+        long total = jdbc.sql("SELECT count(*) FROM ref.company c WHERE " + where).param("q", blank(q)).param("like", like)
                 .query(Long.class).single();
         List<CompanyRow> rows = jdbc.sql("""
                         -- MATERIALIZED: 인라인되면 기업마다(43회) 집계를 다시 돌림 — 13.8 ms → 2.1 ms (EXPLAIN ANALYZE 실측)
@@ -77,7 +79,7 @@ public class CompanyQueryService {
                         LEFT JOIN LATERAL (SELECT rcept_dt, report_nm FROM dart.disclosure x WHERE x.corp_code = c.corp_code
                                            ORDER BY rcept_dt DESC, rcept_no DESC LIMIT 1) d ON true
                         WHERE""" + " " + where + " ORDER BY " + order + " LIMIT :lim OFFSET :off")
-                .param("q", blank(q)).param("lim", size).param("off", (long) page * size)
+                .param("q", blank(q)).param("like", like).param("lim", size).param("off", (long) page * size)
                 .query((rs, i) -> new CompanyRow(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4),
                         rs.getString(5), rs.getString(6), rs.getBigDecimal(7), rs.getString(8), rs.getBigDecimal(9),
                         rs.getString(10), rs.getBigDecimal(11), rs.getInt(12), severity(rs.getInt(13)),

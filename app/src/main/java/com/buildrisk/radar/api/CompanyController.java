@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,7 +45,7 @@ public class CompanyController {
 
     @GetMapping
     @Operation(summary = "① 유니버스 목록", description = "sort = alerts(기본) · debtRatio · interestCoverage · name")
-    public Page<CompanyRow> list(@RequestParam(required = false) String q,
+    public Page<CompanyRow> list(@RequestParam(required = false) @Size(max = 100) String q,
                                  @RequestParam(defaultValue = "alerts") String sort,
                                  @RequestParam(defaultValue = "0") @Min(0) @Max(100_000) int page,
                                  @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size) {

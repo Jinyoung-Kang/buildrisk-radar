@@ -42,5 +42,10 @@ final class QueryParams {
         return given.isEmpty() ? null : STATUSES.stream().filter(given::contains).collect(Collectors.joining(","));
     }
 
+    /** LIKE 와일드카드(% _)와 이스케이프 문자를 글자 그대로 — SQL 에는 ESCAPE '\\' 와 함께 */
+    static String likeLiteral(String s) {
+        return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    }
+
     static boolean cachedPage(int page, int size) { return page < CACHED_PAGES && CACHED_PAGE_SIZES.contains(size); }
 }
