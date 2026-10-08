@@ -1,4 +1,5 @@
 import type { Evidence } from "@/lib/api";
+import { paramLabel } from "@/lib/ruleLabels";
 import { DartLink } from "./ui";
 
 /** 관측값 열 이름 — 규칙이 남기는 키(영문)를 짧은 한글로. 단위는 괄호 안 */
@@ -56,7 +57,7 @@ export default function EvidenceView({ ev }: { ev: Evidence }) {
           <div className="section-label">파라미터 (임계값)</div>
           <dl className="text-xs grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
             {Object.entries(ev.params).map(([k, v]) => (
-              <div key={k} className="contents"><dt className="text-ink2">{k}</dt><dd className="tabular break-all">{Array.isArray(v) ? v.join(", ") : String(v)}</dd></div>
+              <div key={k} className="contents"><dt className="text-ink2">{paramLabel(ev.ruleCode, k)}</dt><dd className="tabular break-all">{Array.isArray(v) ? v.join(", ") : String(v)}</dd></div>
             ))}
           </dl>
         </div>
