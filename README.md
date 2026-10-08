@@ -23,16 +23,16 @@ k6 로 잰 **성능과 메모리 안정성**(50 VU 약 4,000 req/s · API p95 �
 <td width="50%"><img src="docs/images/region-price.png" alt="매매가격지수 3개월 변화"><br><sub><b>지역 지도</b> · 아파트 매매가격지수 3개월 변화 (빨강 = 하락, 흐리게 = 조사 대상 아님)</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/images/dashboard.png" alt="대시보드"><br><sub><b>대시보드</b> · 열린 경보(심각도별), 최근 경보, 미분양 상위 지역, 배치 상태</sub></td>
-<td width="50%"><img src="docs/images/alerts.png" alt="경보 근거"><br><sub><b>경보</b> · 조건 · 파라미터 · 관측값 · 원천(통계표·접수번호) · calcRunId</sub></td>
+<td width="50%"><img src="docs/images/dashboard.png" alt="대시보드"><br><sub><b>대시보드</b> · 열린 경보(심각도별), <b>질문에서 시작하기</b>(협력업체 · 분양 계약자 · 투자 · 분석), 최근 경보, 미분양 상위 지역</sub></td>
+<td width="50%"><img src="docs/images/lineage.png" alt="경보 근거 계보"><br><sub><b>경보 · 근거 계보</b> · 조건 · 관측값에 더해, 펼치면 원천 재무제표 줄과 그 줄을 고른 매핑 규칙 · 분기값의 누적 차분 · 원문 · 수집 실행</sub></td>
 </tr>
 <tr>
 <td><img src="docs/images/company-filings.png" alt="수주·보증"><br><sub><b>수주·보증</b> · 정기보고서 PF 우발채무(보증/자기자본 · 12개월 내 만기 · 사업장 · 두 가지 대조), 공급계약의 공사 지역 × 미분양, 채무보증 잔액</sub></td>
 <td><img src="docs/images/exposure.png" alt="수주·보증 노출"><br><sub><b>수주·보증 노출</b> · 기업별 위험 지역 수주 비중 · 보증 잔액/자기자본 · PF 보증/자기자본 · 12개월 내 만기</sub></td>
 </tr>
 <tr>
-<td><img src="docs/images/backtest.png" alt="경보 검증"><br><sub><b>경보 검증</b> · 규칙별 경보 뒤 60거래일 초과수익률 (point-in-time, 비교 기준 · 한계 함께)</sub></td>
-<td><img src="docs/images/region-trade.png" alt="지역 실거래"><br><sub><b>지역 상세</b> · 아파트 실거래(거래량 · 전년 동월 대비 · 해제율) · 이 지역에 걸린 수주</sub></td>
+<td><img src="docs/images/backtest.png" alt="경보 검증"><br><sub><b>경보 검증 · 성적표</b> · 부실 사건 대비 규칙별 정밀도(95% 구간) · 재현율 · 선행 기간 · 기준선 대비 (주가 반응은 옆 탭)</sub></td>
+<td><img src="docs/images/region-trade.png" alt="지역 실거래"><br><sub><b>지역 상세</b> · 아파트 실거래(거래량 · 전년 동월 대비 · 해제율) · 이 지역의 사업장 카드 · 걸린 수주</sub></td>
 </tr>
 <tr>
 <td><img src="docs/images/batch.png" alt="배치 모니터"><br><sub><b>배치 모니터</b> · 요청 큐 · worker 하트비트 · 실행 이력 · Step · 스킵 · restart 이력</sub></td>

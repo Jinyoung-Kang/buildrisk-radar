@@ -21,6 +21,12 @@ const shots: [string, string, (p: import("@playwright/test").Page) => Promise<vo
   ["backtest", "/backtest", async (p) => { await p.waitForTimeout(1500); }],
   ["company-filings", "/companies/00124540?tab=filings", async (p) => { await p.waitForTimeout(1200); }],
   ["company-price", "/companies/00124540?tab=price", async (p) => { await p.waitForTimeout(1500); }],
+  ["lineage", "/alerts", async (p) => {
+    const id = (await (await p.request.get("/api/v1/alerts?ruleCode=R-C02&status=OPEN,ACK,CLOSED&size=1")).json()).items[0].alertId;
+    await p.goto(`/alerts?status=OPEN%2CACK%2CCLOSED&id=${id}`); await p.waitForLoadState("networkidle");
+    await p.locator("summary", { hasText: "근거 계보" }).click(); await p.waitForTimeout(1200);
+    await p.getByText("표준계정 → 원천 재무제표 줄").scrollIntoViewIfNeeded(); await p.mouse.wheel(0, 260); await p.waitForTimeout(500);
+  }],
   ["region-trade", "/regions/41220", async (p) => { await p.waitForTimeout(1500); await p.getByText("아파트 매매 실거래 (국토부)").scrollIntoViewIfNeeded(); await p.waitForTimeout(500); }],
 ];
 
