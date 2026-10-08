@@ -81,6 +81,8 @@ test-web:
 e2e:
 	@# 반복 실행하면 같은 IP 의 로그인 실패가 쌓여 잠금(설계대로)이 걸리므로 잠금 카운터만 비움
 	@$(COMPOSE) exec -T redis sh -c 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli --scan --pattern "br:login:*" | xargs -r env REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli del' > /dev/null
+	@# make test 직후에는 같은 Docker VM 을 쓴 Testcontainers 정리로 api 첫 응답이 수 초 걸릴 수 있음(VERIFICATION 104) — 1초 안에 답할 때까지 최대 60초 기다림
+	@for i in $$(seq 1 60); do curl -sf -o /dev/null -m 1 http://localhost:3400/api/v1/dashboard && break; sleep 1; done
 	@# 실패하면 기록(트레이스 · 스크린샷 · HTML 보고서)을 시각별 폴더로 옮겨 둠 — 다음 실행이 test-results 를 비워도 남도록
 	@cd web && npx playwright install chromium && E2E_ADMIN_PASSWORD="$$(grep -E '^ADMIN_PASSWORD=' ../.env | cut -d= -f2-)" npx playwright test smoke security insight notify \
 	  || { d=e2e-failures/$$(date +%Y%m%d-%H%M%S); mkdir -p $$d && cp -R test-results playwright-report $$d/ 2>/dev/null; \

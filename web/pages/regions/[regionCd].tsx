@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { TrendLine } from "@/components/Charts";
+import { TrendLine } from "@/components/LazyCharts";
 import Layout from "@/components/Layout";
 import RegionPanel from "@/components/RegionPanel";
 import SiteCards from "@/components/SiteCards";
