@@ -48,8 +48,14 @@ public class RC06PfExposure implements RuleEvaluator {
         NavigableMap<String, MetricPoint> b = data.companyMetric(corp, "PF_BRIDGE_SHARE");
         List<String> periods = Windows.lastN(g, data.windowSize(TargetType.COMPANY));
         List<Finding> out = new ArrayList<>();
+        String decided = null;
         for (String pk : periods) {
             MetricPoint gp = g.get(pk), dp = d.get(pk), bp = b.get(pk);
+            // 보증 비율을 알아야 판단 — 12개월 만기 지표가 아예 없으면(옛 서식) 거짓, 있는데 OK 가 아니면 모름
+            Windows.Verdict dv = dp == null ? Windows.Verdict.FALSE : Windows.Verdict.of(dp, m -> m.value().compareTo(dTh) >= 0);
+            Windows.Verdict v = gp == null || !gp.ok() ? Windows.Verdict.UNKNOWN
+                    : Windows.Verdict.of(gp, m -> m.value().compareTo(gTh) >= 0).or(dv);
+            if (v != Windows.Verdict.UNKNOWN) decided = pk;
             if (gp == null || !gp.ok()) continue;
             boolean overG = gp.value().compareTo(gTh) >= 0;
             boolean overD = dp != null && dp.ok() && dp.value().compareTo(dTh) >= 0;
@@ -80,7 +86,7 @@ public class RC06PfExposure implements RuleEvaluator {
             out.add(new Finding(pk, "PF 보증 자기자본의 " + Evidence.fmt(gp.value()) + "%"
                     + (overD ? " · 12개월 내 만기 " + Evidence.fmt(dp.value()) + "%" : ""), msg.toString(), ev.build(msg.toString())));
         }
-        return new Evaluation(out, periods, periods.isEmpty() ? null : periods.get(periods.size() - 1));
+        return Windows.result(out, periods, decided);
     }
 
     private static BigDecimal amount(MetricPoint m, String part) {

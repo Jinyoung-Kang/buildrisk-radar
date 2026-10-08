@@ -47,8 +47,13 @@ public class RR01UnsoldSurge implements RuleEvaluator {
         NavigableMap<String, MetricPoint> per = data.regionMetric(region, "UNSOLD_PER_1K_HH");
         List<String> periods = Windows.lastN(units, data.windowSize(TargetType.REGION));
         List<Finding> out = new ArrayList<>();
+        String decided = null;
         for (String ym : periods) {
             MetricPoint u = units.get(ym), c = chg.get(ym), h = per.get(ym);
+            Windows.Verdict v = Windows.Verdict.of(u, m -> m.value().compareTo(minUnits) >= 0)
+                    .and(Windows.Verdict.of(c, m -> m.value().compareTo(chgTh) > 0))
+                    .and(Windows.Verdict.of(h, m -> m.value().compareTo(perTh) > 0));
+            if (v != Windows.Verdict.UNKNOWN) decided = ym;
             if (u == null || c == null || h == null || !u.ok() || !c.ok() || !h.ok()) continue;
             if (u.value().compareTo(minUnits) < 0 || c.value().compareTo(chgTh) <= 0 || h.value().compareTo(perTh) <= 0) {
                 continue;
@@ -70,7 +75,7 @@ public class RR01UnsoldSurge implements RuleEvaluator {
             out.add(new Finding(ym, "미분양 3개월 +" + Evidence.fmt(c.value()) + "% · 천 가구당 " + Evidence.fmt(h.value()) + "호",
                     msg, ev));
         }
-        return new Evaluation(out, periods, periods.isEmpty() ? null : periods.get(periods.size() - 1));
+        return Windows.result(out, periods, decided);
     }
 
     /** "3개월 전(4호)보다 838호(20,950%)" — 기저가 작으면 증감률만으로는 과장돼 보여 늘어난 호수를 함께 (실측: 4호 → 842호) */

@@ -45,9 +45,12 @@ public class RC01DebtRatioSurge implements RuleEvaluator {
         NavigableMap<String, MetricPoint> yoy = data.companyMetric(corp, "DEBT_RATIO_YOY");
         List<String> periods = Windows.lastN(dr, data.windowSize(TargetType.COMPANY));
         List<Finding> out = new ArrayList<>();
+        String decided = null;
         for (String pk : periods) {
             MetricPoint d = dr.get(pk);
             MetricPoint y = yoy.get(pk);
+            Windows.Verdict v = Windows.Verdict.of(d, m -> m.value().compareTo(th) > 0).and(Windows.Verdict.of(y, m -> m.value().compareTo(yoyTh) > 0));
+            if (v != Windows.Verdict.UNKNOWN) decided = pk;
             if (d == null || y == null || !d.ok() || !y.ok()) continue;
             if (d.value().compareTo(th) <= 0 || y.value().compareTo(yoyTh) <= 0) continue;
             String msg = pk + " 부채비율 " + Evidence.fmt(d.value()) + "%로 임계 " + Evidence.fmt(th)
@@ -64,6 +67,6 @@ public class RC01DebtRatioSurge implements RuleEvaluator {
             out.add(new Finding(pk, "부채비율 " + Evidence.fmt(d.value()) + "% · 전년 대비 +" + Evidence.fmt(y.value()) + "%p",
                     msg, ev.build(msg)));
         }
-        return new Evaluation(out, periods, periods.isEmpty() ? null : periods.get(periods.size() - 1));
+        return Windows.result(out, periods, decided);
     }
 }

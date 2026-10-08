@@ -44,7 +44,9 @@ public class RC02InterestCoverage implements RuleEvaluator {
         NavigableMap<String, MetricPoint> base = data.companyMetric(corp, "DEBT_RATIO");
         List<String> periods = Windows.lastN(base.isEmpty() ? ic : base, data.windowSize(TargetType.COMPANY));
         List<Finding> out = new ArrayList<>();
+        String decided = null;
         for (String pk : periods) {
+            if (Windows.run(TargetType.COMPANY, ic, pk, k, m -> m.value().compareTo(th) < 0) != Windows.Verdict.UNKNOWN) decided = pk;
             List<MetricPoint> run = Windows.consecutive(TargetType.COMPANY, ic, pk, k, m -> m.value().compareTo(th) < 0);
             if (run == null) continue;
             Evidence ev = new Evidence(rule, condition(p));
@@ -64,6 +66,6 @@ public class RC02InterestCoverage implements RuleEvaluator {
             String msg = series + "로 이자보상배율이 " + Evidence.fmt(th) + "배 미만인 분기가 " + k + "개 연속입니다.";
             out.add(new Finding(pk, "이자보상배율 " + Evidence.fmt(th) + " 미만 " + k + "분기 연속", msg, ev.build(msg)));
         }
-        return new Evaluation(out, periods, periods.isEmpty() ? null : periods.get(periods.size() - 1));
+        return Windows.result(out, periods, decided);
     }
 }

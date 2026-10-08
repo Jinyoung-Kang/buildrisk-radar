@@ -40,7 +40,12 @@ public final class RuleModels {
     /**
      * 한 대상 평가 결과.
      *   evaluatedAsOfs: 이번에 평가한 시점들 (자동 CLOSED 판정용)
-     *   latestAsOf    : 가장 최근 평가 시점 — singleActive 규칙은 이 시점 경보만 OPEN
+     *   latestAsOf    : 판단할 수 있는 가장 최근 시점 — singleActive 규칙은 이 시점 경보만 OPEN
+     *   decided       : 거짓이면 판단할 수 있는 시점이 하나도 없음(값이 없거나 MISSING · ZERO_DENOM …) — 열린 경보를 그대로 둠
      */
-    public record Evaluation(List<Finding> findings, List<String> evaluatedAsOfs, String latestAsOf) {}
+    public record Evaluation(List<Finding> findings, List<String> evaluatedAsOfs, String latestAsOf, boolean decided) {
+        public Evaluation(List<Finding> findings, List<String> evaluatedAsOfs, String latestAsOf) {
+            this(findings, evaluatedAsOfs, latestAsOf, true);
+        }
+    }
 }

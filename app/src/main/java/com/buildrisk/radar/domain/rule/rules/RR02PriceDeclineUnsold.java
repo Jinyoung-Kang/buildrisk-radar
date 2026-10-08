@@ -40,8 +40,12 @@ public class RR02PriceDeclineUnsold implements RuleEvaluator {
         NavigableMap<String, MetricPoint> base = data.regionMetric(region, "UNSOLD_UNITS");
         List<String> periods = Windows.lastN(base.isEmpty() ? price : base, data.windowSize(TargetType.REGION));
         List<Finding> out = new ArrayList<>();
+        String decided = null;
         for (String ym : periods) {
             MetricPoint u = unsold.get(ym);
+            Windows.Verdict v = Windows.Verdict.of(u, m -> m.value().signum() > 0)
+                    .and(Windows.run(TargetType.REGION, price, ym, k, m -> m.value().signum() < 0));
+            if (v != Windows.Verdict.UNKNOWN) decided = ym;
             if (u == null || !u.ok() || u.value().signum() <= 0) continue;
             List<MetricPoint> run = Windows.consecutive(TargetType.REGION, price, ym, k, m -> m.value().signum() < 0);
             if (run == null) continue;
@@ -62,6 +66,6 @@ public class RR02PriceDeclineUnsold implements RuleEvaluator {
                     + RR01UnsoldSurge.vs3m(u) + " 늘었습니다.";
             out.add(new Finding(ym, "가격 " + k + "개월 연속 하락 + 미분양 증가", msg, ev.build(msg)));
         }
-        return new Evaluation(out, periods, periods.isEmpty() ? null : periods.get(periods.size() - 1));
+        return Windows.result(out, periods, decided);
     }
 }

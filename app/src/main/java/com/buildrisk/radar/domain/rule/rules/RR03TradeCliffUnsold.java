@@ -51,12 +51,18 @@ public class RR03TradeCliffUnsold implements RuleEvaluator {
         NavigableMap<String, MetricPoint> unsold = data.regionMetric(region, "UNSOLD_3M_CHG");
         List<String> periods = Windows.lastN(yoy, data.windowSize(TargetType.REGION));
         List<Finding> out = new ArrayList<>();
+        String decided = null;
         for (String ym : periods) {
             MetricPoint t = yoy.get(ym), u = unsold.get(ym);
-            if (t == null || u == null || !t.ok() || !u.ok()) continue;
-            Object prevObj = t.components().get("trades12mAgo");
+            Object prevObj = t == null ? null : t.components().get("trades12mAgo");
             BigDecimal prev = prevObj instanceof Number n ? new BigDecimal(n.toString())
                     : prevObj == null ? null : parse(prevObj.toString());
+            // 전년 거래가 너무 적으면(판단 대상 아님) 거짓, 전년 거래 수를 모르면 모름
+            Windows.Verdict base = t == null || !t.ok() || prev == null ? Windows.Verdict.UNKNOWN : Windows.Verdict.of(prev.compareTo(minPrev) >= 0);
+            Windows.Verdict v = base.and(Windows.Verdict.of(t, m -> m.value().compareTo(drop) <= 0))
+                    .and(Windows.Verdict.of(u, m -> m.value().compareTo(unsoldTh) >= 0));
+            if (v != Windows.Verdict.UNKNOWN) decided = ym;
+            if (t == null || u == null || !t.ok() || !u.ok()) continue;
             if (prev == null || prev.compareTo(minPrev) < 0) continue;
             if (t.value().compareTo(drop) > 0 || u.value().compareTo(unsoldTh) < 0) continue;
             Map<String, Object> o = new LinkedHashMap<>();
@@ -74,7 +80,7 @@ public class RR03TradeCliffUnsold implements RuleEvaluator {
                     .build(msg);
             out.add(new Finding(ym, "거래 " + Evidence.fmt(t.value()) + "% · 미분양 +" + Evidence.fmt(u.value()) + "%", msg, ev));
         }
-        return new Evaluation(out, periods, periods.isEmpty() ? null : periods.get(periods.size() - 1));
+        return Windows.result(out, periods, decided);
     }
 
     private static BigDecimal parse(String s) {

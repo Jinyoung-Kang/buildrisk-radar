@@ -48,7 +48,8 @@ public class RC05GuaranteeBalance implements RuleEvaluator {
         GuaranteeFact last = gs.get(gs.size() - 1);
         String latest = last.rceptNo();
         if (last.totalBalance() == null || last.equity() == null || last.equity().signum() <= 0) {
-            return new Evaluation(List.of(), evaluated, latest);
+            // 잔액이나 자기자본을 모르거나(자본잠식 포함) 비율을 낼 수 없으면 '해소'가 아니라 모름 — 열린 경보 유지 (VERIFICATION 118)
+            return new Evaluation(List.of(), evaluated, latest, false);
         }
         BigDecimal ratio = last.totalBalance().multiply(HUNDRED).divide(last.equity(), MathContext.DECIMAL64);
         if (ratio.compareTo(th) < 0) return new Evaluation(List.of(), evaluated, latest);

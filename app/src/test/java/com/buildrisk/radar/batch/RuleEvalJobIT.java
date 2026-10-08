@@ -45,6 +45,25 @@ class RuleEvalJobIT extends IntegrationTest {
                 pk, code, new java.math.BigDecimal(value), run);
     }
 
+    @Test
+    void 최신_분기가_판단_불가로_바뀌어도_열린_경보는_해소되지_않는다() {
+        // 실데이터(00122694)에서 영업손실이 이어지는데 분기 이자비용 0(ZERO_DENOM) 두 분기 뒤 R-C02 6건이 모두 RESOLVED 로 닫혔음 (VERIFICATION 118)
+        launcher.runAndWait("ruleEvalJob", Map.of());
+        assertThat(alerts("status = 'OPEN' AND as_of = '2026Q2'")).isEqualTo(1);
+        metric("2026Q3", "DEBT_RATIO", "150");
+        jdbc.update("""
+                INSERT INTO risk.company_metric (corp_code, period_key, metric_code, value, status, components, calc_run_id)
+                VALUES ('00000009', '2026Q3', 'INTEREST_COVERAGE', NULL, 'ZERO_DENOM', '{}', ?)""", run);
+        launcher.runAndWait("ruleEvalJob", Map.of());
+        assertThat(alerts("close_reason = 'RESOLVED'")).isZero();
+        assertThat(alerts("status = 'OPEN' AND as_of = '2026Q2'")).isEqualTo(1);
+
+        // 지표가 잠깐 통째로 없어도(다시 계산하는 중) 닫지 않음
+        jdbc.update("DELETE FROM risk.company_metric WHERE corp_code = '00000009' AND metric_code = 'INTEREST_COVERAGE'");
+        launcher.runAndWait("ruleEvalJob", Map.of());
+        assertThat(alerts("status = 'OPEN'")).isEqualTo(1);
+    }
+
     int alerts(String where) { return count("SELECT count(*) FROM risk.alert WHERE rule_code = 'R-C02' AND " + where); }
 
     @Test

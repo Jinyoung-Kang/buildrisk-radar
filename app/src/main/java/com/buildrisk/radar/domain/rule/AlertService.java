@@ -40,6 +40,8 @@ public class AlertService {
     public Applied apply(Outcome o, UUID calcRunId) {
         RuleDefinition rule = o.rule();
         Evaluation ev = o.evaluation();
+        // 판단할 수 있는 시점이 하나도 없으면(값이 없거나 MISSING · ZERO_DENOM …) 열지도 닫지도 않음 — '모름'을 '해소'로 보지 않음 (VERIFICATION 118)
+        if (o.singleActive() && !ev.decided()) return new Applied(0, 0, 0, 0);
         Map<String, Finding> fired = new LinkedHashMap<>();
         ev.findings().forEach(f -> fired.put(f.asOf(), f));
         String openAsOf = o.singleActive() ? (ev.latestAsOf() != null && fired.containsKey(ev.latestAsOf()) ? ev.latestAsOf() : null) : null;

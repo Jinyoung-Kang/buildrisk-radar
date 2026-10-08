@@ -40,7 +40,9 @@ public class RC03NegativeOcf implements RuleEvaluator {
         NavigableMap<String, MetricPoint> base = data.companyMetric(corp, "DEBT_RATIO");
         List<String> periods = Windows.lastN(base.isEmpty() ? ocf : base, data.windowSize(TargetType.COMPANY));
         List<Finding> out = new ArrayList<>();
+        String decided = null;
         for (String pk : periods) {
+            if (Windows.run(TargetType.COMPANY, ocf, pk, k, m -> m.value().signum() < 0) != Windows.Verdict.UNKNOWN) decided = pk;
             List<MetricPoint> run = Windows.consecutive(TargetType.COMPANY, ocf, pk, k, m -> m.value().signum() < 0);
             if (run == null) continue;
             Evidence ev = new Evidence(rule, condition(p));
@@ -55,6 +57,6 @@ public class RC03NegativeOcf implements RuleEvaluator {
             String msg = "분기 영업활동현금흐름이 " + series + "으로 " + k + "개 분기 연속 음수입니다.";
             out.add(new Finding(pk, "영업현금흐름 " + k + "분기 연속 적자", msg, ev.build(msg)));
         }
-        return new Evaluation(out, periods, periods.isEmpty() ? null : periods.get(periods.size() - 1));
+        return Windows.result(out, periods, decided);
     }
 }

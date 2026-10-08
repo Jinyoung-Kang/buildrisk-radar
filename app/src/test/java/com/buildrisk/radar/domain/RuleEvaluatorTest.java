@@ -38,6 +38,12 @@ class RuleEvaluatorTest {
             return this;
         }
 
+        /** 값 없이 상태만 (ZERO_DENOM · NEG_EQUITY …) */
+        Mem status(String metric, String period, String status) {
+            metrics.computeIfAbsent(metric, k -> new TreeMap<>()).put(period, new MetricPoint(period, null, status, Map.of()));
+            return this;
+        }
+
         @Override public NavigableMap<String, MetricPoint> companyMetric(String c, String m) { return metrics.getOrDefault(m, new TreeMap<>()); }
         @Override public NavigableMap<String, MetricPoint> regionMetric(String r, String m) { return metrics.getOrDefault(m, new TreeMap<>()); }
         @Override public List<DisclosureEvent> disclosures(String c, LocalDate since) {
@@ -88,6 +94,38 @@ class RuleEvaluatorTest {
         assertThat(evidence).containsKeys("condition", "params", "observations", "sources", "message");
         assertThat((List<?>) evidence.get("observations")).hasSize(2);
         assertThat((List<?>) evidence.get("sources")).isNotEmpty();   // 근거 없는 경보 0
+    }
+
+    @Test
+    void 최신_분기가_판단_불가면_판단할_수_있는_마지막_분기가_기준() {
+        // 실데이터(00122694): 2025Q3 · Q4 영업손실 뒤 2026Q1 · Q2 분기 이자비용 0(ZERO_DENOM) — '해소'가 아니라 '모름' (VERIFICATION 118)
+        var d = new Mem().put("DEBT_RATIO", "2025Q3", "100").put("DEBT_RATIO", "2025Q4", "100").put("DEBT_RATIO", "2026Q1", "100")
+                .put("DEBT_RATIO", "2026Q2", "100")
+                .put("INTEREST_COVERAGE", "2025Q3", "-40.7").put("INTEREST_COVERAGE", "2025Q4", "-25.8")
+                .status("INTEREST_COVERAGE", "2026Q1", "ZERO_DENOM").status("INTEREST_COVERAGE", "2026Q2", "ZERO_DENOM");
+        var r = rule("R-C02", TargetType.COMPANY, Map.of("threshold", 1.0, "consecutive", 2));
+        var ev = registry.get("R-C02").evaluate(r, "c", d);
+        assertThat(ev.findings()).extracting(f -> f.asOf()).containsExactly("2025Q4");
+        assertThat(ev.latestAsOf()).isEqualTo("2025Q4");
+        assertThat(ev.decided()).isTrue();
+
+        // 알려진 값 하나가 조건을 깨면 판단 가능(거짓) — 실제로 회복했으면 그대로 해소
+        d.put("INTEREST_COVERAGE", "2026Q2", "2.0");
+        ev = registry.get("R-C02").evaluate(r, "c", d);
+        assertThat(ev.latestAsOf()).isEqualTo("2026Q2");
+        assertThat(ev.findings()).extracting(f -> f.asOf()).containsExactly("2025Q4");
+
+        // 판단할 수 있는 분기가 하나도 없으면 결정하지 않음 — 열린 경보를 그대로 둠
+        var none = new Mem().put("DEBT_RATIO", "2026Q2", "100").status("INTEREST_COVERAGE", "2026Q1", "ZERO_DENOM")
+                .status("INTEREST_COVERAGE", "2026Q2", "ZERO_DENOM");
+        assertThat(registry.get("R-C02").evaluate(r, "c", none).decided()).isFalse();
+        assertThat(registry.get("R-C02").evaluate(r, "c", new Mem()).decided()).isFalse();   // 지표가 통째로 없을 때(계산 중 등)도
+
+        // 부채비율 규칙: 최신 분기 부채비율이 MISSING 이면 그 앞 분기가 기준
+        var c1 = new Mem().put("DEBT_RATIO", "2026Q1", "400").put("DEBT_RATIO_YOY", "2026Q1", "80")
+                .put("DEBT_RATIO", "2026Q2", null).put("DEBT_RATIO_YOY", "2026Q2", "90");
+        var r1 = rule("R-C01", TargetType.COMPANY, Map.of("debtRatioThreshold", 300, "yoyIncreasePp", 50));
+        assertThat(registry.get("R-C01").evaluate(r1, "c", c1).latestAsOf()).isEqualTo("2026Q1");
     }
 
     @Test
