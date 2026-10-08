@@ -19,7 +19,7 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
  */
 @SpringBootTest
 public abstract class IntegrationTest {
-    public static final String ADMIN = "test-admin-token";
+    public static final String ADMIN = "test-admin-token-for-integration-tests";
     public static final String APP_ROLE = "buildrisk_app";
     public static final String APP_ROLE_PASSWORD = "test-app-role-password";
     public static final String ADMIN_PASSWORD = "test-admin-password";

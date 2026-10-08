@@ -18,6 +18,13 @@ public record AppProperties(
         Security security,
         Notification notification) {
 
+    /** 서비스 토큰은 ADMIN 권한 — 짧으면 분당 1,200 요청 한도 아래에서도 맞춰 볼 수 있어 기동을 막음 (make env 는 48자로 생성) */
+    public AppProperties {
+        if (adminToken != null && !adminToken.isBlank() && adminToken.length() < 32) {
+            throw new IllegalArgumentException("buildrisk.admin-token(ADMIN_TOKEN)은 비우거나 32자 이상이어야 합니다.");
+        }
+    }
+
     public record Dart(String baseUrl, String apiKey, int dailyCallLimit, long minIntervalMs, int fromYear) {}
 
     public record Kosis(String baseUrl, String apiKey, int months) {}
