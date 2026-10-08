@@ -147,6 +147,24 @@ public class BatchLauncher {
         return out;
     }
 
+    /**
+     * 하트비트가 멈춘 실행 정리 — 큐에 넣기 전에(API · 스케줄러). 정리를 launch 안에서만 하면 죽은 실행이 '실행 중'으로 보여
+     * 넣는 단계에서 409 로 막히고 launch 에 영영 닿지 않음 (VERIFICATION 119). 다른 프로세스가 시작 중이면(잠금) 건너뜀
+     */
+    public void recoverStale(String jobName) {
+        long key = ("buildrisk:batch:" + jobName).hashCode();
+        try (Connection c = dataSource.getConnection()) {
+            if (!tryLock(c, key)) return;
+            try {
+                recover(jobName, false);
+            } finally {
+                unlock(c, key);
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("실행 정리 잠금 실패: " + e.getMessage(), e);
+        }
+    }
+
     public List<Long> recoverExecution(long executionId) {
         JobExecution je = repository.getJobExecution(executionId);
         if (je == null) throw new ApiException(ErrorCode.NOT_FOUND, "실행 이력이 없습니다: " + executionId);

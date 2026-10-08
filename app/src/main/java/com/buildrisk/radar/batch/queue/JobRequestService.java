@@ -47,6 +47,7 @@ public class JobRequestService {
     public Enqueued enqueue(String jobName, Map<String, Object> params, String requestedBy) {
         Map<String, Object> p = params == null ? Map.of() : params;
         BatchLauncher.Plan plan = launcher.plan(jobName, p);         // 잘못된 요청은 여기서 400
+        launcher.recoverStale(jobName);                              // 죽은 worker 가 남긴 실행은 '실행 중'이 아님
         if (launcher.running(jobName)) {
             throw new ApiException(ErrorCode.JOB_ALREADY_RUNNING, jobName + " 이(가) 이미 실행 중입니다.");
         }

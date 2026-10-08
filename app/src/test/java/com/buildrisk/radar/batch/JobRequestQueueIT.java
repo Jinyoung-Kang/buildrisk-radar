@@ -23,6 +23,8 @@ class JobRequestQueueIT extends IntegrationTest {
     JobRequestService queue;
     @Autowired
     JobRequestWorker worker;
+    @Autowired
+    com.buildrisk.radar.batch.support.BatchLauncher launcher;
 
     @BeforeEach
     void clean() { jdbc.update("DELETE FROM ops.job_request"); }
@@ -34,6 +36,22 @@ class JobRequestQueueIT extends IntegrationTest {
             worker.pollOnce();
             Thread.sleep(500);
         }
+    }
+
+    @Test
+    void 죽은_worker_가_남긴_실행이_있어도_요청은_들어가고_worker_가_정리한_뒤_실행한다() throws Exception {
+        // OOM · kill 로 STARTED 로 남은 실행 — 큐에 넣는 단계가 '실행 중'으로 보고 409 를 내면 정리 코드(launch 안)에 영영 닿지 않음 (VERIFICATION 119)
+        long zombie = launcher.runAndWait("ruleEvalJob", Map.of("restart", false)).getId();
+        jdbc.update("UPDATE ops.batch_job_execution SET status = 'STARTED', exit_code = 'UNKNOWN', end_time = NULL, "
+                + "last_updated = now() - interval '30 minutes' WHERE job_execution_id = ?", zombie);
+        jdbc.update("UPDATE ops.batch_step_execution SET status = 'STARTED', end_time = NULL, "
+                + "last_updated = now() - interval '30 minutes' WHERE job_execution_id = ?", zombie);
+
+        var r = queue.enqueue("ruleEvalJob", Map.of(), "scheduler");
+        awaitDone(r.requestId());
+        assertThat(status(r.requestId())).as(String.valueOf(queue.get(r.requestId()).get("message"))).isEqualTo("DONE");
+        assertThat(jdbc.queryForObject("SELECT status FROM ops.batch_job_execution WHERE job_execution_id = ?", String.class, zombie))
+                .isEqualTo("FAILED");
     }
 
     @Test
