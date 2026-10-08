@@ -37,6 +37,14 @@ class NotifySecurityTest {
         for (String ip : new String[]{"8.8.8.8", "1.1.1.1", "2606:4700:4700::1111"}) {
             assertThat(WebhookGuard.internal(InetAddress.getByName(ip))).as(ip).isFalse();
         }
+        // IPv4 를 품은 IPv6 — 안에 든 IPv4 로 판단 (NAT64 · 6to4 · IPv4 호환), Teredo · 문서용 대역은 거부
+        for (String ip : new String[]{"::127.0.0.1", "::a9fe:a9fe", "64:ff9b::a9fe:a9fe", "64:ff9b::10.0.0.1", "64:ff9b:1::8.8.8.8",
+                "2002:c0a8:0101::1", "2002:7f00:0001::", "2001:0:4136:e378::1", "2001:db8::1"}) {
+            assertThat(WebhookGuard.internal(InetAddress.getByName(ip))).as(ip).isTrue();
+        }
+        for (String ip : new String[]{"64:ff9b::808:808", "2002:0808:0808::1"}) {
+            assertThat(WebhookGuard.internal(InetAddress.getByName(ip))).as(ip).isFalse();
+        }
         // 이름을 풀어 본 결과로 판단 (메타데이터 · 루프백 이름)
         assertThatThrownBy(() -> WebhookGuard.checkResolved(URI.create("https://localhost/x"), false)).isInstanceOf(WebhookGuard.Rejected.class);
         assertThatThrownBy(() -> WebhookGuard.checkResolved(URI.create("https://169.254.169.254/latest"), false)).isInstanceOf(WebhookGuard.Rejected.class);

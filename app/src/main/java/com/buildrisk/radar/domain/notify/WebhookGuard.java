@@ -71,9 +71,31 @@ public final class WebhookGuard {
                     || o0 >= 240;                            // 240.0.0.0/4 예약 · 255.255.255.255
         }
         if (a instanceof Inet6Address) {
-            return (b[0] & 0xfe) == 0xfc;                    // fc00::/7 ULA (IPv4 사상 주소는 자바가 Inet4Address 로 바꿈)
+            int w0 = (b[0] & 0xff) << 8 | (b[1] & 0xff), w1 = (b[2] & 0xff) << 8 | (b[3] & 0xff);
+            if ((b[0] & 0xfe) == 0xfc) return true;                          // fc00::/7 ULA
+            // IPv4 를 품은 주소는 안의 IPv4 로 판단 — NAT64 · 6to4 게이트웨이를 거쳐 내부 IPv4 에 닿을 수 있음 (VERIFICATION 113).
+            // IPv4 사상(::ffff:a.b.c.d)은 자바가 Inet4Address 로 바꿔 위에서 검사됨
+            if (zero(b, 0, 12)) return internal(v4(b, 12));                  // ::/96 IPv4 호환(폐기된 형식)
+            if (w0 == 0x0064 && w1 == 0xff9b && zero(b, 4, 12)) return internal(v4(b, 12));   // 64:ff9b::/96 NAT64
+            if (w0 == 0x0064 && w1 == 0xff9b && b[4] == 0 && b[5] == 1) return true;           // 64:ff9b:1::/48 로컬 NAT64
+            if (w0 == 0x2002) return internal(v4(b, 2));                     // 2002::/16 6to4
+            if (w0 == 0x2001 && w1 == 0x0000) return true;                   // 2001::/32 Teredo (IPv4 를 뒤섞어 품음)
+            return w0 == 0x2001 && w1 == 0x0db8;                             // 2001:db8::/32 문서용
         }
         return true;
+    }
+
+    private static boolean zero(byte[] b, int from, int to) {
+        for (int i = from; i < to; i++) if (b[i] != 0) return false;
+        return true;
+    }
+
+    private static InetAddress v4(byte[] b, int at) {
+        try {
+            return InetAddress.getByAddress(new byte[]{b[at], b[at + 1], b[at + 2], b[at + 3]});
+        } catch (UnknownHostException e) {
+            throw new IllegalStateException(e);                             // 길이 4 면 일어나지 않음
+        }
     }
 
     /** 화면 표시용 — 경로 · 질의(토큰이 들어 있는 곳)는 감춤 */
