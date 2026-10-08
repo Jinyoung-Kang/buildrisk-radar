@@ -48,10 +48,11 @@ public class CompanyController {
                                  @RequestParam(defaultValue = "alerts") String sort,
                                  @RequestParam(defaultValue = "0") @Min(0) @Max(100_000) int page,
                                  @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size) {
+        String s = QueryParams.oneOf("sort", sort, CompanyQueryService.SORTS);
         // 검색어가 없는 목록만 캐시 — 임의 검색어마다 키가 생기지 않게 (부하 시험에서 DB CPU 를 가장 많이 쓴 조회)
-        if (q != null && !q.isBlank()) return svc.list(q, sort, page, size);
-        return cache.get("companies:" + sort + ":" + page + ":" + size, Duration.ofMinutes(10),
-                new TypeReference<Page<CompanyRow>>() {}, () -> svc.list(null, sort, page, size));
+        if ((q != null && !q.isBlank()) || !QueryParams.cachedPage(page, size)) return svc.list(q, s, page, size);
+        return cache.get("companies:" + s + ":" + page + ":" + size, Duration.ofMinutes(10),
+                new TypeReference<Page<CompanyRow>>() {}, () -> svc.list(null, s, page, size), p -> page == 0 || !p.items().isEmpty());
     }
 
     @GetMapping("/{corpCode}")

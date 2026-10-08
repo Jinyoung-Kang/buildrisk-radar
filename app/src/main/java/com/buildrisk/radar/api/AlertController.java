@@ -43,7 +43,7 @@ public class AlertController {
     }
 
     @GetMapping
-    @Operation(summary = "⑨ 경보 목록", description = "status 는 쉼표로 여러 개 (예: OPEN,ACK)")
+    @Operation(summary = "⑨ 경보 목록", description = "targetType = COMPANY · REGION, severity = HIGH · MEDIUM · LOW, status = OPEN · ACK · CLOSED 를 쉼표로 여러 개 (예: OPEN,ACK). 그 밖의 값은 400")
     public Page<AlertRow> list(@RequestParam(required = false) String targetType,
                                @RequestParam(required = false) String severity,
                                @RequestParam(required = false) String status,
@@ -52,12 +52,15 @@ public class AlertController {
                                @RequestParam(required = false) String ruleCode,
                                @RequestParam(defaultValue = "0") @Min(0) @Max(100_000) int page,
                                @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size) {
-        // 화면의 기본 조합(대상 · 심각도 · 상태)만 캐시. ACK 와 규칙 평가가 캐시 세대를 올리므로 바로 반영
-        if (since != null || targetKey != null || ruleCode != null)
-            return svc.list(targetType, severity, status, since, targetKey, ruleCode, page, size);
-        return cache.get("alerts:" + targetType + ":" + severity + ":" + status + ":" + page + ":" + size, Duration.ofMinutes(10),
+        String tt = QueryParams.oneOf("targetType", targetType, QueryParams.TARGET_TYPES);
+        String sev = QueryParams.oneOf("severity", severity, QueryParams.SEVERITIES);
+        String st = QueryParams.statuses(status);
+        // 화면의 기본 조합(대상 · 심각도 · 상태 · 쪽 크기)만 캐시. ACK 와 규칙 평가가 캐시 세대를 올리므로 바로 반영
+        if (since != null || targetKey != null || ruleCode != null || !QueryParams.cachedPage(page, size))
+            return svc.list(tt, sev, st, since, targetKey, ruleCode, page, size);
+        return cache.get("alerts:" + tt + ":" + sev + ":" + st + ":" + page + ":" + size, Duration.ofMinutes(10),
                 new TypeReference<Page<AlertRow>>() {},
-                () -> svc.list(targetType, severity, status, null, null, null, page, size));
+                () -> svc.list(tt, sev, st, null, null, null, page, size), p -> page == 0 || !p.items().isEmpty());
     }
 
     @GetMapping("/{alertId}")

@@ -45,7 +45,8 @@ public class ExportController {
                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime since,
                        @RequestParam(required = false) String targetKey, @RequestParam(required = false) String ruleCode,
                        HttpServletResponse res) throws IOException {
-        var f = new ExportService.AlertFilter(targetType, severity, status, since, targetKey, ruleCode);
+        var f = new ExportService.AlertFilter(QueryParams.oneOf("targetType", targetType, QueryParams.TARGET_TYPES),
+                QueryParams.oneOf("severity", severity, QueryParams.SEVERITIES), QueryParams.statuses(status), since, targetKey, ruleCode);
         long total = exports.alertCount(f);
         res.setHeader("X-Total-Count", String.valueOf(total));
         res.setHeader("X-Row-Cap", String.valueOf(ExportService.ALERT_CAP));

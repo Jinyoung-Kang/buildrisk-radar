@@ -44,6 +44,9 @@ public class CompanyQueryService {
         this.mapper = mapper;
     }
 
+    /** 목록 정렬 — 첫 값이 기본 */
+    public static final List<String> SORTS = List.of("alerts", "debtRatio", "interestCoverage", "name");
+
     public Page<CompanyRow> list(String q, String sort, int page, int size) {
         String order = switch (sort == null ? "alerts" : sort) {
             case "debtRatio" -> "dr.value DESC NULLS LAST, c.corp_name";

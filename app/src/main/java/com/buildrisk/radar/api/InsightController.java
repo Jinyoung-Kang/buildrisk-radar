@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.Set;
 
 @RestController
 @ApiRole
@@ -31,6 +32,10 @@ public class InsightController {
     private final PfExposureService pf;
     private final SiteService sites;
     private final JsonCache cache;
+    /** 캐시하는 값 — 화면의 선택지(노출: 6개월 · 1년 · 2년, 3 · 5 · 10호)와 API 기본값(주가 730일) */
+    private static final Set<Integer> EXPOSURE_DAYS = Set.of(180, 365, 730);
+    private static final Set<String> EXPOSURE_THRESHOLDS = Set.of("3", "5", "10");
+    private static final Set<Integer> PRICE_DAYS = Set.of(365, 730, 1095);
 
     public InsightController(ExposureService exposure, BacktestService backtest, ScorecardService scorecard, PfExposureService pf,
                              SiteService sites, JsonCache cache) {
@@ -46,6 +51,9 @@ public class InsightController {
     @Operation(summary = "기업별 수주·보증 노출 — 위험 지역 수주 비중 · 보증 잔액/자기자본 · PF 보증")
     public ExposureService.Exposure exposure(@RequestParam(defaultValue = "365") @Min(30) @Max(1095) int days,
                                              @RequestParam(defaultValue = "5") @DecimalMin("0.1") @DecimalMax("100") BigDecimal unsoldPer1kHh) {
+        // 화면이 고르는 기간 · 기준만 캐시 — 임의의 값(30~1095일 × 소수 기준)마다 키가 생기지 않게
+        if (!EXPOSURE_DAYS.contains(days) || !EXPOSURE_THRESHOLDS.contains(unsoldPer1kHh.stripTrailingZeros().toPlainString()))
+            return exposure.exposure(days, unsoldPer1kHh);
         return cache.get("exposure:" + days + ":" + unsoldPer1kHh.stripTrailingZeros().toPlainString(), Duration.ofMinutes(10),
                 ExposureService.Exposure.class, () -> exposure.exposure(days, unsoldPer1kHh));
     }
@@ -68,6 +76,7 @@ public class InsightController {
     @Operation(summary = "일별 종가 · 경보 표시 (금융위 주식시세)")
     public ExposureService.Prices prices(@PathVariable @Pattern(regexp = "\\d{8}") String corpCode,
                                          @RequestParam(defaultValue = "730") @Min(30) @Max(3650) int days) {
+        if (!PRICE_DAYS.contains(days)) return exposure.prices(corpCode, days);
         return cache.get("prices:" + corpCode + ":" + days, Duration.ofMinutes(30), ExposureService.Prices.class,
                 () -> exposure.prices(corpCode, days));
     }

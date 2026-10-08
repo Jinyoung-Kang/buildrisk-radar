@@ -129,12 +129,17 @@ class ApiIT extends IntegrationTest {
     @Test
     void 조회_캐시는_처음엔_miss_다음엔_hit_으로_지표에_남는다() throws Exception {
         java.util.function.ToDoubleFunction<String> n = r -> meters.counter("buildrisk.cache.requests", "cache", "redis", "result", r).count();
-        String sido = "99";                                   // 다른 테스트와 겹치지 않는 캐시 키
-        double miss0 = n.applyAsDouble("miss"), hit0 = n.applyAsDouble("hit");
-        mvc.perform(get("/api/v1/regions").param("sido", sido)).andExpect(status().isOk());
-        mvc.perform(get("/api/v1/regions").param("sido", sido)).andExpect(status().isOk());
-        org.assertj.core.api.Assertions.assertThat(n.applyAsDouble("miss") - miss0).isEqualTo(1);
-        org.assertj.core.api.Assertions.assertThat(n.applyAsDouble("hit") - hit0).isEqualTo(1);
+        String sido = "96";                                   // 다른 테스트와 겹치지 않는 캐시 키 (지역이 없는 시도는 캐시하지 않음 — 105)
+        jdbc.update("INSERT INTO ref.region (region_cd, name, full_name, sido_cd, sido_name, level) VALUES ('96101', '캐시구', '캐시시 캐시구', ?, '캐시시', 2)", sido);
+        try {
+            double miss0 = n.applyAsDouble("miss"), hit0 = n.applyAsDouble("hit");
+            mvc.perform(get("/api/v1/regions").param("sido", sido)).andExpect(status().isOk());
+            mvc.perform(get("/api/v1/regions").param("sido", sido)).andExpect(status().isOk());
+            org.assertj.core.api.Assertions.assertThat(n.applyAsDouble("miss") - miss0).isEqualTo(1);
+            org.assertj.core.api.Assertions.assertThat(n.applyAsDouble("hit") - hit0).isEqualTo(1);
+        } finally {
+            jdbc.update("DELETE FROM ref.region WHERE region_cd = '96101'");   // 지역 목록은 테스트 사이에 비우지 않음 (다른 테스트의 호출 수가 달라짐)
+        }
     }
 
     @Test

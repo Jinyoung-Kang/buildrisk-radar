@@ -5,7 +5,7 @@ import { Card, PageTitle, Prose } from "@/components/ui";
 /** 공개 읽기 API 안내 (ADR-027) — 화면이 쓰는 API 를 그대로 공개. 키 없이 GET, 변경은 로그인 · 관리자만 */
 const GROUPS: { title: string; rows: [string, string][] }[] = [
   { title: "기업", rows: [
-    ["GET /companies", "유니버스 목록 (q · sort · page · size)"],
+    ["GET /companies", "유니버스 목록 (q · sort = alerts · debtRatio · interestCoverage · name · page · size)"],
     ["GET /companies/{corpCode}", "요약 — 최신 지표 · 열린 경보"],
     ["GET /companies/{corpCode}/financials", "표준계정 시계열 (fsDiv = AUTO · CFS · OFS, 누적 + 분기값)"],
     ["GET /companies/{corpCode}/metrics", "지표 시계열 — 값 · 상태 코드 · 분자/분모(components) · 원천 접수번호"],
@@ -17,7 +17,7 @@ const GROUPS: { title: string; rows: [string, string][] }[] = [
     ["GET /regions/{regionCd}/contracts · /sites", "그 지역에 걸린 수주 · 사업장 카드"],
   ] },
   { title: "경보 · 근거", rows: [
-    ["GET /alerts", "경보 목록 (targetType · severity · status · since · targetKey · ruleCode)"],
+    ["GET /alerts", "경보 목록 (targetType = COMPANY · REGION, severity = HIGH · MEDIUM · LOW, status = OPEN · ACK · CLOSED 쉼표로 여러 개, since · targetKey · ruleCode)"],
     ["GET /alerts/{alertId}", "경보 상세 + 근거(evidence)"],
     ["GET /alerts/{alertId}/lineage", "근거 계보 — 규칙 버전 → 지표 → 표준계정 → 원천 재무제표 줄(매핑 규칙) · 통계 · 공시 → 수집 · 계산 실행"],
     ["GET /rules", "규칙 · 파라미터 · 버전 이력"],
@@ -68,7 +68,7 @@ export default function Developers() {
             <li>기본 주소 <code className="tabular">{base}</code> — 응답은 JSON(UTF-8), 금액은 원 단위 숫자</li>
             <li>읽기(GET)는 로그인 없이. 경보 확인(PATCH)은 분석가 로그인, 규칙 · 배치 · 매핑 변경은 관리자</li>
             <li>한도: IP 당 분당 1,200 요청, CSV 내려받기는 분당 30회 — 넘으면 <code>429</code> + <code>Retry-After</code>(초)</li>
-            <li>오류는 <code>{"{ code, message, traceId }"}</code> — traceId 는 서버 로그의 같은 요청을 찾는 값</li>
+            <li>오류는 <code>{"{ code, message, traceId }"}</code> — traceId 는 서버 로그의 같은 요청을 찾는 값. 정해진 값이 있는 조건(정렬 · 상태 등)에 다른 값을 주면 <code>400</code></li>
             <li>전체 명세(OpenAPI): <a className="text-accent hover:underline" href="/swagger-ui/index.html">Swagger UI</a> · <a className="text-accent hover:underline" href="/v3/api-docs">/v3/api-docs</a></li>
           </ul>
         </Card>

@@ -46,8 +46,11 @@ public class RegionController {
     public RegionList list(@RequestParam(required = false) @Pattern(regexp = "\\d{2}") String sido,
                            @RequestParam(defaultValue = "UNSOLD_PER_1K_HH") String metric,
                            @RequestParam(required = false) @Pattern(regexp = "\\d{6}") String period) {
+        // 지역이 있는 시도의 최신 기간(화면 기본)만 저장 — 지난 기간은 DB 에서 바로(캐시 12 ms · DB 12~24 ms 로 차이가 작음).
+        // 모든 기간 × 시도를 저장하면 키 4,992개 · 26.7 MB 로 세션과 같은 Redis 를 압박 (VERIFICATION 105)
         return cache.get("regions:" + sido + ":" + metric + ":" + period, Duration.ofMinutes(10), RegionList.class,
-                () -> svc.list(sido, metric, period));
+                () -> svc.list(sido, metric, period),
+                r -> !r.items().isEmpty() && (period == null || (!r.periods().isEmpty() && r.periods().get(0).equals(period))));
     }
 
     @GetMapping(value = "/boundaries", produces = MediaType.APPLICATION_JSON_VALUE)

@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.type.TypeReference;
@@ -13,6 +15,9 @@ import tools.jackson.databind.JavaType;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -46,15 +51,24 @@ public class JsonCache {
     }
 
     public <T> T get(String key, Duration ttl, Class<T> type, Supplier<T> loader) {
-        return get(key, ttl, mapper.getTypeFactory().constructType(type), loader);
+        return get(key, ttl, mapper.getTypeFactory().constructType(type), loader, v -> true);
+    }
+
+    /** storeIf 가 거짓이면 결과를 돌려주되 저장하지 않음 — 빈 결과 · 없는 기간으로 키가 늘지 않게 (VERIFICATION 105) */
+    public <T> T get(String key, Duration ttl, Class<T> type, Supplier<T> loader, Predicate<? super T> storeIf) {
+        return get(key, ttl, mapper.getTypeFactory().constructType(type), loader, storeIf);
     }
 
     /** 제네릭 응답(Page&lt;CompanyRow&gt; 등)용 — Class 로 읽으면 항목이 Map 으로 풀려 숫자 표현이 달라질 수 있음 */
     public <T> T get(String key, Duration ttl, TypeReference<T> type, Supplier<T> loader) {
-        return get(key, ttl, mapper.getTypeFactory().constructType(type), loader);
+        return get(key, ttl, mapper.getTypeFactory().constructType(type), loader, v -> true);
     }
 
-    private <T> T get(String key, Duration ttl, JavaType type, Supplier<T> loader) {
+    public <T> T get(String key, Duration ttl, TypeReference<T> type, Supplier<T> loader, Predicate<? super T> storeIf) {
+        return get(key, ttl, mapper.getTypeFactory().constructType(type), loader, storeIf);
+    }
+
+    private <T> T get(String key, Duration ttl, JavaType type, Supplier<T> loader, Predicate<? super T> storeIf) {
         String full;
         try {
             String gen = redis.opsForValue().get(GEN_KEY);
@@ -72,7 +86,7 @@ public class JsonCache {
         misses.increment();
         T value = loader.get();
         try {
-            if (value != null) redis.opsForValue().set(full, mapper.writeValueAsString(value), ttl);
+            if (value != null && storeIf.test(value)) redis.opsForValue().set(full, mapper.writeValueAsString(value), ttl);
         } catch (RuntimeException e) {
             warn(e);
         }
@@ -86,10 +100,32 @@ public class JsonCache {
     @EventListener(ApplicationReadyEvent.class)
     public void onStartup() { invalidateAll(); }
 
-    /** 새 calc_run 이 끝났을 때 호출 — 이전 세대 키는 TTL 로 사라집니다. */
+    /** 새 calc_run 이 끝났을 때 호출 — 세대를 올리고 이전 세대 키는 뒤에서 지웁니다. */
     public void invalidateAll() {
         try {
-            redis.opsForValue().increment(GEN_KEY);
+            Long gen = redis.opsForValue().increment(GEN_KEY);
+            if (gen != null && gen > 1) Thread.ofVirtual().name("cache-purge").start(() -> purge(gen - 1));
+        } catch (RuntimeException e) {
+            warn(e);
+        }
+    }
+
+    /**
+     * 지난 세대의 키를 지움. TTL(10~30분)을 기다리면 무효화가 잦을 때 세대마다 키가 겹쳐 쌓여, 세션 · 로그인 잠금과 같은
+     * Redis(128 MB, allkeys-lru)가 상한까지 찼음 — 정상 조합만으로도 세대당 약 31 MB (VERIFICATION 105).
+     * 지우는 사이 이전 세대로 저장된 키가 조금 남을 수 있지만 TTL 로 사라집니다.
+     */
+    private void purge(long gen) {
+        List<String> batch = new ArrayList<>();
+        try (Cursor<String> keys = redis.scan(ScanOptions.scanOptions().match("br:" + gen + ":*").count(1000).build())) {
+            while (keys.hasNext()) {
+                batch.add(keys.next());
+                if (batch.size() == 500) {
+                    redis.unlink(batch);
+                    batch.clear();
+                }
+            }
+            if (!batch.isEmpty()) redis.unlink(batch);
         } catch (RuntimeException e) {
             warn(e);
         }
