@@ -10,7 +10,7 @@ import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.nio.ByteBuffer;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
@@ -47,7 +47,10 @@ public class NotifyCrypto {
             c.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, iv));
             c.updateAAD(AAD);
             byte[] ct = c.doFinal(plain.getBytes(StandardCharsets.UTF_8));
-            return PREFIX + Base64.getEncoder().encodeToString(ByteBuffer.allocate(iv.length + ct.length).put(iv).put(ct).array());
+            var out = new ByteArrayOutputStream(IV_BYTES + 64);           // IV ‖ 암호문+태그 (길이 산술 없이 이어 붙임)
+            out.writeBytes(iv);
+            out.writeBytes(ct);
+            return PREFIX + Base64.getEncoder().encodeToString(out.toByteArray());
         } catch (GeneralSecurityException e) {
             throw new IllegalStateException("암호화 실패", e);
         }

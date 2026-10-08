@@ -26,7 +26,7 @@ import java.util.Set;
  */
 @Service
 public class NotificationQueryService {
-    static final int MAX_SUBSCRIPTIONS = 20, MAX_WATCH = 200;
+    static final int MAX_SUBSCRIPTIONS = 20, MAX_WATCH = 200, MAX_PAGE = 1000, MAX_PAGE_SIZE = 100;
     static final Set<String> SEVERITIES = Set.of("LOW", "MEDIUM", "HIGH");
     private final JdbcClient jdbc;
     private final NotifyCrypto crypto;
@@ -49,6 +49,9 @@ public class NotificationQueryService {
     public record Inbox(List<InboxItem> items, int unread, int total, int page, int size) {}
 
     public Inbox inbox(String owner, boolean unreadOnly, int page, int size) {
+        // 컨트롤러 검증과 별개로 여기서도 범위를 막고 long 으로 계산 — OFFSET 이 int 를 넘어 음수가 되지 않게
+        if (page < 0 || page > MAX_PAGE || size < 1 || size > MAX_PAGE_SIZE) throw new ApiException(ErrorCode.VALIDATION_ERROR, "page 0~1000 · size 1~100");
+        long offset = (long) page * size;
         List<InboxItem> items = jdbc.sql("""
                 SELECT n.inbox_id, n.alert_id, n.kind, n.created_at, n.read_at, a.rule_code, a.severity, a.title,
                        a.target_type, a.target_key, coalesce(c.corp_name, r.full_name), a.as_of, a.status
@@ -57,7 +60,7 @@ public class NotificationQueryService {
                   LEFT JOIN ref.region r ON a.target_type = 'REGION' AND r.region_cd = a.target_key
                  WHERE n.owner = :o AND (NOT :u OR n.read_at IS NULL)
                  ORDER BY n.created_at DESC, n.inbox_id DESC LIMIT :size OFFSET :off""")
-                .param("o", owner).param("u", unreadOnly).param("size", size).param("off", page * size)
+                .param("o", owner).param("u", unreadOnly).param("size", size).param("off", offset)
                 .query((rs, i) -> new InboxItem(rs.getLong(1), rs.getLong(2), rs.getString(3), ts(rs, 4), ts(rs, 5),
                         rs.getString(6), rs.getString(7), rs.getString(8), rs.getString(9), rs.getString(10), rs.getString(11),
                         rs.getString(12), rs.getString(13))).list();
