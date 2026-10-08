@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
  */
 public class AuditFilter extends OncePerRequestFilter {
     private static final int BODY_LIMIT = 4096;
+    private static final int QUERY_LIMIT = 2048;
     private static final List<String> SECRET_KEYS = List.of("secret", "password", "token", "apikey", "api_key", "authorization", "credential");
     private static final String MASK = "***";
     private static final Pattern ORIGIN = Pattern.compile("^[A-Za-z][A-Za-z0-9+.-]*://[^/?#]*");
@@ -96,7 +97,7 @@ public class AuditFilter extends OncePerRequestFilter {
         return node;
     }
 
-    /** query string 도 같은 규칙 — 이름이 비밀 같은 값은 가리고, 너무 길면 자름 */
+    /** query string 도 같은 규칙 — 이름이 비밀 같은 값은 가리고, 2 KB 가 넘으면 자름 */
     static String redactQuery(String query) {
         StringBuilder out = new StringBuilder();
         for (String pair : query.split("&")) {
@@ -105,7 +106,8 @@ public class AuditFilter extends OncePerRequestFilter {
             if (!out.isEmpty()) out.append('&');
             out.append(eq >= 0 && (SECRET_KEYS.stream().anyMatch(k::contains) || k.endsWith("url")) ? pair.substring(0, eq + 1) + MASK : pair);
         }
-        return out.toString();
+        // 본문(4 KB)처럼 길이를 묶음 — 긴 주소를 반복해 보내 감사 테이블을 부풀리지 못하게 (VERIFICATION 115)
+        return out.length() > QUERY_LIMIT ? out.substring(0, QUERY_LIMIT) + "…" : out.toString();
     }
 
     private static String origin(String url) {

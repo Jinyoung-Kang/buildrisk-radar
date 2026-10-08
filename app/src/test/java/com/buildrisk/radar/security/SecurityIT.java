@@ -178,6 +178,15 @@ class SecurityIT extends IntegrationTest {
     }
 
     @Test
+    void 감사_로그의_query_string_은_2KB_에서_자른다() throws Exception {
+        jdbc.update("DELETE FROM ops.audit_log");
+        mvc.perform(put("/api/v1/rules/R-C02?note=" + "a".repeat(8000)).header("X-Admin-Token", ADMIN)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"changeNote\":\"길이\"}"));
+        String query = jdbc.queryForObject("SELECT detail->>'query' FROM ops.audit_log", String.class);
+        assertThat(query).hasSizeLessThanOrEqualTo(2049).endsWith("…");
+    }
+
+    @Test
     void 이미_남은_웹훅_감사_기록은_마이그레이션이_값만_가린다() throws Exception {
         jdbc.update("DELETE FROM ops.audit_log");
         jdbc.update("""
