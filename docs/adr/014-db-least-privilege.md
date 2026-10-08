@@ -11,3 +11,7 @@
 
 **검증** `LeastPrivilegeIT` — 앱 계정으로 읽기·쓰기·시퀀스·PostGIS 함수는 되고, `CREATE TABLE`(스키마·public) · `DROP` · `ALTER` · `TRUNCATE` ·
 감사 로그 UPDATE/DELETE · 마이그레이션 이력 조회 · `CREATE ROLE` 은 모두 거부. 실제 스택에서도 커넥션이 `buildrisk_app` 으로만 열리는 것을 `pg_stat_activity` 로 확인.
+
+**덧붙임 (2026-10-09, VERIFICATION 108)** 소유자 계정 비밀번호는 마이그레이션을 하는 **api 와 단독 실행 batch 컨테이너에만** 전달한다.
+외부 API 를 부르는 worker 는 api 가 마이그레이션을 끝낸 뒤(depends_on healthy) 뜨므로 Flyway 를 끄고 소유자 계정을 받지 않는다 —
+외부 입력을 가장 많이 다루는 프로세스가 스키마를 바꿀 수 있는 자격 증명을 들고 있지 않게.

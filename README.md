@@ -98,6 +98,7 @@ make obs                  # (선택) Prometheus :9490 · Grafana :3401
 | `ADMIN_PASSWORD` · `ANALYST_PASSWORD` | 화면 로그인 (12자 이상, `make up` 이 자동 생성) | 로그인 불가 (조회는 가능) |
 | `ADMIN_TOKEN` | 스크립트용 서비스 토큰 `X-Admin-Token` (자동 생성) | 스크립트로 변경 불가 |
 | `DB_APP_PASSWORD` · `REDIS_PASSWORD` · `GRAFANA_ADMIN_PASSWORD` | 자동 생성 | compose 가 기동을 거부 (값이 필요하다고 안내) |
+| `POSTGRES_PASSWORD` | DB 소유자 계정(마이그레이션 전용 — api · 단독 batch 에만 전달). DB 를 처음 만들 때만 적용 — 이미 만든 DB 는 `ALTER ROLE` 뒤에 바꿈 | compose 기본값 (로컬 전용) |
 | `NOTIFY_SECRET_KEY` | 웹훅 주소 · 서명 비밀 암호화 키 (자동 생성 — 바꾸면 웹훅을 다시 등록) | 웹훅만 꺼짐, 알림함은 동작 ([ADR-025](docs/adr/025-notifications.md)) |
 | `PUBLIC_BASE_URL` | 웹훅 메시지 속 화면 링크의 기준 주소 | `http://localhost:3400` |
 | `EXPORT_LIMIT_PER_MINUTE` | IP 당 분당 CSV 내려받기 한도 (일반 API 한도 1,200 과 별도) | 30 |

@@ -18,8 +18,6 @@ x-app-env: &app-env
   DATABASE_URL: jdbc:postgresql://db:5432/buildrisk
   DATABASE_USER: buildrisk_app
   DATABASE_PASSWORD: ${DB_APP_PASSWORD:?make env 로 .env 를 채우세요}
-  FLYWAY_USER: buildrisk
-  FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-buildrisk}
   DB_APP_USER: buildrisk_app
   DB_APP_PASSWORD: ${DB_APP_PASSWORD:?make env 로 .env 를 채우세요}
   REDIS_URL: redis://:${REDIS_PASSWORD:?make env 로 .env 를 채우세요}@redis:6379
@@ -28,6 +26,11 @@ x-app-env: &app-env
   PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3400}
   LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
   TZ: Asia/Seoul
+
+# DB 소유자 계정(스키마 · 권한 변경) — 마이그레이션을 하는 api 와 단독 실행 batch 에만. worker 는 api 가 끝낸 뒤 떠서 받지 않음 (ADR-014)
+x-flyway-owner: &flyway-owner
+  FLYWAY_USER: buildrisk
+  FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-buildrisk}
 
 # 외부 API 키 — worker · batch 에만
 x-api-keys: &api-keys
@@ -113,7 +116,7 @@ services:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
     environment:
-      <<: *app-env
+      <<: [*app-env, *flyway-owner]
       BUILDRISK_ROLE: api
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
@@ -137,6 +140,7 @@ services:
     environment:
       <<: [*app-env, *api-keys]
       BUILDRISK_ROLE: worker
+      SPRING_FLYWAY_ENABLED: "false"             # 소유자 계정 없이 — 마이그레이션은 api 가 먼저 끝냄
       BATCH_SCHEDULING_ENABLED: ${BATCH_SCHEDULING_ENABLED:-false}
     volumes:
       - ./seed:/app/seed:ro
@@ -153,7 +157,7 @@ services:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
     environment:
-      <<: [*app-env, *api-keys]
+      <<: [*app-env, *api-keys, *flyway-owner]
       SPRING_PROFILES_ACTIVE: batch-only
       BATCH_RUN_JOBS: ${JOBS:-all}
     volumes:
