@@ -204,11 +204,12 @@ public class BatchLauncher {
                     int remaining = Math.max(0, limit - used);
                     pb.addLong("fromYear", (long) from).addLong("toYear", (long) to)
                             .addString("reprtCodes", String.join(",", reprts));
+                    // 오늘 남은 호출을 maxCalls 로 넣지 않음 — 일일 상한은 호출할 때 지키고(넘으면 STOPPED), restart 는 첫 실행의
+                    // 파라미터를 그대로 써서 남은 호출이 적던 날의 값에 이후 실행이 계속 묶였음 (VERIFICATION 121). maxCalls 는 사용자가 줄 때만
                     Long max = b.get("maxCalls") == null ? null : Long.parseLong(String.valueOf(b.get("maxCalls")));
                     if (planned > remaining) {
                         warning = "미수집 조합 " + planned + "건이 오늘 남은 DART 호출 " + remaining
                                 + "건보다 많아 상한까지만 실행하고 STOPPED 로 멈춥니다. 다음 실행에서 이어갑니다.";
-                        max = max == null ? remaining : Math.min(max, remaining);
                     }
                     if (max != null) pb.addLong("maxCalls", max);
                 }
@@ -225,7 +226,6 @@ public class BatchLauncher {
                     if (planned > remaining) {
                         warning = "수집 대상 " + planned + "건이 오늘 남은 실거래 API 호출 " + remaining
                                 + "건보다 많아 상한까지만 받고 STOPPED 로 멈춥니다. 다음 실행에서 이어갑니다(최근 달부터 채움).";
-                        max = max == null ? remaining : Math.min(max, remaining);
                     }
                     if (max != null) pb.addLong("maxCalls", max);
                 }
@@ -240,7 +240,6 @@ public class BatchLauncher {
                     int remaining = Math.max(0, limit - used);
                     if (planned > remaining) {
                         warning = "원문 " + planned + "건이 오늘 남은 DART 호출 " + remaining + "건보다 많아 상한까지만 받습니다.";
-                        max = max == null ? remaining : Math.min(max, remaining);
                     }
                     if (max != null) pb.addLong("maxCalls", max);
                 }
@@ -255,7 +254,6 @@ public class BatchLauncher {
                     int remaining = Math.max(0, limit - used);
                     if (planned > remaining) {
                         warning = "정기보고서 " + planned + "건이 오늘 남은 DART 호출 " + remaining + "건보다 많아 상한까지만 받습니다.";
-                        max = max == null ? remaining : Math.min(max, remaining);
                     }
                     if (max != null) pb.addLong("maxCalls", max);
                 }

@@ -30,6 +30,8 @@ class AptTradeJobIT extends IntegrationTest {
     @Autowired
     BatchLauncher launcher;
     @Autowired
+    com.buildrisk.radar.common.AppProperties props;
+    @Autowired
     com.buildrisk.radar.batch.queue.JobRequestService queue;
     @Autowired
     com.buildrisk.radar.batch.queue.JobRequestWorker worker;
@@ -122,6 +124,22 @@ class AptTradeJobIT extends IntegrationTest {
         var next = launcher.runAndWait("aptTradeJob", Map.of("months", 13, "restart", false));
         assertThat(next.getStatus()).isEqualTo(BatchStatus.COMPLETED);
         WM.verify(3 * 13 - 7, getRequestedFor(urlPathEqualTo(PATH)));    // 남은 것만
+    }
+
+    @Test
+    void 일일_한도로_멈춘_실행을_다음_날_이어도_전날_남은_호출_수에_묶이지_않는다() {
+        // 계획 단계가 '오늘 남은 호출'을 maxCalls 파라미터로 넣었고, restart 는 첫 실행의 파라미터를 그대로 쓰므로
+        // 남은 호출이 7건인 날 멈춘 수집은 이후 매일 7건만 받고 멈췄음 (남은 호출이 0 이면 영구히 0건 — VERIFICATION 121)
+        jdbc.update("INSERT INTO ops.api_quota (provider, day, calls) VALUES ('RTMS', ?, ?)",
+                com.buildrisk.radar.adapters.common.ApiQuotaService.today(), props.dataGoKr().dailyCallLimit() - 7);
+        var first = launcher.runAndWait("aptTradeJob", Map.of("months", 13, "restart", false));
+        assertThat(first.getStatus()).isEqualTo(BatchStatus.STOPPED);
+
+        jdbc.update("DELETE FROM ops.api_quota");                       // 다음 날 — 한도가 다시 생김
+        var next = launcher.runAndWait("aptTradeJob", Map.of("months", 13));   // 기본 = 멈춘 실행 restart
+        assertThat(next.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        assertThat(count("SELECT count(*) FROM mkt.apt_trade_fetch")).isEqualTo(3 * 13);
+        WM.verify(3 * 13, getRequestedFor(urlPathEqualTo(PATH)));        // 두 실행을 합쳐 한 번씩만
     }
 
     @Test
