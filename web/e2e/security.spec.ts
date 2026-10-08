@@ -11,6 +11,14 @@ test("보안 헤더: 화면에 CSP · 클릭재킹 방지", async ({ page }) => 
   expect(h["x-content-type-options"]).toBe("nosniff");
 });
 
+test("edge: 대소문자만 다른 /API 경로도 api 가 받아 거부 (web 을 거쳐 클라이언트 IP 가 바뀌지 않게)", async ({ request }) => {
+  for (const p of ["/API/v1/dashboard", "/Api/v1/rules", "/SWAGGER-UI/index.html"]) {
+    const res = await request.get(p);
+    expect(res.status(), p).toBe(401);
+  }
+  expect((await request.get("/api/v1/dashboard")).status()).toBe(200);
+});
+
 test("익명: 규칙 화면은 보이지만 수정 버튼 대신 로그인 안내", async ({ page }) => {
   await page.goto("/admin/rules");
   await expect(page.getByRole("heading", { name: "규칙 관리" })).toBeVisible();
