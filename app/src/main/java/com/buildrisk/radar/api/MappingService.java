@@ -3,6 +3,7 @@ package com.buildrisk.radar.api;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.domain.universe.CompanyRepository;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +32,52 @@ public class MappingService {
     public MappingService(JdbcClient jdbc, CompanyRepository companies) {
         this.jdbc = jdbc;
         this.companies = companies;
+    }
+
+    /**
+     * 미매핑 행마다 그 기업 최신 보고서의 원천 계정 후보(이름 힌트로 최대 6개)를 붙임 — 한 번의 조회로.
+     * 전에는 행마다 한 번씩 최대 301번 조회해, 익명으로 반복 호출하면 커넥션 풀(12)을 오래 붙잡았음 (VERIFICATION 109)
+     */
+    private void attachCandidates(List<Map<String, Object>> missing) {
+        if (missing.isEmpty()) return;
+        int n = missing.size();
+        String[] corp = new String[n], year = new String[n], reprt = new String[n], fs = new String[n], sj = new String[n], hint = new String[n];
+        for (int i = 0; i < n; i++) {
+            var m = missing.get(i);
+            String latest = String.valueOf(m.remove("latest"));
+            corp[i] = String.valueOf(m.get("corp_code"));
+            year[i] = latest.substring(0, 4);
+            reprt[i] = latest.substring(4, 9);
+            fs[i] = latest.substring(9);
+            sj[i] = String.valueOf(m.get("sj_div"));
+            hint[i] = HINT.getOrDefault(String.valueOf(m.get("std_code")), ".");
+            m.put("candidates", new ArrayList<Map<String, Object>>());
+        }
+        // char(n) 열은 같은 타입으로 cast 해 보고서 인덱스(fs_raw_report_idx)를 씀. 손익(IS)은 포괄손익계산서(CIS)에서도 찾음
+        jdbc.sql("""
+                        SELECT t.i, c.sj_div, c.account_id, c.account_nm, c.thstrm_amount
+                        FROM unnest(cast(:corp AS text[]), cast(:year AS text[]), cast(:reprt AS text[]), cast(:fs AS text[]),
+                                    cast(:sj AS text[]), cast(:hint AS text[])) WITH ORDINALITY AS t(corp, yr, reprt, fs, sj, hint, i)
+                        CROSS JOIN LATERAL (
+                          SELECT DISTINCT ON (r.account_nm) r.sj_div, r.account_id, r.account_nm, r.thstrm_amount
+                          FROM dart.fs_raw r
+                          WHERE r.corp_code = cast(t.corp AS char(8)) AND r.bsns_year = cast(t.yr AS char(4))
+                            AND r.reprt_code = cast(t.reprt AS char(5)) AND r.fs_div = cast(t.fs AS char(3))
+                            AND r.sj_div = ANY(CASE WHEN t.sj = 'IS' THEN ARRAY['IS', 'CIS'] ELSE ARRAY[t.sj] END)
+                            AND r.account_nm ~ t.hint
+                          ORDER BY r.account_nm, r.rcept_no DESC LIMIT 6) c
+                        ORDER BY t.i, c.account_nm""")
+                .param("corp", corp).param("year", year).param("reprt", reprt).param("fs", fs).param("sj", sj).param("hint", hint)
+                .query((RowCallbackHandler) rs -> {
+                    Map<String, Object> c = new LinkedHashMap<>();
+                    c.put("sj_div", rs.getString(2));
+                    c.put("account_id", rs.getString(3));
+                    c.put("account_nm", rs.getString(4));
+                    c.put("thstrm_amount", rs.getBigDecimal(5));
+                    @SuppressWarnings("unchecked")
+                    var list = (List<Map<String, Object>>) missing.get(rs.getInt(1) - 1).get("candidates");
+                    list.add(c);
+                });
     }
 
     private static final String REPORTS = """
@@ -74,21 +121,7 @@ public class MappingService {
                                   AND x.fs_div = rep.fs_div AND x.std_code = s.std_code AND x.basis IN ('POINT', 'CUM'))
                 GROUP BY rep.corp_code, c.corp_name, s.std_code, s.name_ko, s.sj_div, s.sort_order
                 ORDER BY s.sort_order, c.corp_name LIMIT 300""").query().listOfRows();
-        for (var m : missing) {
-            String latest = String.valueOf(m.get("latest"));
-            String sj = String.valueOf(m.get("sj_div"));
-            List<String> sjs = sj.equals("IS") ? List.of("IS", "CIS") : List.of(sj);
-            m.put("candidates", jdbc.sql("""
-                            SELECT DISTINCT ON (account_nm) sj_div, account_id, account_nm, thstrm_amount
-                            FROM dart.fs_raw
-                            WHERE corp_code = :c AND bsns_year = :y AND reprt_code = :r AND fs_div = :f
-                              AND sj_div = ANY(cast(:sj AS text[])) AND account_nm ~ :hint
-                            ORDER BY account_nm, rcept_no DESC LIMIT 6""")
-                    .param("c", m.get("corp_code")).param("y", latest.substring(0, 4)).param("r", latest.substring(4, 9))
-                    .param("f", latest.substring(9)).param("sj", sjs.toArray(String[]::new))
-                    .param("hint", HINT.getOrDefault(String.valueOf(m.get("std_code")), ".")).query().listOfRows());
-            m.remove("latest");
-        }
+        attachCandidates(missing);
         out.put("accounts", missing);
 
         // 지역 코드
