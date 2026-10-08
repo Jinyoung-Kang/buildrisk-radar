@@ -61,7 +61,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest body, HttpServletRequest req, HttpServletResponse res) {
         String ip = req.getRemoteAddr();
-        var locked = throttle.lockedFor(body.username(), ip);
+        var locked = throttle.attempt(body.username(), ip);       // 실패로 먼저 셈 — 성공하면 되돌림
         if (locked.isPresent()) {
             audit.record(body.username(), "SESSION", "LOGIN_LOCKED", body.username(), 429, null, req);
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
@@ -74,7 +74,6 @@ public class AuthController {
         try {
             auth = authManager.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(body.username(), body.password()));
         } catch (AuthenticationException e) {
-            throttle.failure(body.username(), ip);
             audit.record(body.username(), "SESSION", "LOGIN_FAILURE", body.username(), 401, null, req);
             // 아이디 존재 여부를 드러내지 않는 같은 메시지
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse("LOGIN_FAILED",

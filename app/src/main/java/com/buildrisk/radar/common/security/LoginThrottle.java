@@ -23,21 +23,23 @@ public class LoginThrottle {
         this.lock = Duration.ofMinutes(Math.max(1, props.security().loginLockMinutes()));
     }
 
-    /** 잠겨 있으면 남은 초 */
-    public OptionalLong lockedFor(String username, String ip) {
-        String user = userKey(username, ip);
-        if (limiter.count(user) >= maxFailures) return OptionalLong.of(limiter.ttlSeconds(user));
-        String all = ipKey(ip);
-        if (limiter.count(all) >= maxFailures * 4L) return OptionalLong.of(limiter.ttlSeconds(all));
+    /**
+     * 비밀번호를 확인하기 전에 시도를 먼저 셈 — 잠금 확인과 실패 기록 사이가 비어 있으면 동시 요청이 모두 확인을 통과해
+     * 상한을 넘겨 맞춰 볼 수 있었음(16개 동시 요청이 모두 비밀번호 확인까지 감, VERIFICATION 107). 잠겼으면 남은 초
+     */
+    public OptionalLong attempt(String username, String ip) {
+        String user = userKey(username, ip), all = ipKey(ip);
+        long u = limiter.hit(user, lock), a = limiter.hit(all, lock);
+        if (u > maxFailures) return OptionalLong.of(limiter.ttlSeconds(user));
+        if (a > maxFailures * 4L) return OptionalLong.of(limiter.ttlSeconds(all));
         return OptionalLong.empty();
     }
 
-    public void failure(String username, String ip) {
-        limiter.hit(userKey(username, ip), lock);
-        limiter.hit(ipKey(ip), lock);
+    /** 성공 — (아이디, IP) 실패를 지우고 IP 전체 카운터에서 이번 시도를 뺌 (IP 카운터는 실패만 셈) */
+    public void success(String username, String ip) {
+        limiter.reset(userKey(username, ip));
+        limiter.release(ipKey(ip));
     }
-
-    public void success(String username, String ip) { limiter.reset(userKey(username, ip)); }
 
     private static String userKey(String username, String ip) {
         return "br:login:fail:" + ip + ":" + username.toLowerCase(Locale.ROOT);

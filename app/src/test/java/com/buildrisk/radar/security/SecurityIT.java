@@ -38,6 +38,8 @@ class SecurityIT extends IntegrationTest {
     RateLimiter limiter;
     @Autowired
     ObjectMapper mapper;
+    @Autowired
+    org.springframework.data.redis.core.StringRedisTemplate redis;
 
     /** 브라우저처럼 쿠키를 들고 다니는 클라이언트 */
     class Browser {
@@ -220,6 +222,39 @@ class SecurityIT extends IntegrationTest {
         assertThat(locked.getResponse().getStatus()).isEqualTo(429);
         assertThat(locked.getResponse().getHeader("Retry-After")).isNotNull();
         assertThat(new Browser("10.1.0.4").login("analyst", ANALYST_PASSWORD).getResponse().getStatus()).isEqualTo(200);  // 다른 IP 는 영향 없음
+    }
+
+    @Test
+    void 동시에_틀린_비밀번호를_보내도_비밀번호_확인은_상한까지만() throws Exception {
+        // 잠금 확인 → BCrypt → 실패 기록 사이가 비어 있으면 동시 요청이 모두 확인을 통과해 상한(5회)을 넘겨 비밀번호를 맞춰 볼 수 있음
+        int n = 16;
+        List<Browser> browsers = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            Browser b = new Browser("10.1.0.9");
+            b.send(get("/api/v1/auth/me"));
+            browsers.add(b);
+        }
+        var start = new java.util.concurrent.CountDownLatch(1);
+        try (var pool = java.util.concurrent.Executors.newFixedThreadPool(n)) {
+            var futures = browsers.stream().map(b -> pool.submit(() -> {
+                start.await();
+                return b.login("analyst", "wrong-password-123").getResponse().getStatus();
+            })).toList();
+            start.countDown();
+            List<Integer> codes = new ArrayList<>();
+            for (var f : futures) codes.add(f.get());
+            assertThat(codes).containsOnly(401, 429);
+            assertThat(codes.stream().filter(c -> c == 401).count()).isLessThanOrEqualTo(5);
+        }
+    }
+
+    @Test
+    void 만료가_빠진_실패_카운터도_다시_만료가_붙는다() {
+        // INCR 뒤 EXPIRE 만 실패하면(타임아웃 등) 키가 영구히 남아 그 사용자 · IP 가 계속 잠김
+        String key = "br:login:fail:10.1.0.10:analyst";
+        redis.opsForValue().set(key, "1");
+        limiter.hit(key, java.time.Duration.ofMinutes(15));
+        assertThat(redis.getExpire(key)).isPositive();
     }
 
     @Test
