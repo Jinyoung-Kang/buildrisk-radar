@@ -154,6 +154,48 @@ class SecurityIT extends IntegrationTest {
     }
 
     @Test
+    void 감사_로그는_웹훅_비밀과_주소_경로를_가린다() throws Exception {
+        jdbc.update("DELETE FROM ops.audit_log");
+        mvc.perform(post("/api/v1/admin/webhooks").header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"감사\",\"kind\":\"GENERIC\",\"url\":\"http://127.0.0.1:9/hook/T0-path-token?key=q-token\","
+                        + "\"secret\":\"audit-secret-value-1\"}"));
+        mvc.perform(put("/api/v1/rules/R-C02?apiKey=query-token-2").header("X-Admin-Token", ADMIN)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"params\":{\"threshold\":0.9},\"changeNote\":\"감사\"}"));
+        assertThat(count("SELECT count(*) FROM ops.audit_log")).isEqualTo(2);
+        for (String secret : List.of("audit-secret-value-1", "T0-path-token", "q-token", "query-token-2")) {
+            assertThat(count("SELECT count(*) FROM ops.audit_log WHERE detail::text LIKE ?", "%" + secret + "%")).as(secret).isZero();
+        }
+        var body = mapper.readTree(jdbc.queryForObject(
+                "SELECT detail::text FROM ops.audit_log WHERE action = 'POST /api/v1/admin/webhooks'", String.class)).get("body");
+        assertThat(body.get("secret").asString()).isEqualTo("***");
+        assertThat(body.get("url").asString()).isEqualTo("http://127.0.0.1:9/***");
+        assertThat(body.get("name").asString()).isEqualTo("감사");
+        // 가리지 않는 값은 그대로 — 무엇을 바꿨는지는 남아야 함
+        assertThat(jdbc.queryForObject("SELECT detail->'body'->>'changeNote' FROM ops.audit_log WHERE action LIKE 'PUT%'", String.class))
+                .isEqualTo("감사");
+    }
+
+    @Test
+    void 이미_남은_웹훅_감사_기록은_마이그레이션이_값만_가린다() throws Exception {
+        jdbc.update("DELETE FROM ops.audit_log");
+        jdbc.update("""
+                INSERT INTO ops.audit_log (actor, auth_type, action, status, detail) VALUES
+                  ('admin', 'SESSION', 'POST /api/v1/admin/webhooks', 400,
+                   '{"body":{"name":"n","url":"https://hooks.example.com/services/T0/B0/old-path-secret","secret":"old-secret-9"}}'),
+                  ('admin', 'SESSION', 'PUT /api/v1/rules/{ruleCode}', 200, '{"body":{"changeNote":"그대로"}}')""");
+        String sql = new String(new org.springframework.core.io.ClassPathResource("db/migration/V21__redact_audit_webhook_secrets.sql")
+                .getContentAsByteArray(), java.nio.charset.StandardCharsets.UTF_8);
+        jdbc.execute(sql);
+        var body = mapper.readTree(jdbc.queryForObject("SELECT detail::text FROM ops.audit_log WHERE action LIKE 'POST%'", String.class)).get("body");
+        assertThat(body.get("secret").asString()).isEqualTo("***");
+        assertThat(body.get("url").asString()).isEqualTo("https://hooks.example.com/***");
+        assertThat(body.get("name").asString()).isEqualTo("n");
+        assertThat(jdbc.queryForObject("SELECT detail->'body'->>'changeNote' FROM ops.audit_log WHERE action LIKE 'PUT%'", String.class))
+                .isEqualTo("그대로");
+        assertThat(count("SELECT count(*) FROM ops.audit_log")).isEqualTo(2);
+    }
+
+    @Test
     void 잘못된_서비스_토큰과_익명_변경_시도도_감사된다() throws Exception {
         jdbc.update("DELETE FROM ops.audit_log");
         mvc.perform(put("/api/v1/rules/R-C02").header("X-Admin-Token", "wrong").contentType(MediaType.APPLICATION_JSON).content("{}"))
