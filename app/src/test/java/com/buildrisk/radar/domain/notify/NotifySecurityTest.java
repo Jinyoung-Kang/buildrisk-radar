@@ -66,6 +66,9 @@ class NotifySecurityTest {
         t[t.length - 3] = t[t.length - 3] == 'A' ? 'B' : 'A';
         assertThatThrownBy(() -> c.decrypt(new String(t))).isInstanceOf(IllegalStateException.class);       // GCM 태그 검증
         assertThatThrownBy(() -> new NotifyCrypto(props("another-key-another-key-0000")).decrypt(e1)).isInstanceOf(IllegalStateException.class);
+        // 저장된 값이 깨진 것은 요청 잘못(400)이 아니라 서버 상태 문제(500) — 관리자가 요청을 고치려 헤매지 않게 (VERIFICATION 117)
+        assertThatThrownBy(() -> c.decrypt("plain-text")).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> c.decrypt("v1:%%%not-base64")).isInstanceOf(IllegalStateException.class);
         assertThat(new NotifyCrypto(props("")).available()).isFalse();
         assertThat(new NotifyCrypto(props("short")).available()).isFalse();
     }

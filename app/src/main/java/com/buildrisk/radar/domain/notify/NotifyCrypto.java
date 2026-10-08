@@ -56,12 +56,20 @@ public class NotifyCrypto {
         }
     }
 
-    /** 키가 바뀌었거나 변조됐으면 예외 (GCM 태그 검증) */
+    /**
+     * 키가 바뀌었거나 변조됐으면 예외 (GCM 태그 검증). 저장된 값이 깨진 것은 서버 상태 문제라 IllegalStateException(500) —
+     * IllegalArgumentException 이면 '잘못된 요청(400)'으로 나가 관리자가 요청을 고치려 헤맴 (VERIFICATION 117)
+     */
     public String decrypt(String enc) {
         require();
-        if (enc == null || !enc.startsWith(PREFIX)) throw new IllegalArgumentException("알 수 없는 암호문 형식");
+        if (enc == null || !enc.startsWith(PREFIX)) throw new IllegalStateException("저장된 값이 암호문 형식이 아님");
         try {
-            byte[] all = Base64.getDecoder().decode(enc.substring(PREFIX.length()));
+            byte[] all;
+            try {
+                all = Base64.getDecoder().decode(enc.substring(PREFIX.length()));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalStateException("저장된 암호문이 깨짐", e);
+            }
             Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
             c.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, all, 0, IV_BYTES));
             c.updateAAD(AAD);
