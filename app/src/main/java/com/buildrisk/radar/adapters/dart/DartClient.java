@@ -25,6 +25,8 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
@@ -32,7 +34,6 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -97,7 +98,7 @@ public class DartClient {
                 if (e.getName().toLowerCase().endsWith(".xml")) {
                     Files.createDirectories(dir);
                     Path out = dir.resolve("CORPCODE.xml");
-                    Files.copy(zip, out, StandardCopyOption.REPLACE_EXISTING);
+                    copyBounded(zip, out, CORP_CODE_LIMIT);
                     return out;
                 }
             }
@@ -106,6 +107,27 @@ public class DartClient {
         }
         throw new UpstreamException(PROVIDER, "corpCode Zip 안에 XML 이 없습니다.");
     }
+
+    /**
+     * 압축을 풀며 상한을 넘으면 멈추고 반쯤 쓴 파일을 지움 — 압축 폭탄이면 메모리 기반 /tmp(tmpfs)가 worker 메모리 한도를 먹음.
+     * 상한 256 MB: 지금 목록은 약 11.9만 개 회사(DB 13 MB)로 이보다 한참 작음 (VERIFICATION 116)
+     */
+    static void copyBounded(InputStream in, Path out, long limit) throws IOException {
+        long written = 0;
+        byte[] buf = new byte[64 * 1024];
+        try (OutputStream os = Files.newOutputStream(out)) {
+            for (int n; (n = in.read(buf)) > 0; ) {
+                written += n;
+                if (written > limit) throw new UpstreamException(PROVIDER, "corpCode Zip 해제 크기가 상한(" + limit + " 바이트)을 넘음");
+                os.write(buf, 0, n);
+            }
+        } catch (IOException | RuntimeException e) {
+            Files.deleteIfExists(out);
+            throw e;
+        }
+    }
+
+    private static final long CORP_CODE_LIMIT = 256L * 1024 * 1024;
 
     /** document.xml — 공시서류 원본(Zip 안 HTML). 파일 없음(013·014)이면 empty. 압축 해제는 5MB 상한(zip bomb 방지) */
     public Optional<String> document(String rceptNo) {
