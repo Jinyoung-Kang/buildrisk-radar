@@ -13,6 +13,8 @@ COPY . .
 RUN npm run build
 
 FROM node:22-bookworm-slim
+# 상위 이미지가 따라잡기 전에 나온 Debian 보안 수정 반영 (2026-10: perl-base CRITICAL 3건 — Trivy 게이트에서 발견)
+RUN apt-get update && apt-get -y upgrade --no-install-recommends && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3400 HOSTNAME=0.0.0.0
 COPY --from=build /app/.next/standalone ./

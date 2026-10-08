@@ -40,7 +40,9 @@ cd web && CAPTURE=1 E2E_CHANNEL=chrome npx playwright test capture   # README �
 ## 전달 방식
 
 - 작업 커밋은 `main` 에 직접 한다(브랜치 보호 없음, PR 은 Dependabot 만). 커밋 전: 전체 테스트 → 유출 검사(`.env` 의 값이
-  `git diff --cached` 에 없는지, 이름만 출력) → 커밋.
+  `git diff --cached` 에 없는지, 이름만 출력) → 커밋. 테스트에 비밀처럼 생긴 더미를 넣었으면 CI 와 같은 gitleaks 를 로컬에서도 돌린다
+  (`docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest git /repo --no-banner --redact --gitleaks-ignore-path /repo/.gitleaksignore`) —
+  CI 는 전체 이력을 보므로 한 번 커밋된 더미는 지문 등록 말고는 지울 수 없음(VERIFICATION 94).
 - 커밋 메시지는 `type(scope): 요약`, **요약은 한국어**. 여러 문제를 한 번에 고친 점검은 VERIFICATION 번호 범위를 적는다
   (예: `fix+perf: 4차 전수 점검 — … (문제 62~75)`). 끝에는 세션이 안내하는 `Co-Authored-By` 줄.
 - **push 는 사용자가 요청할 때.** push 뒤 CI · CodeQL 결과와 열린 보안 경고를 확인한다.

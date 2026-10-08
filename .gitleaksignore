@@ -1,0 +1,4 @@
+# gitleaks 예외 — 실제 비밀값이 아니라 테스트 전용 더미임을 확인한 항목만, 지문(커밋:파일:규칙:줄)으로 하나씩.
+# CI 는 전체 이력을 검사하므로 값을 바꿔도 과거 커밋이 남아 있어, 이력을 다시 쓰는 대신 지문을 등록합니다.
+# 통합 테스트용 알림 암호화 키 더미 (IntegrationTest.NOTIFY_KEY — 운영 키는 .env 의 NOTIFY_SECRET_KEY)
+767d1a5749a133a47ddada9e6c511ee3b6199b76:app/src/test/java/com/buildrisk/radar/support/IntegrationTest.java:generic-api-key:27

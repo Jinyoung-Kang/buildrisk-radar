@@ -45,10 +45,12 @@ export default function (d) {
   if (r < 0.15) res = http.get(`${BASE}/api/v1/dashboard`, { tags: { kind: "api", name: "dashboard" } });
   else if (r < 0.30) res = http.get(`${BASE}/api/v1/companies`, { tags: { kind: "api", name: "companies" } });
   else if (r < 0.50) res = http.get(`${BASE}/api/v1/companies/${pick(d.companies)}`, { tags: { kind: "api", name: "company" } });
-  else if (r < 0.60) res = http.get(`${BASE}/api/v1/companies/${pick(d.companies)}/filings`, { tags: { kind: "api", name: "filings" } });
+  else if (r < 0.55) res = http.get(`${BASE}/api/v1/companies/${pick(d.companies)}/filings`, { tags: { kind: "api", name: "filings" } });
+  else if (r < 0.60) res = http.get(`${BASE}/api/v1/companies/${pick(d.companies)}/pf`, { tags: { kind: "api", name: "pf" } });   // 수주·보증 탭의 PF 우발채무 (ADR-024)
   else if (r < 0.70) res = http.get(`${BASE}/api/v1/regions/${pick(d.regions)}/series`, { tags: { kind: "api", name: "region" } });
   else if (r < 0.80) res = http.get(`${BASE}/api/v1/alerts?status=OPEN,ACK`, { tags: { kind: "api", name: "alerts" } });
   else if (r < 0.88) res = http.get(`${BASE}/api/v1/exposure`, { tags: { kind: "api", name: "exposure" } });
+  else if (r < 0.91) res = http.get(`${BASE}/api/v1/scorecard?horizonMonths=12`, { tags: { kind: "api", name: "scorecard" } });   // 경보 검증 기본 탭 (ADR-023)
   else if (r < 0.93) res = http.get(`${BASE}/api/v1/backtest?horizon=60`, { tags: { kind: "api", name: "backtest" } });
   else if (r < 0.98) res = http.get(`${BASE}/api/v1/regions?metric=${pick(d.metrics)}`, { tags: { kind: "api", name: "regions" } });
   else res = http.get(`${BASE}/api/v1/regions/boundaries?v=${d.boundaryVersion}`,
