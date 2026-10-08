@@ -153,6 +153,14 @@ export type Scorecard = {
   method: string[]; limitations: string[]; disclaimer: string;
 };
 
+/** 사용자별 진입점 (/dashboard 의 personas) · 이름 찾기 (/search) */
+export type Personas = {
+  supplier: { corpCode: string; corpName: string; rules: string[]; sevRank: number }[];
+  buyer: { corpCode: string; corpName: string; periodKey: string; due12mToEquityPct?: number; guaranteeToEquityPct?: number }[];
+  investor?: { horizonMonths: number; observedFrom: string; observedTo: string; events: number; caught: number; medianLeadDays?: number; precision?: number; baseRate?: number; lift?: number };
+};
+export type SearchHit = { key: string; name: string; sub?: string };
+export type SearchResult = { q: string; companies: SearchHit[]; regions: SearchHit[] };
 export type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export class ApiError extends Error {

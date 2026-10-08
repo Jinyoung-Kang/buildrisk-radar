@@ -62,6 +62,9 @@ public class ScorecardService {
                            List<Scorecard.RuleScore> rules, List<EventRow> events, List<Scorecard.Catch> catches,
                            List<Scorecard.Episode> episodes, List<String> method, List<String> limitations, String disclaimer) {}
 
+    /** 성적표 API · 대시보드가 같은 캐시를 씀 */
+    public static String cacheKey(int horizonMonths) { return "scorecard:" + horizonMonths; }
+
     public Response run(int horizonMonths) {
         if (!HORIZONS.contains(horizonMonths)) throw new ApiException(ErrorCode.VALIDATION_ERROR, "horizonMonths 는 6 · 12 · 24");
         Map<String, String> names = companies();

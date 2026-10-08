@@ -61,12 +61,13 @@ k6 로 잰 **성능과 메모리 안정성**(50 VU 약 4,000 req/s · API p95 �
 | **공시 원문 구조화** ([ADR-016](docs/adr/016-filing-structuring.md)) | document.xml 원문을 그대로 보관 + 파서 버전 → 서식이 다른 유가·코스닥·자율공시·정정·해지를 '항목 경로'로 파싱. 파서를 고치면 **API 호출 0건으로 1,313건 재파싱(3.8초)** | 실제 원문 7건 `FilingParserTest` · `FilingJobIT` |
 | **기업 × 지역 교차 신호** | 공사 지역 주소 → 시군구(정확 대조만, 추정 없음) → 그 지역 미분양과 결합해 R-X01, 채무보증 잔액으로 R-C05, 실거래 거래량 급감 + 미분양 증가로 R-R03 | `ExposureRulesTest` · `AddressRegionMatcherTest` |
 | **알림** ([ADR-025](docs/adr/025-notifications.md)) | 경보를 쓰는 **같은 트랜잭션의 outbox** → worker 가 `SKIP LOCKED` 로 구독(심각도 · 규칙 · 대상 · 관심 목록)과 맞춰 알림함 · Slack · 서명된 JSON 웹훅으로. 다음 분기로 이어진 경보 · 규칙 버전 변경은 알리지 않음, 웹훅은 묶어 보내고 백오프 재시도 · 포기. **SSRF 방어**(공인 주소만 · 보낼 때마다 재검사 · 리다이렉트 금지) · 주소 **AES-GCM 저장 암호화** · HMAC 서명 | `NotificationIT` · `NotifySecurityTest` |
+| **사용자별 진입점** | 대시보드에서 질문으로 시작 — 협력업체(거래 건설사의 현금 · 유동성 신호가 겹친 곳), 분양 계약자(시군구 · 시공사 찾기, 12개월 내 만기 PF 가 큰 시공사), 투자 · 분석(성적표 요약: 부실 사건 중 미리 잡은 수 · 선행 기간 · 기준선 대비 정밀도). 새 계산 없이 같은 데이터를 질문별로 모음, `/dashboard` 는 필드만 더함(v1 호환) | `DashboardIT`(신호 선정 · 최신 분기 · LIKE 와일드카드 이스케이프) · E2E |
 | **사업장 카드** ([ADR-026](docs/adr/026-site-location.md)) | 공급계약 주소의 법정동 · 지번을 **실거래 110만 건의 법정동 · 지번과 정확히 대조**해(지오코딩 없음 — 브이월드 결과는 저장 금지) 사업장마다 그 동의 아파트 시장(거래 · ㎡당 중위가 · 해제율, 전년 대비)과 같은 지번의 기존 단지를 붙임. 구간 공사 · 거래 없는 동은 고르지 않고 사유 표시 — 현재 공급계약의 48% 가 동 · 지번까지 | `SiteAddressResolverTest`(실제 문장) · `SiteLocationIT` |
 | **PF 우발채무** ([ADR-024](docs/adr/024-pf-contingent-liabilities.md)) | 정기보고서 본문(10~15 MB)에서 '우발부채' 구간만 **바이트 스트리밍**으로 꺼내 보관하고, 금감원 주석공시 모범사례의 부동산 PF 종합요약표 · 사업장 내역을 구조화 — 회사 노출(단독 + 컨소시엄 회사분) · 만기 구간 · 사업장 지역 × 미분양. 회사마다 다른 표 모양을 실제 보고서 11건으로 고정하고, **사업장 합 · 본문 서술 두 가지로 대조**(176 / 205 · 156 / 174, 어긋난 건은 원문 확인). R-C06 | 실제 보고서 11건 `PfExposureParserTest` · `PfExposureJobIT` |
 | **경보 성적표** ([ADR-023](docs/adr/023-alert-scorecard.md)) | 재무 규칙을 전체 기간에 대해 그 당시 알 수 있던 공시로만 다시 평가해 실제 부실 사건(회생 · 워크아웃 · 부도 · 감사의견 비적정)과 맞춤 — 규칙별 정밀도 · 재현율(Wilson 95% 구간) · 선행 기간 · 기준선 대비 lift, 사건 목록과 빗나간 경보까지 공개 | `ScorecardTest` · `ScorecardIT` · `SeedDictionaryTest` — 실데이터: 사건 5건 모두 사건 전에 경보(중앙값 12개월 전) |
 | **경보의 사후 검증 (주가)** ([ADR-017](docs/adr/017-stock-backtest.md)) | 경보 근거 공시가 공개된 날 다음 거래일부터 20·60·120거래일 업종 대비 초과수익률. 수정주가가 아닌 원천 종가 → 주식수 변동 구간 제외, 겹침 제외, 비교 기준 분포 · t 값 · 한계 표시 | `EventStudyTest` |
 | **성능 · 메모리 · 관측** ([ADR-018](docs/adr/018-observability.md) · [020](docs/adr/020-map-boundaries-cache.md) · [021](docs/adr/021-container-memory.md) · [022](docs/adr/022-read-cache.md)) | 외부 API Step 청크 안 가상 스레드 동시 처리(호출 간격·일일 상한은 스레드 안전하게 유지), 실거래 월 파티션. **조회 캐시**(Redis, 세대 번호로 일괄 무효화 — 모든 Job 이 끝나는 한 곳에서), **지도 경계는 버전 URL + 1년 immutable + 프로세스 안에 미리 압축한 바이트**, **컨테이너 메모리 예산**(서비스별 한도 · 힙 60% · G1 명시). Prometheus 지표 · ECS 로그 · Grafana | k6 50 VU · 90초 3회: **약 3,400 req/s · API p95 30 ms · 오류 0**, api 최대 RSS 625 MiB / 1 GiB (점검 전 504 req/s · 307 ms, 오래 걸면 OOM 킬) |
-| **실데이터 검증** | 8개 출처 실데이터로 전체 배치를 돌리고 문제 101건을 재현 → 수정 → 회귀 테스트로 고정 (재시작 누락, 좀비 실행, 순액·액면 이중 공시, 공시 오탐, 동시 시작 직렬화 충돌, 자율공시 서식, **부하 중 OOM 킬**, **계정이 바뀐 누적 차분이 만든 오경보**, 종료 순서 때문에 실패하던 캐시 무효화 …) | [docs/VERIFICATION.md](docs/VERIFICATION.md) |
+| **실데이터 검증** | 8개 출처 실데이터로 전체 배치를 돌리고 문제 102건을 재현 → 수정 → 회귀 테스트로 고정 (재시작 누락, 좀비 실행, 순액·액면 이중 공시, 공시 오탐, 동시 시작 직렬화 충돌, 자율공시 서식, **부하 중 OOM 킬**, **계정이 바뀐 누적 차분이 만든 오경보**, 종료 순서 때문에 실패하던 캐시 무효화 …) | [docs/VERIFICATION.md](docs/VERIFICATION.md) |
 
 ---
 
@@ -179,7 +180,7 @@ sequenceDiagram
 | 캐시 · 세션 | Redis 7 · 프로세스 안 캐시 | 목록 · 상세 read-through(세대 키 `br:gen` 일괄 무효화) · 세션 · 레이트리밋 · 로그인 잠금 / 지도 경계는 버전별 gzip 바이트 ([ADR-022](docs/adr/022-read-cache.md)) |
 | 화면 | Next.js 15 (Pages Router) · React 18 · TypeScript · Tailwind · Recharts 3 · 카카오 지도 | 접근성 탭 · 좁은 화면 메뉴 · 역할에 따른 버튼 · CSP · 차트 지연 로드 · 페이지 넘김 · 1·2·5 눈금 |
 | 관측 | Micrometer → Prometheus · Grafana · ECS 구조화 로그 | 관리 포트 8411 분리, 조회 캐시 적중률 지표 ([ADR-018](docs/adr/018-observability.md)) |
-| 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright · **k6** | 백엔드 242개 · E2E 23개 · 부하 · 레이트리밋 |
+| 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright · **k6** | 백엔드 245개 · E2E 24개 · 부하 · 레이트리밋 |
 | 도구 | Python 3.11 (표준 라이브러리) | 외부 API 키 스모크 · 골든 fixture 캡처 (`tools/smoke.py`) |
 | 운영 · CI | Docker Compose(읽기 전용 · cap_drop · no-new-privileges · **서비스별 메모리 한도** · healthcheck) · nginx(edge) · Makefile · GitHub Actions | 테스트 · gitleaks · **CodeQL** · **Trivy** · Dependabot ([ADR-021](docs/adr/021-container-memory.md)) |
 | 도입하지 않음 | Kafka/CDC · ClickHouse · Kubernetes | 이유와 도입 조건: [ADR-011](docs/adr/011-out-of-scope-infra.md) |
@@ -208,7 +209,7 @@ sequenceDiagram
 실행은 모두 **요청 큐**를 거칩니다 — 화면·API 요청, 스케줄러(`BATCH_SCHEDULING_ENABLED=true`), 체인(`_next`: 지표 → 규칙) 모두 같은 경로로 기록됩니다.
 프로세스가 죽어 STARTED 로 남은 실행은 하트비트(Step `last_updated`)가 10분 넘게 멈추면 다음 실행 요청 때 자동으로 FAILED 정리 후 restart 되고,
 배치 모니터의 **멈춘 실행 정리** 버튼(`POST /batch/executions/{id}/recover`)으로 즉시 정리할 수도 있습니다.
-배포·재시작으로 worker 가 종료 신호를 받으면 새 요청을 가져가지 않고 돌던 Job 을 **청크 경계에서 STOPPED** 로 멈춥니다(최대 45초, `stop_grace_period: 60s`) — 다시 요청하면 마지막 커밋 이후부터 이어갑니다(실제 스택에서 `docker compose stop worker` 로 확인).
+배포·재시작으로 worker 가 종료 신호를 받으면 새 요청을 가져가지 않고 돌던 Job 을 **청크 경계에서 STOPPED** 로 멈춥니다(최대 45초, `stop_grace_period: 60s`) — 다시 요청하면 마지막 커밋 이후부터 이어갑니다(실제 스택에서 `docker compose stop worker` 로 확인). 멈추는 동안은 STOPPING 으로 남아 Step 이 경계에 닿기 전의 재시작은 409 — Spring Batch 6 의 `JobOperator.stop` 은 곧바로 STOPPED 로 적어 재시작이 겹쳤음([VERIFICATION 102](docs/VERIFICATION.md)).
 어떤 Job 이든 끝나면(상태와 무관 — 커밋된 청크는 이미 반영) 조회 캐시 세대를 올려 목록 · 상세가 바로 새 값을 보여 줍니다.
 
 ---
@@ -267,7 +268,7 @@ R-R01 의 `minUnsoldUnits` 는 구현 중 추가한 파라미터입니다 — �
 | 21 | `GET`·`POST /me/subscriptions` · `PUT`·`DELETE /me/subscriptions/{id}` · `GET /me/watch` · `PUT`·`DELETE /me/watch/{type}/{key}` 🔑 | 구독(심각도 · 규칙 · 대상 · 관심 목록만 · 채널) · 관심 목록 |
 | 22 | `GET`·`POST /admin/webhooks` · `PATCH`·`DELETE /admin/webhooks/{id}` · `POST …/test` · `GET …/deliveries` 🔒 | 웹훅 등록(https · 공인 주소만, 암호화 저장 · 주소는 호스트만 응답) · 시험 · 전송 내역 |
 | 23 | `GET /export/alerts.csv` · `/export/companies/{corpCode}/metrics.csv` · `/export/exposure.csv` · `/export/companies/{corpCode}/pf-sites.csv` | CSV 내려받기 — 열 이름 = JSON 필드, UTF-8 BOM, 수식 주입 방어, 경보 최대 50,000행(`X-Total-Count` · `X-Truncated`), IP 당 분당 30회 |
-| + | `GET /dashboard` · `GET /meta` | 대시보드 요약 · 지표 정의·출처 |
+| + | `GET /dashboard` · `GET /meta` · `GET /search?q=` | 대시보드 요약(사용자별 진입점 `personas` 포함) · 지표 정의·출처 · 이름 찾기(유니버스 기업 · 시군구 각 6건) |
 
 조회(GET)는 공개(본인 알림 · 구독 · 관심 목록 `/me/**` 는 조회도 로그인). 🔑 = ANALYST 이상, 🔒 = ADMIN — 브라우저는 세션 쿠키 + `X-XSRF-TOKEN` 헤더, 스크립트는 `X-Admin-Token`.
 오류 형식은 `{code, message, traceId}` (`400 VALIDATION_ERROR`, `401 UNAUTHORIZED · LOGIN_FAILED`, `403 FORBIDDEN · CSRF_INVALID`, `404 …_NOT_FOUND`, `405`, `409 JOB_ALREADY_RUNNING`, `415`, `429 TOO_MANY_REQUESTS`(+ Retry-After), `502 UPSTREAM_ERROR`), 모든 응답에 `X-Trace-Id` 헤더.
@@ -292,8 +293,8 @@ R-R01 의 `minUnsoldUnits` 는 구현 중 추가한 파라미터입니다 — �
 ## 7. 테스트 · 측정값
 
 ```bash
-make test        # 백엔드 242개 (단위·골든 + Testcontainers 통합) + 웹 타입 검사
-make e2e         # Playwright 23개 (스택이 떠 있어야 함, 관리자 로그인 · XFF 위조 시나리오 포함)
+make test        # 백엔드 245개 (단위·골든 + Testcontainers 통합) + 웹 타입 검사
+make e2e         # Playwright 24개 (스택이 떠 있어야 함, 관리자 로그인 · XFF 위조 시나리오 포함)
 make load        # k6 부하 (50 VU · 90초, edge 경유)
 make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 ```
@@ -312,7 +313,7 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 | 근거 계보 · 내려받기 | `LineageIT` · `CsvWriterTest` · `DisclosureSyncJobIT` | 실제 배치(수집 → 표준화 → 규칙 평가)로 만든 R-C01 · R-C02 경보에서 원천 줄 · 매핑 규칙 · 수집 실행까지 / 분기값의 두 누적값 / 매핑을 바꾸면 reproduced = false / 지역 경보의 일반구 통계 행 / CSV 값 · BOM · 수식 주입 · 404 / 공시 행의 수집 실행 ID |
 | 사업장 위치 | `SiteLocationIT` · `SiteAddressResolverTest` | 일반구 실거래와 법정동 · 지번 대조 → 저장 → 카드 API 의 동 시장 값(거래 · 전년 대비 · 해제율 · ㎡당 중위가)을 손 계산과 대조 / 구간 공사 · 읍면 · 리 · 숫자+가 · 건물 번호 |
 | PF 우발채무 | `PfExposureJobIT` · `PfExposureParserTest` · `SectionScannerTest` | Zip 스트리밍 구간 추출(청크 경계 표지) · 정정본만 수집 · 지표 SQL 실제 실행 · 다시 계산하면 갱신 · R-C06 · API 404 / 실제 보고서 11건의 표 모양별 기대값(원문 값과 대조) |
-| E2E | Playwright | 대시보드 고지 · 지도 · 경보 근거 · **근거 계보 · CSV 내려받기 · API 안내** · **경보 페이지 넘김** · **경보 성적표** · **PF 우발채무** · **사업장 카드** · **알림(종 · 구독 · 내부망 웹훅 거부)** · 배치 모니터 · 테마 · 보안 헤더 · 로그인/권한 · 노출 · 경보 검증 · 탭 키보드 · 좁은 화면 메뉴 |
+| E2E | Playwright | 대시보드 고지 · **사용자별 진입점(찾기 → 상세)** · 지도 · 경보 근거 · **근거 계보 · CSV 내려받기 · API 안내** · **경보 페이지 넘김** · **경보 성적표** · **PF 우발채무** · **사업장 카드** · **알림(종 · 구독 · 내부망 웹훅 거부)** · 배치 모니터 · 테마 · 보안 헤더 · 로그인/권한 · 노출 · 경보 검증 · 탭 키보드 · 좁은 화면 메뉴 |
 
 | 측정 (NFR-06, 로컬 M 시리즈 맥, 실데이터 2026-09-24) | 결과 | 목표 |
 |---|---|---|
@@ -332,15 +333,16 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 | PF 정기보고서 472건 수집 (구간 스트리밍) | 약 90 s · worker 최대 475 MiB / 1.5 GiB 한도 · 보관 14 MB — 파서를 고친 뒤 재파싱 468건 약 6 s(호출 0) | 일일 상한 15,000 이내 |
 | 반복 순차 스캔 → `V15` 인덱스 (EXPLAIN ANALYZE) | 최신 공시일 1.34 → 0.04 ms · 기업별 최신 기간 1.21 → 0.28 ms · 지역별 출처 코드 0.38 → 0.03 ms | — |
 | 근거 계보 API (규칙 10종 경보 하나씩, 2026-10-08) | 캐시 없음 15~45 ms (재시작 직후 첫 호출 347 ms) · 캐시 후 약 10 ms | — |
+| 대시보드 (사용자별 진입점 포함) · 이름 찾기 | 캐시 없음 143~228 ms (Job 종료 직후 성적표 재계산 포함) · 캐시 후 13 ms / 찾기 4~11 ms | — |
 | CSV 내려받기 (edge 경유) | 경보 595행 24~70 ms · 기업 지표 231행 29~75 ms · 노출 43행 46 ms | — |
-| 화면 첫 로드 JS (`next build`) | 기업 상세 224 → 104 KB · 지도 224 → 102 KB (차트 지연 로드) — 나머지 화면 약 96 KB | — |
+| 화면 첫 로드 JS (`next build`) | 기업 상세 224 → 104 KB · 지도 224 → 102 KB (차트 지연 로드, 9-27). 2026-10-08 빌드: 기업 상세 111 · 지도 104 · 대시보드 101 · 경보 103 · API 안내 100 · 지역 상세 228 KB(차트를 바로 불러옴) · 나머지 93~103 KB | — |
 | 레이트리밋 (20 VU · 20 s, 한 IP) | 1,200건 200 · 나머지 429(Retry-After) — 한도와 정확히 일치, 위조 X-Forwarded-For 로 우회 불가 | 분당 1,200 |
 | 실거래 수집 6,400 (시군구×월) · 110만 행 | 420 s (6,417 호출, 동시 4) | 일일 상한 9,000 이내 |
 | 청크 안 동시 호출 A/B (실거래 256 호출) | 순차 23.3 s → 동시 4 17.8 s (−24%) — 이후는 공급자 보호용 호출 간격(60 ms ≈ 16.7건/s)이 천장 | — |
 | 공시 원문 1,313건 수집·구조화 | 263 s (DART 호출 간격 200 ms 가 천장) · **파서 개정 후 재파싱 3.8 s · 호출 0** | — |
 | 주가 43종목 × 3년 (31,138행) | 27 s (43 호출) | — |
 
-데이터 품질·적재 결과와 실데이터·정적 분석·부하 시험으로 찾은 문제 101건은 [docs/VERIFICATION.md](docs/VERIFICATION.md).
+데이터 품질·적재 결과와 실데이터·정적 분석·부하 시험으로 찾은 문제 102건은 [docs/VERIFICATION.md](docs/VERIFICATION.md).
 부하 수치는 다른 프로젝트의 스택이 함께 도는 개발용 맥에서 잰 값이라 절대값은 흔들립니다 — 비교는 같은 날 연달아 잰 값끼리입니다.
 
 ## 8. 설계서 미결정 사항 → 결과
@@ -391,7 +393,7 @@ buildrisk-radar/
 ├─ seed/                     표준계정 · 매핑 규칙 · 업종코드 · 이벤트 사전 · 규칙 · 통계 시리즈 · 지역 별칭
 ├─ tools/smoke.py            외부 API 키 스모크 · 골든 fixture 캡처
 ├─ docs/adr/                 설계 결정 기록 27건
-├─ docs/VERIFICATION.md      실데이터 검증 기록 (적재 결과 · 품질 · 찾아서 고친 문제 101건 · 부하 · 보안 확인)
+├─ docs/VERIFICATION.md      실데이터 검증 기록 (적재 결과 · 품질 · 찾아서 고친 문제 102건 · 부하 · 보안 확인)
 ├─ docker-compose.yml · Makefile · .env.example · .github/ (ci · codeql · dependabot)
 ├─ CLAUDE.md · .claude/settings.json   AI 코딩 도구(Claude Code) 작업 안내 · 명령 허용/금지 목록 (.env 읽기 금지)
 ```

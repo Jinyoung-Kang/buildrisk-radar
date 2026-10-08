@@ -25,7 +25,6 @@ import org.springframework.batch.core.job.JobInstance;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException;
-import org.springframework.batch.core.launch.JobExecutionNotRunningException;
 import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.dao.ConcurrencyFailureException;
@@ -96,13 +95,24 @@ public class BatchLauncher {
 
     public boolean running(String jobName) { return !repository.findRunningJobExecutions(jobName).isEmpty(); }
 
-    /** 다음 청크 경계에서 멈추도록 요청 → STOPPED (restart 로 마지막 커밋 이후부터 이어감). 이미 끝났으면 false */
+    /**
+     * 다음 청크 경계에서 멈추도록 요청 → STOPPED (restart 로 마지막 커밋 이후부터 이어감). 이미 끝났으면 false.
+     * Job 실행을 종료 시각 없이 STOPPING 으로만 바꿈 — Step 이 다음 청크 커밋 때 이를 읽어(JobRepository.update(StepExecution)) 경계에서 멈추고,
+     * Job 스레드가 실제로 끝날 때 STOPPED 가 됨. JobOperator.stop 은 Job · Step 에 종료 시각을 적어 곧바로 STOPPED 로 바꿔
+     * 스레드가 청크를 처리하는 동안 '끝났다'고 보여, 정상 종료(drain) 뒤 재시작이 이전 실행과 겹쳤음 (Spring Batch 6.0.5 소스 확인, VERIFICATION 102)
+     */
     public boolean stop(long executionId) {
-        try {
+        for (int attempt = 1; ; attempt++) {
             JobExecution je = repository.getJobExecution(executionId);
-            return je != null && je.isRunning() && operator.stop(je);
-        } catch (JobExecutionNotRunningException e) {
-            return false;
+            if (je == null || !je.isRunning()) return false;
+            if (je.getStatus() == BatchStatus.STOPPING) return true;
+            je.setStatus(BatchStatus.STOPPING);
+            try {
+                repository.update(je);
+                return true;
+            } catch (ConcurrencyFailureException e) {     // Job 스레드가 같은 행을 갱신 — 다시 읽어 재시도
+                if (attempt >= 5) throw e;
+            }
         }
     }
 

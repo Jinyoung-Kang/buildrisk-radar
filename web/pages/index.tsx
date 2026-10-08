@@ -1,7 +1,8 @@
 import Link from "next/link";
 import Layout from "@/components/Layout";
+import PersonaEntry from "@/components/PersonaEntry";
 import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle, SeverityBadge, Stat, StatusPill, TargetLink } from "@/components/ui";
-import type { Row } from "@/lib/api";
+import type { Personas, Row } from "@/lib/api";
 import { SEVERITY } from "@/lib/colors";
 import { dt, int, num, pk, ym } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -29,6 +30,8 @@ export default function Dashboard() {
             <Stat label="데이터 기준" value={<span className="text-base">{pk(f.latestFsPeriod)} · {ym(f.latestUnsold)}</span>}
               sub={`재무 · 미분양 / 가격지수 ${ym(f.latestPrice)} / 공시 ${f.latestDisclosure ?? "–"}`} />
           </div>
+
+          {data.personas && <PersonaEntry p={data.personas as Personas} />}
 
           <div className="grid lg:grid-cols-5 gap-5">
             <Card title="최근 열린 경보" sub="심각도 · 기준 시점 순" className="lg:col-span-3"

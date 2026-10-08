@@ -101,7 +101,7 @@ public class InsightController {
     @Operation(summary = "경보 성적표 — 재무 규칙이 실제 부실 사건(회생 · 워크아웃 · 부도 · 감사의견 비적정)을 얼마나 미리 잡았는지",
             description = "정밀도 · 재현율(Wilson 95% 구간) · 선행 기간 · 기준선 대비 lift. horizonMonths = 6 · 12 · 24 (ADR-023)")
     public ScorecardService.Response scorecard(@RequestParam(defaultValue = "12") int horizonMonths) {
-        return cache.get("scorecard:" + horizonMonths, Duration.ofMinutes(30), ScorecardService.Response.class,
+        return cache.get(ScorecardService.cacheKey(horizonMonths), Duration.ofMinutes(30), ScorecardService.Response.class,
                 () -> scorecard.run(horizonMonths));
     }
 }

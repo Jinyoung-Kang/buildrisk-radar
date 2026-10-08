@@ -8,8 +8,11 @@ import com.buildrisk.radar.domain.metric.MetricCatalog;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Size;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.core.type.TypeReference;
 
@@ -22,16 +25,23 @@ import java.util.Map;
 @ApiRole
 @RequestMapping("/api/v1")
 @Tag(name = "메타", description = "대시보드 · 지표 정의 · 출처 · 고지")
+@Validated
 public class MetaController {
     private final DashboardService dashboard;
+    private final SearchService search;
     private final SeedCatalog seed;
     private final JsonCache cache;
 
-    public MetaController(DashboardService dashboard, SeedCatalog seed, JsonCache cache) {
+    public MetaController(DashboardService dashboard, SearchService search, SeedCatalog seed, JsonCache cache) {
         this.dashboard = dashboard;
+        this.search = search;
         this.seed = seed;
         this.cache = cache;
     }
+
+    @GetMapping("/search")
+    @Operation(summary = "이름 찾기 — 유니버스 기업 · 시군구 각 6건 (대시보드 진입점)")
+    public SearchService.Result search(@RequestParam(defaultValue = "") @Size(max = 40) String q) { return search.search(q); }
 
     @GetMapping("/dashboard")
     @Operation(summary = "대시보드 요약")

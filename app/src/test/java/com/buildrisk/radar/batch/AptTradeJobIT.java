@@ -33,6 +33,8 @@ class AptTradeJobIT extends IntegrationTest {
     com.buildrisk.radar.batch.queue.JobRequestService queue;
     @Autowired
     com.buildrisk.radar.batch.queue.JobRequestWorker worker;
+    @Autowired
+    org.springframework.batch.core.repository.JobRepository jobRepository;
 
     @BeforeEach
     void regions() {
@@ -143,6 +145,30 @@ class AptTradeJobIT extends IntegrationTest {
     }
 
     /** SIGTERM(정상 종료): 청크 경계에서 STOPPED → 다시 요청하면 받은 곳 다음부터 이어서 완료 */
+    /**
+     * 멈춤은 Step 이 청크 경계에 닿아 실제로 끝날 때까지 '실행 중'(STOPPING)이어야 함. 전에는 JobOperator.stop 이 Job · Step 을 곧바로
+     * STOPPED 로 적어, Step 스레드가 청크를 처리하는 동안 재시작이 이전 실행과 겹쳤음 — 같은 대상을 두 실행이 동시에 받음 (VERIFICATION 102)
+     */
+    @Test
+    void 멈춤_요청_뒤_Step_이_청크_경계에_닿기_전에는_끝난_것으로_보지_않고_재시작도_거절한다() throws Exception {
+        WM.stubFor(get(urlPathEqualTo(PATH)).willReturn(aResponse().withFixedDelay(1000)
+                .withHeader("Content-Type", "application/xml").withBody(xml(item(50_000, "84.00", false)))));
+        long id = launcher.launch("aptTradeJob", Map.of("months", 24, "restart", false)).jobExecutionId();
+        for (int i = 0; i < 100 && count("SELECT count(*) FROM mkt.apt_trade_fetch") == 0; i++) Thread.sleep(100);
+        assertThat(count("SELECT count(*) FROM mkt.apt_trade_fetch")).isPositive();        // 첫 청크 커밋 — 다음 청크는 1초 응답을 기다리는 중
+        assertThat(launcher.stop(id)).isTrue();
+        assertThat(jobRepository.getJobExecution(id).getStatus()).isEqualTo(BatchStatus.STOPPING);  // 끝날 때까지 실행 중
+        assertThat(org.assertj.core.api.Assertions.catchThrowableOfType(com.buildrisk.radar.common.error.ApiException.class,
+                () -> launcher.launch("aptTradeJob", Map.of("months", 24))).code())
+                .isEqualTo(com.buildrisk.radar.common.error.ErrorCode.JOB_ALREADY_RUNNING);           // Step 이 끝나기 전 재시작 거절
+        var je = launcher.awaitFinished(id);
+        assertThat(je.getStatus()).isEqualTo(BatchStatus.STOPPED);
+        assertThat(je.getStepExecutions()).allMatch(se -> !se.getStatus().isRunning());
+        int after = count("SELECT count(*) FROM mkt.apt_trade_fetch");
+        Thread.sleep(1500);
+        assertThat(count("SELECT count(*) FROM mkt.apt_trade_fetch")).isEqualTo(after);       // 끝났다고 본 뒤에는 더 쓰지 않음
+    }
+
     @Test
     void worker_정상_종료는_청크_경계에서_멈추고_다시_요청하면_이어받는다() throws Exception {
         WM.stubFor(get(urlPathEqualTo(PATH)).willReturn(aResponse().withFixedDelay(150)

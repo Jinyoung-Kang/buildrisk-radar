@@ -100,3 +100,23 @@ test("API 안내: 메뉴에서 열고 근거 계보 · CSV 규칙 · 호환 정�
   await expect(page.getByRole("heading", { name: "CSV 규칙" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "호환 정책 (v1)" })).toBeVisible();
 });
+
+// 사용자별 진입점 (대시보드)
+test("사용자별 진입점: 건설사 · 시군구를 찾아 상세로, 투자 카드는 성적표 요약", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "질문에서 시작하기" })).toBeVisible();
+  await page.getByPlaceholder("건설사 이름 (예: 대우)").fill("대우");
+  await page.getByRole("list", { name: "거래 건설사 찾기 결과" }).getByRole("link", { name: /대우건설/ }).click();
+  await expect(page).toHaveURL(/\/companies\/00124540$/);
+
+  await page.goto("/");
+  const buyer = page.getByPlaceholder("시군구 또는 시공사 (예: 수원)");
+  await buyer.fill("수원");
+  await expect(page.getByRole("list", { name: "시군구 또는 시공사 찾기 결과" })).toBeVisible();
+  await buyer.press("Enter");                                                       // Enter = 첫 결과
+  await expect(page).toHaveURL(/\/regions\/41110$/);
+
+  await page.goto("/");
+  await expect(page.getByText("부실 사건 중 미리 잡은 수")).toBeVisible();
+  await expect(page.getByText(/^\d+\/\d+$/)).toBeVisible();
+});
