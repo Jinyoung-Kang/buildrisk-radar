@@ -64,8 +64,10 @@ public class AlertQueryService {
     public AlertDetail detail(long id) {
         return jdbc.sql("SELECT a.alert_id, a.rule_code, a.rule_version, r.name_ko, r.description, a.severity, a.target_type, "
                         + "a.target_key, " + TARGET_NAME + ", a.as_of, a.title, a.message, a.status, a.close_reason, "
-                        + "a.evidence::text, a.first_seen_at, a.last_evaluated_at, a.acked_at, a.closed_at, a.calc_run_id::text, a.acked_by "
+                        + "a.evidence::text, a.first_seen_at, a.last_evaluated_at, a.acked_at, a.closed_at, a.calc_run_id::text, a.acked_by, "
+                        + "cr.job_execution_id, cr.created_at "      // 이 경보를 마지막으로 평가한 규칙 평가 실행 (화면에 '배치 실행 #n · 시각')
                         + "FROM risk.alert a JOIN risk.rule r ON r.rule_code = a.rule_code AND r.version = a.rule_version "
+                        + "LEFT JOIN ops.calc_run cr ON cr.calc_run_id = a.calc_run_id "
                         + "WHERE a.alert_id = :id")
                 .param("id", id)
                 .query((rs, i) -> new AlertDetail(rs.getLong(1), rs.getString(2), rs.getInt(3), rs.getString(4),
@@ -73,7 +75,8 @@ public class AlertQueryService {
                         rs.getString(10), rs.getString(11), rs.getString(12), rs.getString(13), rs.getString(14),
                         mapper.readValue(rs.getString(15), MAP), rs.getObject(16, OffsetDateTime.class),
                         rs.getObject(17, OffsetDateTime.class), rs.getObject(18, OffsetDateTime.class), rs.getString(21),
-                        rs.getObject(19, OffsetDateTime.class), rs.getString(20), Disclaimer.TEXT))
+                        rs.getObject(19, OffsetDateTime.class), rs.getString(20), (Long) rs.getObject(22),
+                        rs.getObject(23, OffsetDateTime.class), Disclaimer.TEXT))
                 .optional().orElseThrow(() -> ApiException.notFound(ErrorCode.ALERT_NOT_FOUND, "경보 " + id));
     }
 

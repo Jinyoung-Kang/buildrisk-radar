@@ -22,6 +22,13 @@ public class RC04MaterialDisclosure implements RuleEvaluator {
     private static final Set<String> KNOWN = Set.of("AUDIT_OPINION", "DEFAULT", "SUSPENSION", "REHAB", "GUARANTEE",
             "LITIGATION", "FUNDING", "CONTRACT", "PERIODIC");
 
+    private final Map<String, String> names;
+
+    /** names: 공시 유형 코드 → 이름 (seed 의 공시 분류 사전). 없는 코드는 코드 그대로 */
+    public RC04MaterialDisclosure(Map<String, String> names) { this.names = Map.copyOf(names); }
+
+    private String name(String code) { return names.getOrDefault(code, code); }
+
     @Override public String code() { return "R-C04"; }
 
     @Override public TargetType targetType() { return TargetType.COMPANY; }
@@ -36,7 +43,7 @@ public class RC04MaterialDisclosure implements RuleEvaluator {
     }
 
     @Override public String condition(Params p) {
-        return "최근 " + p.count("windowDays", 1, 365) + "일 공시 유형 ∈ " + p.strings("eventTypes");
+        return "최근 " + p.count("windowDays", 1, 365) + "일 공시 유형 ∈ " + p.strings("eventTypes").stream().map(this::name).toList();
     }
 
     @Override
@@ -57,7 +64,7 @@ public class RC04MaterialDisclosure implements RuleEvaluator {
             o.put("reportNm", name);
             o.put("eventType", d.eventType());
             o.put("matchedKeyword", d.keyword());
-            String msg = d.rceptDt() + " '" + name + "' 공시가 " + d.eventType() + " 유형(키워드 '"
+            String msg = d.rceptDt() + " '" + name + "' 공시가 " + name(d.eventType()) + " 유형(키워드 '"
                     + d.keyword() + "')으로 분류됐습니다.";
             Map<String, Object> ev = new Evidence(rule, condition(p)).observe(o)
                     .source(Map.of("type", "DART", "rceptNo", d.rceptNo(),

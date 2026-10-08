@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { Lineage, LineageStatement } from "@/lib/api";
 import { dt } from "@/lib/format";
-import { paramLabel } from "@/lib/ruleLabels";
+import { needsEventNames, paramLabel, paramValue } from "@/lib/ruleLabels";
+import { useEventNames } from "@/lib/useEventNames";
 import { useApi } from "@/lib/useApi";
 import { DartLink, ErrorBox, Loading } from "./ui";
 
@@ -59,13 +60,14 @@ function Statement({ s, depth = 0 }: { s: LineageStatement; depth?: number }) {
 }
 
 function Body({ l }: { l: Lineage }) {
+  const names = useEventNames(needsEventNames(l.rule.params));
   return (
     <ol className="space-y-4">
       <Step title="규칙" sub={`${l.rule.code} v${l.rule.version}`}>
         <div>{l.rule.nameKo}</div>
         <div className="flex flex-wrap gap-1 mt-1">
           {Object.entries(l.rule.params).map(([k, v]) => (
-            <span key={k} className="rounded bg-page px-1.5 py-0.5 text-xs tabular">{paramLabel(l.rule.code, k)} = {Array.isArray(v) ? v.join(", ") : String(v)}</span>
+            <span key={k} className="rounded bg-page px-1.5 py-0.5 text-xs tabular">{paramLabel(l.rule.code, k)} = {paramValue(k, v, names)}</span>
           ))}
         </div>
         {(l.rule.changeNote || l.rule.createdAt) && <div className="text-xs text-muted mt-1">{l.rule.changeNote}{l.rule.changeNote && l.rule.createdAt && " · "}{l.rule.createdAt && `버전 생성 ${dt(l.rule.createdAt)}`}</div>}

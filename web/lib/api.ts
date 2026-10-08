@@ -72,7 +72,8 @@ export type Lineage = {
   metrics: LineageMetric[]; statements: LineageStatement[]; stats: LineageStat[]; filings: LineageFiling[]; runs: LineageRun[]; notes: string[]; disclaimer: string;
 };
 export type AlertDetail = AlertRow & {
-  ruleDescription: string; message: string; evidence: Evidence; ackedAt?: string; ackedBy?: string; closedAt?: string; calcRunId?: string; disclaimer: string;
+  ruleDescription: string; message: string; evidence: Evidence; ackedAt?: string; ackedBy?: string; closedAt?: string; calcRunId?: string;
+  calcJobExecutionId?: number; calcRunAt?: string; disclaimer: string;
 };
 export type RuleView = {
   ruleCode: string; version: number; targetType: string; nameKo: string; description: string; params: Record<string, unknown>;

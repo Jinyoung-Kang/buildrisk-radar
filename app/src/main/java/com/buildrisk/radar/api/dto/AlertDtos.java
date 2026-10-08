@@ -15,7 +15,8 @@ public final class AlertDtos {
                               String severity, String targetType, String targetKey, String targetName, String asOf,
                               String title, String message, String status, String closeReason, Map<String, Object> evidence,
                               OffsetDateTime firstSeenAt, OffsetDateTime lastEvaluatedAt, OffsetDateTime ackedAt,
-                              String ackedBy, OffsetDateTime closedAt, String calcRunId, String disclaimer) {}
+                              String ackedBy, OffsetDateTime closedAt, String calcRunId, Long calcJobExecutionId,
+                              OffsetDateTime calcRunAt, String disclaimer) {}
 
     public record StatusChange(String status) {}
 

@@ -54,6 +54,11 @@ class RuleEvalJobIT extends IntegrationTest {
         mvc.perform(get("/api/v1/alerts").param("status", "OPEN,ACK")).andExpect(jsonPath(mine, hasSize(0)));   // 이 응답이 캐시됨
         var je = launcher.runAndWait("ruleEvalJob", Map.of());
         mvc.perform(get("/api/v1/alerts").param("status", "OPEN,ACK")).andExpect(jsonPath(mine, hasSize(1)));
+        // 상세는 이 경보를 평가한 규칙 평가 실행을 사람이 읽을 수 있게 (배치 실행 번호 · 시각)
+        long id = jdbc.queryForObject("SELECT alert_id FROM risk.alert WHERE rule_code = 'R-C02' AND target_key = '00000009' ORDER BY alert_id DESC LIMIT 1", Long.class);
+        mvc.perform(get("/api/v1/alerts/" + id))
+                .andExpect(jsonPath("$.calcJobExecutionId", org.hamcrest.Matchers.equalTo((int) je.getId())))
+                .andExpect(jsonPath("$.calcRunAt").isNotEmpty());
 
         // 무효화 리스너가 없는 Job(공시 · 미분양 · 가격지수 …)도 끝나는 한 곳(awaitFinished)에서 세대를 올림
         String before = redis.opsForValue().get("br:gen");

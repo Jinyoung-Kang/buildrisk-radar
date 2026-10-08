@@ -184,6 +184,21 @@ class RuleEvaluatorTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void R_C04_조건과_문장에는_공시_유형_코드_대신_seed_의_이름() {
+        var seed = com.buildrisk.radar.common.seed.SeedCatalog.at(java.nio.file.Path.of("../seed"));
+        var named = new RuleRegistry(seed);
+        var d = new Mem();
+        d.events.add(new DisclosureEvent("20260910000001", "기업구조개선(워크아웃)신청", LocalDate.of(2026, 9, 10), "REHAB", "워크아웃"));
+        var r = rule("R-C04", TargetType.COMPANY, Map.of("eventTypes", List.of("REHAB", "DEFAULT"), "windowDays", 30));
+        var f = named.get("R-C04").evaluate(r, "c", d).findings().getFirst();
+        assertThat((String) f.evidence().get("condition")).isEqualTo("최근 30일 공시 유형 ∈ [회생·구조조정, 부도·채무불이행]");
+        assertThat(f.message()).contains("공시가 회생·구조조정 유형(키워드 '워크아웃')").doesNotContain("REHAB");
+        // 관측값은 기계가 읽는 코드 그대로 (화면이 이름으로 바꿈)
+        assertThat(((List<Map<String, Object>>) f.evidence().get("observations")).getFirst()).containsEntry("eventType", "REHAB");
+    }
+
+    @Test
     void R_R01_최소_호수_미만이면_증가율이_커도_거짓() {
         var d = new Mem().put("UNSOLD_UNITS", "202607", "40").put("UNSOLD_3M_CHG", "202607", "300")
                 .put("UNSOLD_PER_1K_HH", "202607", "5");

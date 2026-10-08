@@ -30,7 +30,7 @@ function AlertCard({ id }: { id: number }) {
         <span className="text-xs text-muted">{data.ruleCode} v{data.ruleVersion} · {data.asOf}</span>
         <StatusPill status={data.status} reason={data.closeReason} />
       </div>
-      <EvidenceView ev={data.evidence} />
+      <EvidenceView ev={data.evidence} run={{ jobExecutionId: data.calcJobExecutionId, at: data.calcRunAt }} />
     </div>
   );
 }

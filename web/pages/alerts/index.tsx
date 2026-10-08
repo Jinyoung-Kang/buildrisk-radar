@@ -31,7 +31,7 @@ function Detail({ id, onChanged }: { id: string; onChanged: () => void }) {
         <TargetLink type={data.targetType} keyCd={data.targetKey} name={data.targetName} /> · 기준 {data.asOf} · 처음 {dt(data.firstSeenAt)} · 최근 평가 {dt(data.lastEvaluatedAt)}
       </div>
       <ErrorBox error={err} />
-      <EvidenceView ev={data.evidence} />
+      <EvidenceView ev={data.evidence} run={{ jobExecutionId: data.calcJobExecutionId, at: data.calcRunAt }} />
       <div className="mt-4"><AlertLineage id={data.alertId} /></div>
       <div className="flex gap-2 mt-4 items-center">
         {data.status !== "CLOSED" && <RequireRole role="ANALYST"><span className="flex gap-2">

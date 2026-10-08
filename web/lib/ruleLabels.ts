@@ -19,3 +19,12 @@ const RULE_PARAM: Record<string, Record<string, string>> = {
 export function paramLabel(ruleCode: string, key: string): string {
   return RULE_PARAM[ruleCode]?.[key] ?? PARAM[key] ?? key;
 }
+
+/** 파라미터 값 — 공시 유형 코드 목록은 이름으로 (names 가 아직 없으면 코드 그대로) */
+export function paramValue(key: string, v: unknown, names: Record<string, string>): string {
+  if (Array.isArray(v)) return v.map((x) => (key === "eventTypes" ? names[String(x)] ?? String(x) : String(x))).join(", ");
+  return String(v);
+}
+
+/** 이 파라미터 묶음이 공시 유형 이름을 필요로 하는지 (그때만 /meta 를 부름) */
+export const needsEventNames = (params: Record<string, unknown>) => "eventTypes" in params;

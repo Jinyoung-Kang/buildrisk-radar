@@ -5,6 +5,8 @@ import { ErrorBox, Loading, PageTitle, SeverityBadge } from "@/components/ui";
 import { mutate, type RuleView } from "@/lib/api";
 import { dt } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
+import { paramLabel, paramValue } from "@/lib/ruleLabels";
+import { useEventTypes } from "@/lib/useEventNames";
 import { useApi } from "@/lib/useApi";
 
 function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) {
@@ -16,6 +18,8 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
   const [err, setErr] = useState<Error | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const history = useApiHistory(rule.ruleCode);
+  const eventTypes = useEventTypes("eventTypes" in rule.params);
+  const names = Object.fromEntries(eventTypes.map((t) => [t.code, t.name]));
   const save = async () => {
     setErr(null); setMsg(null);
     const body = Object.fromEntries(Object.entries(params).map(([k, v]) => {
@@ -31,8 +35,25 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
   return (
     <div className="space-y-3">
       <div className="grid sm:grid-cols-2 gap-3">
-        {Object.keys(params).map((k) => (
-          <label key={k} className="text-xs text-ink2 flex flex-col">{k}
+        {Object.keys(params).map((k) => k === "eventTypes" ? (
+          // 공시 유형은 코드를 직접 치지 않고 이름으로 고름 (저장 값은 코드 목록 그대로)
+          <fieldset key={k} className="text-xs text-ink2 sm:col-span-2">
+            <legend>{paramLabel(rule.ruleCode, k)}</legend>
+            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+              {eventTypes.map((t) => {
+                const sel = params[k].split(",").map((x) => x.trim()).filter(Boolean);
+                return (
+                  <label key={t.code} className="flex items-center gap-1.5 text-sm text-ink">
+                    <input type="checkbox" checked={sel.includes(t.code)}
+                      onChange={(e) => setParams({ ...params, [k]: (e.target.checked ? [...sel, t.code] : sel.filter((x) => x !== t.code)).join(",") })} />
+                    {t.name}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        ) : (
+          <label key={k} className="text-xs text-ink2 flex flex-col">{paramLabel(rule.ruleCode, k)}
             <input value={params[k]} onChange={(e) => setParams({ ...params, [k]: e.target.value })}
               className="mt-1 bg-raised border border-line rounded-md px-2 py-1.5 text-sm tabular focus-ring" />
           </label>
@@ -63,7 +84,7 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
               <tr key={v.version}>
                 <td className="font-medium tabular">v{v.version}</td><td><SeverityBadge s={v.severity} /></td>
                 <td>{Object.entries(v.params).map(([k, val]) => (
-                  <div key={k} className="text-xs"><span className="text-muted">{k}</span> <b className="tabular">{Array.isArray(val) ? val.join(", ") : String(val)}</b></div>))}</td>
+                  <div key={k} className="text-xs"><span className="text-muted">{paramLabel(rule.ruleCode, k)}</span> <b className="tabular">{paramValue(k, val, names)}</b></div>))}</td>
                 <td>{v.enabled ? "사용" : "중지"}</td><td className="text-ink2">{v.changeNote ?? "–"}</td>
                 <td className="whitespace-nowrap text-ink2">{dt(v.createdAt)}</td>
               </tr>))}

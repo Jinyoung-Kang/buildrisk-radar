@@ -1,5 +1,7 @@
 import type { Evidence } from "@/lib/api";
-import { paramLabel } from "@/lib/ruleLabels";
+import { dt } from "@/lib/format";
+import { needsEventNames, paramLabel, paramValue } from "@/lib/ruleLabels";
+import { useEventNames, type EventNames } from "@/lib/useEventNames";
 import { DartLink } from "./ui";
 
 /** 관측값 열 이름 — 규칙이 남기는 키(영문)를 짧은 한글로. 단위는 괄호 안 */
@@ -29,9 +31,10 @@ const LABEL: Record<string, string> = {
 /** 같은 키를 규칙마다 다르게 읽어야 할 때 — R-C02 의 value 는 이자보상배율 */
 const RULE_LABEL: Record<string, Record<string, string>> = { "R-C02": { value: "이자보상배율(배)" } };
 
-function cell(k: string, v: unknown) {
+function cell(k: string, v: unknown, names: EventNames) {
   if (v === null || v === undefined || v === "-") return <span className="text-muted">–</span>;
   if (k === "rceptNo") return <DartLink rceptNo={String(v)} />;
+  if (k === "eventType") return names[String(v)] ?? String(v);
   if (typeof v === "number") return <span className="tabular">{new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 4 }).format(v)}</span>;
   return String(v);
 }
@@ -41,7 +44,11 @@ function isNum(rows: Record<string, unknown>[], c: string) {
 }
 
 /** 경보 근거 (NFR-05) — 조건 · 파라미터 · 관측값 · 원천 */
-export default function EvidenceView({ ev }: { ev: Evidence }) {
+/** run: 이 경보를 마지막으로 평가한 규칙 평가 실행 (경보 상세 API 의 calcJobExecutionId · calcRunAt) */
+export type EvalRun = { jobExecutionId?: number | null; at?: string | null };
+
+export default function EvidenceView({ ev, run }: { ev: Evidence; run?: EvalRun }) {
+  const names = useEventNames(needsEventNames(ev.params) || ev.observations.some((o) => "eventType" in o));
   // 기간 열을 맨 앞으로, 나머지는 나온 순서대로
   const all = Array.from(new Set(ev.observations.flatMap((o) => Object.keys(o))));
   const cols = [...all.filter((c) => c === "periodKey" || c === "period"), ...all.filter((c) => c !== "periodKey" && c !== "period")];
@@ -57,7 +64,7 @@ export default function EvidenceView({ ev }: { ev: Evidence }) {
           <div className="section-label">파라미터 (임계값)</div>
           <dl className="text-xs grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
             {Object.entries(ev.params).map(([k, v]) => (
-              <div key={k} className="contents"><dt className="text-ink2">{paramLabel(ev.ruleCode, k)}</dt><dd className="tabular break-all">{Array.isArray(v) ? v.join(", ") : String(v)}</dd></div>
+              <div key={k} className="contents"><dt className="text-ink2">{paramLabel(ev.ruleCode, k)}</dt><dd className="tabular break-all">{paramValue(k, v, names)}</dd></div>
             ))}
           </dl>
         </div>
@@ -72,7 +79,7 @@ export default function EvidenceView({ ev }: { ev: Evidence }) {
             <tbody>
               {ev.observations.map((o, i) => (
                 <tr key={i}>
-                  {cols.map((c) => <td key={c} className={isNum(ev.observations, c) ? "num" : "whitespace-nowrap"}>{cell(c, o[c])}</td>)}
+                  {cols.map((c) => <td key={c} className={isNum(ev.observations, c) ? "num" : "whitespace-nowrap"}>{cell(c, o[c], names)}</td>)}
                 </tr>
               ))}
             </tbody>
@@ -92,7 +99,13 @@ export default function EvidenceView({ ev }: { ev: Evidence }) {
               </tr>))}</tbody>
           </table>
         </div>
-        {ev.calcRunId && <div className="text-[11px] text-muted mt-2">calcRunId {ev.calcRunId}</div>}
+        {ev.calcRunId && (
+          <div className="text-[11px] text-muted mt-2" title={`규칙 평가 실행 ID ${ev.calcRunId}`}>
+            {run?.at || run?.jobExecutionId
+              ? <>규칙 평가 · {dt(run.at)}{run.jobExecutionId ? ` · 배치 실행 #${run.jobExecutionId}` : ""} — 이 경보를 마지막으로 평가한 실행</>
+              : <>규칙 평가 실행 {ev.calcRunId.slice(0, 8)}</>}
+          </div>
+        )}
       </div>
     </div>
   );
