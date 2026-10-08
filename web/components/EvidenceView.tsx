@@ -2,7 +2,7 @@ import type { Evidence } from "@/lib/api";
 import { dt } from "@/lib/format";
 import { needsEventNames, paramLabel, paramValue } from "@/lib/ruleLabels";
 import { useEventNames, type EventNames } from "@/lib/useEventNames";
-import { DartLink } from "./ui";
+import { DartLink, Prose } from "./ui";
 
 /** 관측값 열 이름 — 규칙이 남기는 키(영문)를 짧은 한글로. 단위는 괄호 안 */
 const LABEL: Record<string, string> = {
@@ -54,7 +54,7 @@ export default function EvidenceView({ ev, run }: { ev: Evidence; run?: EvalRun 
   const cols = [...all.filter((c) => c === "periodKey" || c === "period"), ...all.filter((c) => c !== "periodKey" && c !== "period")];
   return (
     <div className="space-y-4 text-sm">
-      <p className="leading-relaxed">{ev.message}</p>
+      <p className="leading-relaxed"><Prose text={ev.message} /></p>
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="rounded-lg bg-page px-3 py-2">
           <div className="section-label">조건 (규칙 {ev.ruleCode} v{ev.ruleVersion})</div>

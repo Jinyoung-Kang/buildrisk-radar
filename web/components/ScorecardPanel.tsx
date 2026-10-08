@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Card, DartLink, Empty, ErrorBox, Loading, Segmented } from "@/components/ui";
+import { Card, DartLink, Empty, ErrorBox, Loading, Prose, Segmented } from "@/components/ui";
 import type { ScInterval, ScOutcome, ScRule, Scorecard } from "@/lib/api";
 import { num } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -146,10 +146,10 @@ export default function ScorecardPanel() {
           </Card>
 
           <div className="grid md:grid-cols-2 gap-5">
-            <Card title="방법"><ul className="list-disc pl-5 space-y-1 text-sm text-ink2">{data.method.map((m) => <li key={m}>{m}</li>)}</ul></Card>
-            <Card title="한계 (결과를 읽기 전에)"><ul className="list-disc pl-5 space-y-1 text-sm text-ink2">{data.limitations.map((m) => <li key={m}>{m}</li>)}</ul></Card>
+            <Card title="방법"><ul className="list-disc pl-5 space-y-1 text-sm text-ink2">{data.method.map((m) => <li key={m}><Prose text={m} /></li>)}</ul></Card>
+            <Card title="한계 (결과를 읽기 전에)"><ul className="list-disc pl-5 space-y-1 text-sm text-ink2">{data.limitations.map((m) => <li key={m}><Prose text={m} /></li>)}</ul></Card>
           </div>
-          <p className="text-[11px] text-muted">{data.disclaimer}</p>
+          <p className="text-[11px] text-muted"><Prose text={data.disclaimer} /></p>
         </div>
       )}
     </>

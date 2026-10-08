@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Card, Empty, ErrorBox, Loading, Segmented } from "@/components/ui";
+import { Card, Empty, ErrorBox, Loading, Prose, Segmented } from "@/components/ui";
 import type { Backtest, BtStats } from "@/lib/api";
 import { int, num, signed, isNeg } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -79,8 +79,8 @@ export default function StockReaction() {
             </Card>
           </div>
           <div className="grid md:grid-cols-2 gap-5">
-            <Card title="방법"><ul className="list-disc pl-5 space-y-1 text-sm text-ink2">{data.method.map((m) => <li key={m}>{m}</li>)}</ul></Card>
-            <Card title="한계 (결과를 읽기 전에)"><ul className="list-disc pl-5 space-y-1 text-sm text-ink2">{data.limitations.map((m) => <li key={m}>{m}</li>)}</ul></Card>
+            <Card title="방법"><ul className="list-disc pl-5 space-y-1 text-sm text-ink2">{data.method.map((m) => <li key={m}><Prose text={m} /></li>)}</ul></Card>
+            <Card title="한계 (결과를 읽기 전에)"><ul className="list-disc pl-5 space-y-1 text-sm text-ink2">{data.limitations.map((m) => <li key={m}><Prose text={m} /></li>)}</ul></Card>
           </div>
           <Card title={`사건 ${events.length}건`} pad={false}
             right={<label className="text-xs flex items-center gap-1.5"><input type="checkbox" checked={showEx} onChange={(e) => setShowEx(e.target.checked)} />제외된 사건도 보기</label>}>
@@ -101,7 +101,7 @@ export default function StockReaction() {
               </table>
             </div>
           </Card>
-          <p className="text-[11px] text-muted">{data.disclaimer}</p>
+          <p className="text-[11px] text-muted"><Prose text={data.disclaimer} /></p>
         </div>
       )}
     </>

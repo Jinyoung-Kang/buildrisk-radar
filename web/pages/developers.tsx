@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
-import { Card, PageTitle } from "@/components/ui";
+import { Card, PageTitle, Prose } from "@/components/ui";
 
 /** 공개 읽기 API 안내 (ADR-027) — 화면이 쓰는 API 를 그대로 공개. 키 없이 GET, 변경은 로그인 · 관리자만 */
 const GROUPS: { title: string; rows: [string, string][] }[] = [
@@ -104,7 +104,7 @@ export default function Developers() {
         </div>
         <Card title="CSV 규칙">
           <ul className="text-sm space-y-1.5 list-disc pl-5">
-            <li>UTF-8 BOM 으로 시작 — 엑셀에서 한글이 바로 보임. 줄바꿈 CRLF (RFC 4180)</li>
+            <li><Prose text="UTF-8 BOM 으로 시작 — 엑셀에서 한글이 바로 보임. 줄바꿈 CRLF (RFC 4180)" /></li>
             <li>열 이름 = JSON 필드 이름. 숫자 칸은 따옴표 없이, 글자 칸은 큰따옴표로 감쌈</li>
             <li>수식 주입 방어(OWASP): 글자 칸의 첫 글자가 = + - @ · 탭 · 줄바꿈(전각 포함)이면 앞에 작은따옴표 <code>&apos;</code> 를 붙임</li>
             <li>경보 CSV 는 최대 50,000행 — 응답 헤더 <code>X-Total-Count</code> · <code>X-Truncated</code> 로 잘렸는지 알 수 있음</li>
@@ -118,7 +118,7 @@ export default function Developers() {
             <li>값이 없을 때는 0 이나 추정값 대신 빈 값(null)과 사유 코드를 둡니다</li>
           </ul>
         </Card>
-        <p className="text-[11px] text-muted">공시 · 공공통계 기반 모니터링 예시이며 투자 권유 · 신용평가가 아닙니다. 원천 데이터의 이용 조건은 각 제공처를 따릅니다.</p>
+        <p className="text-[11px] text-muted"><span className="block">공시·공공통계 기반 모니터링 예시이며 투자 권유·신용평가가 아닙니다.</span><span className="block">원천 데이터의 이용 조건은 각 제공처를 따릅니다.</span></p>
       </div>
     </Layout>
   );

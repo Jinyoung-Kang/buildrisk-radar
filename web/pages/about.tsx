@@ -1,5 +1,5 @@
 import Layout from "@/components/Layout";
-import { Card, Loading, PageTitle } from "@/components/ui";
+import { Card, Loading, PageTitle, Prose } from "@/components/ui";
 import type { Meta } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 
@@ -29,7 +29,7 @@ export default function About() {
       <PageTitle title="지표 정의 · 데이터 출처" sub="모든 지표·경보는 원천(접수번호·통계표·수집 run)까지 거슬러 올라갈 수 있습니다." />
       {!data ? <Loading /> : (
         <div className="space-y-5">
-          <div className="rounded-lg border border-serious/50 bg-serious/5 px-4 py-3 text-sm">⚠ {data.disclaimer} 임계값은 업계 공식 기준이 아니라 탐색용 기본값입니다.</div>
+          <div className="rounded-lg border border-serious/50 bg-serious/5 px-4 py-3 text-sm"><Prose text={`⚠ ${data.disclaimer} 임계값은 업계 공식 기준이 아니라 탐색용 기본값입니다.`} /></div>
           <Card title={`기업 지표 (${company.length})`} sub="분모가 0·음수(자본잠식)이거나 계정이 없으면 값 대신 상태 코드(NEG_EQUITY · ZERO_DENOM · MISSING)를 저장합니다. 음수일 수 없는 분모(이자비용 등)의 분기값이 음수면 — 보고서마다 원천 계정이 달라 누적이 줄어든 경우 — 부호가 뒤집힌 비율 대신 INCONSISTENT. 손익·현금흐름은 당기누적금액 기준, 분기값은 누적 차분(Q2 = 반기누적 − Q1).">
             {metricTable(company)}
           </Card>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import RequireRole from "@/components/RequireRole";
 import Layout from "@/components/Layout";
-import { Card, Empty, ErrorBox, Loading, PageTitle } from "@/components/ui";
+import { Card, Empty, ErrorBox, Loading, PageTitle, Prose } from "@/components/ui";
 import { mutate, type Row } from "@/lib/api";
 import { eok, num } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
@@ -88,7 +88,7 @@ export default function Mapping() {
     <Layout title="매핑">
       <PageTitle title="매핑 품질" sub="원천 계정 → 표준계정 (FR-206), 출처 지역 코드 → 기준 시군구 (FR-405), 유니버스 업종 분포 (U-4)" right={<RequireRole role="ADMIN"><span className="text-xs text-good">✓ 관리자 — 매핑 수정 가능</span></RequireRole>} />
       <ErrorBox error={error} />
-      {msg && <div className="text-sm text-good mb-3">{msg}</div>}
+      {msg && <div className="text-sm text-good mb-3"><Prose text={msg} /></div>}
       {!data ? <Loading /> : (
         <div className="space-y-5">
           <div className="grid lg:grid-cols-3 gap-4 items-start">

@@ -47,6 +47,8 @@
 html { scrollbar-gutter: stable; }
 html, body { background: rgb(var(--page)); color: rgb(var(--ink)); }
 body { font-feature-settings: "tnum" 0; -webkit-font-smoothing: antialiased; }
+/* 한글이 글자 단위로 끊기지 않게 띄어쓰기(어절)에서만 줄바꿈, 공백 없이 너무 긴 낱말(주소 · 코드)만 넘칠 때 끊음 */
+body { word-break: keep-all; overflow-wrap: break-word; }
 .tabular { font-variant-numeric: tabular-nums; }
 a { color: inherit; }
 

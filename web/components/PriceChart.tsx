@@ -1,5 +1,5 @@
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Empty, ErrorBox, Loading, SeverityBadge } from "@/components/ui";
+import { Empty, ErrorBox, Loading, Prose, SeverityBadge } from "@/components/ui";
 import type { Prices } from "@/lib/api";
 import { SEVERITY } from "@/lib/colors";
 import { int } from "@/lib/format";
@@ -30,7 +30,7 @@ export default function PriceChart({ corp }: { corp: string }) {
           <Line dataKey="c" name="종가" stroke="rgb(var(--ink))" strokeWidth={1.5} dot={false} isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
-      <div className="text-[11px] text-muted mt-1">점선 = 경보 근거 공시가 공개된 날 (백테스트와 같은 기준). 종가는 {data.source}.</div>
+      <div className="text-[11px] text-muted mt-1"><Prose text={`점선 = 경보 근거 공시가 공개된 날 (백테스트와 같은 기준). 종가는 ${data.source}.`} /></div>
       {markers.length > 0 && (
         <ul className="mt-3 space-y-1 text-sm max-h-48 overflow-auto">
           {markers.slice().reverse().map((a) => (

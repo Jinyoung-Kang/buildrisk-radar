@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Card, DartLink, DownloadLink, Empty, ErrorBox, Loading } from "@/components/ui";
+import { Card, DartLink, DownloadLink, Empty, ErrorBox, Loading, Prose } from "@/components/ui";
 import { TrendLine } from "@/components/LazyCharts";
 import type { CompanyPf as Pf, PfDue, PfReport, PfScope, PfStatus } from "@/lib/api";
 import { eok, num, pk } from "@/lib/format";
@@ -80,9 +80,9 @@ export default function CompanyPf({ corp, riskTh = 5 }: { corp: string; riskTh?:
     <div className="space-y-5">
       {!cur ? (
         <Card title="부동산 PF 우발채무 (정기보고서)" sub={`${latest.reportNm} · ${STATUS[latest.status]}`}>
-          <p className="text-sm text-ink2">{latest.message ?? "구조화한 PF 표가 없습니다."}</p>
+          <p className="text-sm text-ink2"><Prose text={latest.message ?? "구조화한 PF 표가 없습니다."} /></p>
           {latest.status === "NO_STANDARD" && (
-            <p className="text-xs text-muted mt-2">금융감독원은 2024년 1월 「건설회사 우발부채 주석공시 모범사례」(부동산 PF 종합요약표 · 사업장별 내역)를 내고 2023년도 재무제표부터 적용하도록 권고했습니다. 의무가 아니라 회사마다 도입 시점과 모양이 다르고, 이 표가 없는 보고서(예: 워크아웃 기간의 태영건설)는 숫자를 추정해 채우지 않습니다.</p>
+            <p className="text-xs text-muted mt-2"><Prose text="금융감독원은 2024년 1월 「건설회사 우발부채 주석공시 모범사례」(부동산 PF 종합요약표 · 사업장별 내역)를 내고 2023년도 재무제표부터 적용하도록 권고했습니다. 의무가 아니라 회사마다 도입 시점과 모양이 다르고, 이 표가 없는 보고서(예: 워크아웃 기간의 태영건설)는 숫자를 추정해 채우지 않습니다." /></p>
           )}
         </Card>
       ) : (
@@ -183,7 +183,7 @@ export default function CompanyPf({ corp, riskTh = 5 }: { corp: string; riskTh?:
       </Card>
       <details className="text-[11px] text-muted">
         <summary className="cursor-pointer">계산 방법</summary>
-        <ul className="list-disc pl-5 mt-1 space-y-0.5">{data.method.map((m) => <li key={m}>{m}</li>)}</ul>
+        <ul className="list-disc pl-5 mt-1 space-y-0.5">{data.method.map((m) => <li key={m}><Prose text={m} /></li>)}</ul>
       </details>
     </div>
   );

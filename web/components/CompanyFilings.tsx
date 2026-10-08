@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useState } from "react";
-import { Card, DartLink, Empty, ErrorBox, Loading, Segmented } from "@/components/ui";
+import { Card, DartLink, Empty, ErrorBox, Loading, Phrases, Prose, Segmented } from "@/components/ui";
 import type { CompanyFilings as Filings, ContractRow } from "@/lib/api";
 import { eok, num } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -36,10 +36,10 @@ export default function CompanyFilings({ corp, riskTh = 5 }: { corp: string; ris
           <div className="text-[11px] text-muted">시군구로 매핑된 {mapped.length}건 기준</div></div>
         <div className="bg-raised rounded-xl shadow-card px-4 py-3"><div className="text-xs text-ink2">최근 채무보증 잔액 / 자기자본</div>
           <div className="text-lg font-semibold tabular">{g[0]?.balanceToEquityPct != null ? `${num(g[0].balanceToEquityPct)}%` : "–"}</div>
-          <div className="text-[11px] text-muted">{g[0] ? `${g[0].rceptDt} 공시 · 잔액 ${eok(g[0].totalBalance)}${g[0].balanceIsLimit ? " (한도 기준" + (g[0].usedBalance != null ? `, 사용 ${eok(g[0].usedBalance)}` : "") + ")" : ""}` : "보증 공시 없음"}</div></div>
+          <div className="text-[11px] text-muted"><Prose text={g[0] ? `${g[0].rceptDt} 공시 · 잔액 ${eok(g[0].totalBalance)}${g[0].balanceIsLimit ? " (한도 기준" + (g[0].usedBalance != null ? `, 사용 ${eok(g[0].usedBalance)}` : "") + ")" : ""}` : "보증 공시 없음"} /></div></div>
         <div className="bg-raised rounded-xl shadow-card px-4 py-3"><div className="text-xs text-ink2">원문 구조화</div>
           <div className="text-lg font-semibold tabular">{p.parsed}건</div>
-          <div className="text-[11px] text-muted">일부만 {p.partial} · 원문 없음 {p.noDoc} · 실패 {p.failed}</div></div>
+          <div className="text-[11px] text-muted"><Phrases text={`일부만 ${p.partial} · 원문 없음 ${p.noDoc} · 실패 ${p.failed}`} /></div></div>
       </div>
 
       <Card title="수주 계약 (단일판매ㆍ공급계약)" sub="공시 원문의 계약금액·지역·기간. 지역은 '판매ㆍ공급지역' 주소를 시군구로 해석, 위험 표시는 그 지역의 최신 천 가구당 미분양"
@@ -85,7 +85,7 @@ export default function CompanyFilings({ corp, riskTh = 5 }: { corp: string; ris
                   <td className="num whitespace-nowrap">{eok(x.amount)}</td>
                   <td className="num">{x.pctOfEquity != null ? `${num(x.pctOfEquity, 2)}%` : "–"}</td>
                   <td className="num whitespace-nowrap">{eok(x.totalBalance)}
-                    {x.balanceIsLimit && <span className="sub" title="원문 주석: 총 잔액은 보증 한도이며 미사용분 포함">한도 기준{x.usedBalance != null ? ` · 사용 ${eok(x.usedBalance)}` : ""}</span>}</td>
+                    {x.balanceIsLimit && <span className="sub" title="원문 주석: 총 잔액은 보증 한도이며 미사용분 포함"><Phrases text={`한도 기준${x.usedBalance != null ? ` · 사용 ${eok(x.usedBalance)}` : ""}`} /></span>}</td>
                   <td className={`num ${(x.balanceToEquityPct ?? 0) >= 100 ? "text-crit font-medium" : ""}`}>{x.balanceToEquityPct != null ? `${num(x.balanceToEquityPct)}%` : "–"}</td>
                   <td>{x.pfLines.length === 0 ? <span className="text-muted">–</span> : x.pfLines.map((l, i) => (
                     <div key={i} className="text-xs whitespace-nowrap">{l.pfType} {eok(l.amount)}</div>))}</td>

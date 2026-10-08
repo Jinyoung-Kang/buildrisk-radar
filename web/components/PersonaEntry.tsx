@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { Personas } from "@/lib/api";
 import { num, pk } from "@/lib/format";
 import EntitySearch from "./EntitySearch";
+import { PhraseList, Prose } from "./ui";
 
 const RULE: Record<string, string> = { "R-C02": "이자보상 1배 미만", "R-C03": "영업현금흐름 적자", "R-C04": "중대 공시", "R-C05": "보증 잔액 과다" };
 const pct = (v?: number) => (v === undefined || v === null ? "–" : `${num(v * 100, 1)}%`);
@@ -28,7 +29,8 @@ export default function PersonaEntry({ p }: { p: Personas }) {
       <h2 id="persona-title" className="text-sm font-semibold text-ink2 mb-2">질문에서 시작하기</h2>
       <div className="grid lg:grid-cols-3 gap-4">
         <Persona who="협력업체 · 자재 공급사" question="거래하는 건설사, 대금을 제때 받을 수 있을까?"
-          foot={<>신호 = 이자보상배율 2분기 연속 1배 미만 · 영업현금흐름 3분기 연속 적자 · 회생 · 부도 · 감사의견 공시 · 보증 잔액 ≥ 자기자본. <Link href="/companies" className="text-accent hover:underline">기업 목록 →</Link></>}>
+          foot={<><span className="block">신호 = <PhraseList items={["이자보상배율 2분기 연속 1배 미만", "영업현금흐름 3분기 연속 적자", "회생·부도·감사의견 공시", "보증 잔액 ≥ 자기자본"]} /></span>
+            <Link href="/companies" className="text-accent hover:underline">기업 목록 →</Link></>}>
           <EntitySearch id="persona-supplier" label="거래 건설사 찾기" placeholder="건설사 이름 (예: 대우)" kinds={["company"]} />
           <div>
             <div className="section-label">현금 · 유동성 신호가 켜진 곳</div>
@@ -66,8 +68,7 @@ export default function PersonaEntry({ p }: { p: Personas }) {
                 <div><div className="text-2xl font-semibold tabular">{inv.caught}/{inv.events}</div><div className="text-xs text-ink2">부실 사건 중 미리 잡은 수</div></div>
                 <div><div className="text-2xl font-semibold tabular">{inv.medianLeadDays != null ? `약 ${Math.round(inv.medianLeadDays / 30.44)}개월` : "–"}</div><div className="text-xs text-ink2">첫 신호 → 사건 (중앙값)</div></div>
               </div>
-              <p className="text-xs text-ink2">재무 규칙 중 하나라도 켜진 뒤 {inv.horizonMonths}개월 안에 사건이 난 비율(정밀도) {pct(inv.precision)} — 아무 기업이나 고를 때 {pct(inv.baseRate)} 의 {num(inv.lift, 1)}배.
-                사건이 {inv.events}건뿐이라 구간과 사건 목록을 함께 보세요.</p>
+              <p className="text-xs text-ink2"><Prose text={`재무 규칙 중 하나라도 켜진 뒤 ${inv.horizonMonths}개월 안에 사건이 난 비율(정밀도) ${pct(inv.precision)} — 아무 기업이나 고를 때 ${pct(inv.baseRate)} 의 ${num(inv.lift, 1)}배. 사건이 ${inv.events}건뿐이라 구간과 사건 목록을 함께 보세요.`} /></p>
               <Link href="/backtest" className="inline-block text-sm text-accent hover:underline">경보 성적표 · 사건 목록 →</Link>
             </>
           )}

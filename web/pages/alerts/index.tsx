@@ -4,7 +4,7 @@ import AlertLineage from "@/components/AlertLineage";
 import EvidenceView from "@/components/EvidenceView";
 import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
-import { Card, DownloadLink, Empty, ErrorBox, Loading, PageTitle, Segmented, SeverityBadge, StatusPill, TargetLink, Pager } from "@/components/ui";
+import { Card, DownloadLink, Empty, ErrorBox, Loading, PageTitle, Prose, Segmented, SeverityBadge, StatusPill, TargetLink, Pager } from "@/components/ui";
 import { api, qs, type AlertDetail, type AlertRow, type Page } from "@/lib/api";
 import { dt } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -41,7 +41,7 @@ function Detail({ id, onChanged }: { id: string; onChanged: () => void }) {
         {data.status === "ACK" && data.ackedBy && <span className="text-xs text-muted">{data.ackedBy} 님이 {dt(data.ackedAt)} 확인</span>}
         {data.status === "CLOSED" && <span className="text-xs text-muted">닫힌 경보는 규칙 평가가 다시 참이 될 때 자동으로 열립니다.</span>}
       </div>
-      <p className="text-[11px] text-muted mt-4">{data.ruleDescription} · {data.disclaimer}</p>
+      <p className="text-[11px] text-muted mt-4"><span className="block">{data.ruleDescription}</span><Prose text={data.disclaimer} /></p>
     </div>
   );
 }

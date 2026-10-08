@@ -1,7 +1,7 @@
 import { useRouter } from "next/router";
 import { useState, type FormEvent } from "react";
 import Layout from "@/components/Layout";
-import { Card } from "@/components/ui";
+import { Card, Prose } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
@@ -61,7 +61,7 @@ export default function Login() {
             <button disabled={busy || !username || !password}
               className="w-full py-2 rounded-md bg-accent text-white disabled:opacity-50 focus-ring">{busy ? "확인 중…" : "로그인"}</button>
             <p className="text-xs text-muted leading-relaxed">
-              계정은 서버 환경변수(.env 의 ADMIN_PASSWORD · ANALYST_PASSWORD)로만 만들어집니다. 5번 연속 틀리면 15분 동안 잠깁니다.
+              <Prose text="계정은 서버 환경변수(.env 의 ADMIN_PASSWORD · ANALYST_PASSWORD)로만 만들어집니다. 5번 연속 틀리면 15분 동안 잠깁니다." />
             </p>
           </form>
         </Card>

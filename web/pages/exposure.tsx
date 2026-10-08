@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import Layout from "@/components/Layout";
-import { Card, DownloadLink, Empty, ErrorBox, Loading, PageTitle, Segmented } from "@/components/ui";
+import { Card, DownloadLink, Empty, ErrorBox, Loading, PageTitle, Prose, Segmented } from "@/components/ui";
 import { qs, type Exposure, type ExposureRow } from "@/lib/api";
 import { eok, num, pk } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -81,7 +81,7 @@ export default function ExposurePage() {
           )}
         </Card>
       )}
-      <p className="text-[11px] text-muted mt-3">빨강 = 위험 지역 비중 50% 이상(R-X01 기본값) · 보증 잔액이 자기자본 이상(R-C05 기본값) · 정기보고서 PF 보증이 자기자본 이상 또는 12개월 내 만기가 자기자본의 50% 이상(R-C06 기본값). 해외·주소 해석 불가 계약은 비중 계산에서 빠집니다. {data?.disclaimer}</p>
+      <p className="text-[11px] text-muted mt-3"><Prose text={`빨강 = 위험 지역 비중 50% 이상(R-X01 기본값) · 보증 잔액이 자기자본 이상(R-C05 기본값) · 정기보고서 PF 보증이 자기자본 이상 또는 12개월 내 만기가 자기자본의 50% 이상(R-C06 기본값). 해외·주소 해석 불가 계약은 비중 계산에서 빠집니다. ${data?.disclaimer ?? ""}`} /></p>
     </Layout>
   );
 }

@@ -1,7 +1,53 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { SEVERITY } from "@/lib/colors";
 import { CLOSE_REASON, STATUS_LABEL } from "@/lib/format";
+
+/** 문장 나누기 — 마침표 · 물음표 · 느낌표 뒤 공백에서 (소수점 12.4% 처럼 뒤가 공백이 아니거나, 날짜처럼 숫자 사이면 나누지 않음). 정규식 뒤보기(lookbehind)는 옛 사파리에서 오류라 쓰지 않음 */
+export function splitSentences(text: string): string[] {
+  const out: string[] = [];
+  const re = /[.!?]\)?\s+/g;
+  let start = 0;
+  for (let m = re.exec(text); m; m = re.exec(text)) {
+    // 날짜 표기(10. 08. 21:07 · 2026. 10. 08.)는 문장 끝이 아님 — 숫자 뒤 마침표 다음이 다시 숫자면 건너뜀
+    if (/\d/.test(text[m.index - 1] ?? "") && /\d/.test(text[m.index + m[0].length] ?? "")) continue;
+    const end = m.index + m[0].trimEnd().length;
+    out.push(text.slice(start, end));
+    start = m.index + m[0].length;
+  }
+  if (start < text.length) out.push(text.slice(start));
+  return out.map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * 한 문장 안의 ' · ' 구절은 통째로 다음 줄로 (구절 중간에서 끊지 않음).
+ * 짧은 항목의 나열일 때만 — 긴 문장 속 ' · '는 '그리고'(회생 신청 · 개시)라 묶으면 줄이 들쭉날쭉해지고,
+ * 괄호 안의 ' · '(점 · 선)를 나누면 괄호가 갈라짐. 그때는 띄어쓰기 줄바꿈(keep-all)만
+ */
+const PHRASE_MAX = 28;
+const balanced = (t: string) => (t.match(/\(/g)?.length ?? 0) === (t.match(/\)/g)?.length ?? 0);
+export function Phrases({ text }: { text: string }) {
+  const parts = text.split(" · ");
+  if (parts.length === 1 || parts.some((p) => p.length > PHRASE_MAX || !balanced(p))) return <>{text}</>;
+  return <PhraseList items={parts} />;
+}
+
+/** 구절 목록 (JSX 가 섞인 줄) — 각 구절을 통째로 넘기고 ' · ' 로 이음. 빈 항목은 건너뜀 */
+export function PhraseList({ items }: { items: ReactNode[] }) {
+  const xs = items.filter((x) => x !== null && x !== undefined && x !== false && x !== "");
+  return <>{xs.map((x, i) => <Fragment key={i}>{i > 0 && " "}<span className="inline-block">{x}{i < xs.length - 1 && " ·"}</span></Fragment>)}</>;
+}
+
+/** 설명 문자열 — 문장마다 줄을 나누고, 문장 안의 ' · ' 구절은 묶어서 */
+export function Prose({ text }: { text?: string | null }) {
+  if (!text) return null;
+  const s = splitSentences(text);
+  if (s.length === 1) return <Phrases text={s[0]} />;
+  return <>{s.map((x, i) => <span key={i} className="block"><Phrases text={x} /></span>)}</>;
+}
+
+/** 설명 칸에 문자열이 오면 Prose 로, JSX 면 그대로 */
+const desc = (v: ReactNode) => (typeof v === "string" ? <Prose text={v} /> : v);
 
 /** as: 제목 수준 — 카드 하나가 페이지 전체인 화면(로그인)은 h1 */
 export function Card({ title, sub, right, children, className = "", pad = true, as: H = "h2" }:
@@ -12,7 +58,7 @@ export function Card({ title, sub, right, children, className = "", pad = true, 
         <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 px-4 pt-4">
           <div className="min-w-0 flex-1 basis-60">
             {title && <H className="text-sm font-semibold">{title}</H>}
-            {sub && <p className="text-xs text-muted mt-0.5">{sub}</p>}
+            {sub && <p className="text-xs text-muted mt-0.5">{desc(sub)}</p>}
           </div>
           {right}
         </div>
@@ -27,7 +73,7 @@ export function PageTitle({ title, sub, right }: { title: ReactNode; sub?: React
     <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-        {sub && <p className="text-sm text-ink2 mt-1">{sub}</p>}
+        {sub && <p className="text-sm text-ink2 mt-1">{desc(sub)}</p>}
       </div>
       {right}
     </div>
@@ -42,7 +88,7 @@ export function Stat({ label, value, sub, tone }: { label: string; value: ReactN
         {label}
       </div>
       <div className="text-2xl font-semibold mt-1">{value}</div>
-      {sub && <div className="text-xs text-muted mt-0.5">{sub}</div>}
+      {sub && <div className="text-xs text-muted mt-0.5">{desc(sub)}</div>}
     </div>
   );
 }
@@ -93,7 +139,7 @@ export function JobStatus({ s, resolvedBy }: { s?: string | null; resolvedBy?: n
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <div className="text-sm text-muted py-8 text-center">{children}</div>;
+  return <div className="text-sm text-muted py-8 text-center">{desc(children)}</div>;
 }
 
 export function ErrorBox({ error }: { error: Error | null }) {
@@ -128,7 +174,7 @@ export function Segmented<T extends string>({ value, options, onChange, label }:
 export function DartLink({ rceptNo, children }: { rceptNo?: string | null; children?: ReactNode }) {
   if (!rceptNo) return <span className="text-muted">–</span>;
   return (
-    <a className="text-accent hover:underline tabular" target="_blank" rel="noreferrer"
+    <a className="text-accent hover:underline tabular whitespace-nowrap" target="_blank" rel="noreferrer"
       href={`https://dart.fss.or.kr/dsaf001/main.do?rcpNo=${rceptNo}`}>{children ?? rceptNo}</a>
   );
 }

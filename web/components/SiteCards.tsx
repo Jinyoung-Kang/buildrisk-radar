@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useState } from "react";
-import { Card, DartLink, Empty, ErrorBox, Loading, Segmented } from "@/components/ui";
+import { Card, DartLink, Empty, ErrorBox, Loading, PhraseList, Prose, Segmented } from "@/components/ui";
 import type { SiteCard, SiteMatch, Sites } from "@/lib/api";
 import { eok, num } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -31,8 +31,8 @@ function Site({ s, riskTh, showCorp }: { s: SiteCard; riskTh: number; showCorp: 
         <div className="min-w-0">
           <div className="text-sm font-medium truncate" title={s.contractName}>{s.contractName}</div>
           <div className="text-[11px] text-muted">
-            {showCorp && <><Link href={`/companies/${s.corpCode}?tab=filings`} className="hover:underline">{s.corpName}</Link> · </>}
-            {eok(s.amount)} · <DartLink rceptNo={s.rceptNo}>{s.rceptDt}</DartLink>{s.endDate && ` ~ ${s.endDate}`}
+            <PhraseList items={[showCorp && <Link href={`/companies/${s.corpCode}?tab=filings`} className="hover:underline">{s.corpName}</Link>,
+              eok(s.amount), <><DartLink rceptNo={s.rceptNo}>{s.rceptDt}</DartLink>{s.endDate && ` ~ ${s.endDate}`}</>]} />
           </div>
         </div>
         <span className={`text-[11px] px-1.5 py-0.5 rounded border whitespace-nowrap ${m.cls}`}>{m.label}</span>
@@ -54,13 +54,15 @@ function Site({ s, riskTh, showCorp }: { s: SiteCard; riskTh: number; showCorp: 
         </dl>
       ) : s.umd ? (
         <p className="text-xs text-muted">최근 2년 이 동의 아파트 거래가 없습니다.</p>
-      ) : m.note && <p className="text-xs text-muted">{m.note}</p>}
-      {s.market && <p className="text-[10px] text-muted -mt-1">{ym(s.market.fromYm)}~{ym(s.market.toYm)} · 전년 대비는 그 전 12개월({s.market.tradesPrev}건)과 비교</p>}
+      ) : m.note && <p className="text-xs text-muted"><Prose text={m.note} /></p>}
+      {s.market && <p className="text-[10px] text-muted -mt-1"><Prose text={`${ym(s.market.fromYm)}~${ym(s.market.toYm)} · 전년 대비는 그 전 12개월(${s.market.tradesPrev}건)과 비교`} /></p>}
       {s.complex && (
         <div className="text-xs border-t border-line pt-2">
-          <span className="text-ink2">같은 지번의 아파트</span> <b>{s.complex.aptNm ?? "–"}</b>
-          <span className="text-muted"> · 12개월 거래 {s.complex.trades}건{s.complex.medianPriceM2 != null && ` · ㎡당 ${num(s.complex.medianPriceM2, 0)}만`}
-            {s.complex.lastDealDate && ` · 최근 ${s.complex.lastDealDate}`}{s.complex.buildYear && ` · ${s.complex.buildYear}년 준공`}</span>
+          <PhraseList items={[<><span className="text-ink2">같은 지번의 아파트</span> <b>{s.complex.aptNm ?? "–"}</b></>,
+            <span className="text-muted">12개월 거래 {s.complex.trades}건</span>,
+            s.complex.medianPriceM2 != null && <span className="text-muted">㎡당 {num(s.complex.medianPriceM2, 0)}만</span>,
+            s.complex.lastDealDate && <span className="text-muted">최근 {s.complex.lastDealDate}</span>,
+            s.complex.buildYear && <span className="text-muted">{s.complex.buildYear}년 준공</span>]} />
           <div className="text-[11px] text-muted mt-0.5">재건축 · 재개발 공사라면 새 단지가 아니라 철거 전 단지일 수 있습니다.</div>
         </div>
       )}
@@ -83,7 +85,7 @@ export default function SiteCards({ path, showCorp = false, riskTh = 5, title = 
   const shown = more ? items : items.slice(0, 9);
   return (
     <Card title={title} pad={false}
-      sub={`현재 공급계약 ${c.total}건 중 동 · 지번까지 ${c.jibun + c.umd}건 · 여러 곳 ${c.multi} · 동 거래 없음 ${c.noTrade} · 시군구만 ${c.none} — 지오코딩 없이 실거래 법정동 · 지번과 정확히 대조`}
+      sub={`현재 공급계약 ${c.total}건 중 동·지번까지 ${c.jibun + c.umd}건 · 여러 곳 ${c.multi} · 동 거래 없음 ${c.noTrade} · 시군구만 ${c.none} — 지오코딩 없이 실거래 법정동·지번과 정확히 대조`}
       right={<Segmented label="보기" value={view} onChange={(v) => { setView(v); setMore(false); }}
         options={[{ value: "located", label: "동까지 풀린 곳" }, { value: "all", label: "전체" }]} />}>
       {items.length === 0 ? <Empty>{view === "located" ? "동 단위까지 풀린 사업장이 없습니다." : "현재 공급계약이 없습니다."}</Empty> : (
@@ -95,7 +97,7 @@ export default function SiteCards({ path, showCorp = false, riskTh = 5, title = 
           )}
           <details className="text-[11px] text-muted mt-3">
             <summary className="cursor-pointer">해석 방법</summary>
-            <ul className="list-disc pl-5 mt-1 space-y-0.5">{data.method.map((m) => <li key={m}>{m}</li>)}</ul>
+            <ul className="list-disc pl-5 mt-1 space-y-0.5">{data.method.map((m) => <li key={m}><Prose text={m} /></li>)}</ul>
           </details>
         </div>
       )}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SignedBars, TrendLine } from "@/components/Charts";
-import { DartLink, Empty, Loading, SeverityBadge, StatusPill } from "@/components/ui";
+import { DartLink, Empty, Loading, PhraseList, Phrases, SeverityBadge, StatusPill } from "@/components/ui";
 import type { RegionContracts, RegionSeries } from "@/lib/api";
 import { eok, int, num, ym, signed } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
@@ -38,7 +38,7 @@ export default function RegionPanel({ regionCd, compact, headingAs: H = "h3" }: 
         <div className="bg-page rounded-lg py-2"><dt className="text-[11px] text-ink2">천 가구당</dt><dd className="font-semibold tabular">{num(per1k?.value, 2)}</dd></div>
         <div className="bg-page rounded-lg py-2"><dt className="text-[11px] text-ink2">3개월 증감</dt><dd className="font-semibold tabular">{chg?.value != null ? `${chg.value > 0 ? "+" : ""}${num(chg.value)}%` : "–"}</dd></div>
       </dl>
-      <div className="text-[11px] text-muted -mt-2">기준 {ym(units?.period)} · 총가구 {int(hh?.value)} ({hh?.period ?? "–"}년)</div>
+      <div className="text-[11px] text-muted -mt-2"><PhraseList items={[`기준 ${ym(units?.period)}`, `총가구 ${int(hh?.value)} (${hh?.period ?? "–"}년)`]} /></div>
       <div>
         <div className="text-xs font-medium mb-1">미분양 주택 (호)</div>
         {unsold.length ? <TrendLine data={unsold} series={[{ key: "v", name: "미분양" }]} height={compact ? 150 : 220} fmt={(v) => int(v)} />
@@ -65,7 +65,7 @@ export default function RegionPanel({ regionCd, compact, headingAs: H = "h3" }: 
                 <TrendLine data={priceM2} series={[{ key: "v", name: "㎡당 중위가" }]} height={180} fmt={(v) => int(v)} zero={false} />
               </div>
             )}
-            <div className="text-[11px] text-muted">계약월 기준 · 신고가 계속 들어오는 최근 두 달은 제외</div>
+            <div className="text-[11px] text-muted"><Phrases text="계약월 기준 · 신고가 계속 들어오는 최근 두 달은 제외" /></div>
           </>
         ) : <Empty>실거래 데이터가 없습니다 (aptTradeJob)</Empty>}
       </div>

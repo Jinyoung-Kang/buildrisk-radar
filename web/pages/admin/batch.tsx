@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
-import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle } from "@/components/ui";
+import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle, Prose } from "@/components/ui";
 import { mutate, qs, type Row } from "@/lib/api";
 import { dt, int } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
@@ -131,7 +131,7 @@ export default function Batch() {
       <PageTitle title="배치 모니터" sub="실행 요청은 DB 큐(ops.job_request)에 들어가고 worker 가 가져가 실행합니다. STOPPED·FAILED 인 Job 을 다시 요청하면 같은 JobInstance 를 restart 해 마지막 커밋 이후부터 이어갑니다."
         right={<RequireRole role="ADMIN"><span className="text-xs text-good">✓ 관리자 — 실행·정리 가능</span></RequireRole>} />
       <ErrorBox error={err ?? jobs.error} />
-      {msg && <div className="text-sm text-good mb-3">{msg}</div>}
+      {msg && <div className="text-sm text-good mb-3"><Prose text={msg} /></div>}
       <Workers workers={jobs.data?.workers as Row[] | undefined} />
       <div className="text-xs text-ink2 mb-3">오늘 호출 — DART {int(quota.DART ?? 0)} / 상한 {int(jobs.data?.dartDailyLimit)} · 실거래 {int(quota.RTMS ?? 0)} · 주가 {int(quota.FSC_STOCK ?? 0)}
         · 스케줄러 {jobs.data?.schedulingEnabled ? "켜짐" : "꺼짐 (수동 실행)"}</div>

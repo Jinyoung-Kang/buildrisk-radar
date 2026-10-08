@@ -1,7 +1,7 @@
 import { Fragment, useState } from "react";
 import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
-import { ErrorBox, Loading, PageTitle, SeverityBadge } from "@/components/ui";
+import { ErrorBox, Loading, PageTitle, Prose, SeverityBadge } from "@/components/ui";
 import { mutate, type RuleView } from "@/lib/api";
 import { dt } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
@@ -72,7 +72,7 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
         className="w-full bg-raised border border-line rounded-md px-2 py-1.5 text-sm focus-ring" />
       <div className="flex items-center gap-3">
         <button onClick={save} className="px-3 py-1.5 rounded-lg bg-accent text-white text-sm focus-ring">새 버전으로 저장</button>
-        {msg && <span className="text-xs text-good">{msg}</span>}
+        {msg && <span className="text-xs text-good"><Prose text={msg} /></span>}
       </div>
       <ErrorBox error={err} />
       <div>

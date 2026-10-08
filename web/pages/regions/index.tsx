@@ -4,7 +4,7 @@ import { useCallback, useMemo } from "react";
 import Layout from "@/components/Layout";
 import RegionMap from "@/components/RegionMap";
 import { RegionPanel } from "@/components/LazyCharts";
-import { Card, ErrorBox } from "@/components/ui";
+import { Card, ErrorBox, PhraseList } from "@/components/ui";
 import { qs, type Boundaries, type GeoJson, type Meta, type RegionList, type RegionProps } from "@/lib/api";
 import { makeScale, MISSING } from "@/lib/colors";
 import { num, STATUS_LABEL, withUnit, ym } from "@/lib/format";
@@ -65,7 +65,7 @@ export default function Regions() {
       <div className="flex flex-wrap gap-3 items-end mb-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">시군구 주택시장 지도</h1>
-          <p className="text-sm text-ink2 mt-1">{def?.formula ?? ""} · 출처 {def?.source ?? ""}</p>
+          <p className="text-sm text-ink2 mt-1"><PhraseList items={[def?.formula, def?.source && `출처 ${def.source}`]} /></p>
         </div>
         <div className="flex flex-wrap gap-2 ml-auto text-sm">
           <label className="flex flex-col text-xs text-ink2">지표
@@ -126,7 +126,7 @@ export default function Regions() {
                   </li>
                 ))}
               </ol>
-              <p className="text-[11px] text-muted mt-3">일반구가 있는 시는 시 단위로 합쳐 보여 줍니다. 매핑되지 않은 출처 지역은 <Link className="underline" href="/admin/mapping">매핑</Link> 화면에서 확인하세요.</p>
+              <p className="text-[11px] text-muted mt-3"><span className="block">일반구가 있는 시는 시 단위로 합쳐 보여 줍니다.</span><span className="block">매핑되지 않은 출처 지역은 <Link className="underline" href="/admin/mapping">매핑</Link> 화면에서 확인하세요.</span></p>
             </div>
           )}
         </Card>

@@ -4,7 +4,7 @@ import { dt } from "@/lib/format";
 import { needsEventNames, paramLabel, paramValue } from "@/lib/ruleLabels";
 import { useEventNames } from "@/lib/useEventNames";
 import { useApi } from "@/lib/useApi";
-import { DartLink, ErrorBox, Loading } from "./ui";
+import { DartLink, ErrorBox, Loading, PhraseList, Prose } from "./ui";
 
 const BASIS: Record<string, string> = { POINT: "시점", CUM: "누적", QTR: "분기" };
 const FS_DIV: Record<string, string> = { CFS: "연결", OFS: "별도" };
@@ -29,7 +29,7 @@ function Statement({ s, depth = 0 }: { s: LineageStatement; depth?: number }) {
     <div className={`rounded-lg border border-line px-3 py-2 ${depth ? "bg-page" : ""}`}>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="font-medium">{s.stdName ?? s.stdCode}</span>
-        <span className="text-xs text-muted">{s.stdCode} · {s.periodKey} · {FS_DIV[s.fsDiv] ?? s.fsDiv} · {BASIS[s.basis] ?? s.basis}</span>
+        <span className="text-xs text-muted"><PhraseList items={[s.stdCode, s.periodKey, FS_DIV[s.fsDiv] ?? s.fsDiv, BASIS[s.basis] ?? s.basis]} /></span>
         <span className="tabular ml-auto">{n(s.amount)}원</span>
       </div>
       <div className={`text-xs mt-0.5 ${s.reproduced ? "text-ink2" : "text-warn"}`}>
@@ -52,7 +52,7 @@ function Statement({ s, depth = 0 }: { s: LineageStatement; depth?: number }) {
       {s.derivedFrom.length > 0 && <div className="mt-2 space-y-2">{s.derivedFrom.map((c) => <Statement key={`${c.periodKey}${c.basis}`} s={c} depth={depth + 1} />)}</div>}
       {s.basis !== "QTR" && (
         <div className="text-[11px] text-muted mt-1.5">
-          원문 <DartLink rceptNo={s.rceptNo} /> · {s.jobExecutionId ? <>수집 실행 #{s.jobExecutionId}</> : "수집 실행 기록 없음"}{s.fetchedAt && <> · 받은 시각 {dt(s.fetchedAt)}</>}
+          <PhraseList items={[<>원문 <DartLink rceptNo={s.rceptNo} /></>, s.jobExecutionId ? `수집 실행 #${s.jobExecutionId}` : "수집 실행 기록 없음", s.fetchedAt && `받은 시각 ${dt(s.fetchedAt)}`]} />
         </div>
       )}
     </div>
@@ -121,7 +121,7 @@ function Body({ l }: { l: Lineage }) {
               </div>
               <dl className="text-xs grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 mt-1">
                 {Object.entries(f.facts).filter(([k, v]) => k !== "summaryRows" && v !== null && v !== undefined).map(([k, v]) => (
-                  <div key={k} className="contents"><dt className="text-ink2">{k}</dt><dd className="tabular break-all">{typeof v === "number" ? n(v) : String(v)}</dd></div>
+                  <div key={k} className="contents"><dt className="text-ink2">{k}</dt><dd className="tabular [overflow-wrap:anywhere]">{typeof v === "number" ? n(v) : String(v)}</dd></div>
                 ))}
                 {Array.isArray(f.facts.summaryRows) && <div className="contents"><dt className="text-ink2">요약표</dt><dd>{f.facts.summaryRows.length}행 보관</dd></div>}
               </dl>
@@ -144,7 +144,7 @@ function Body({ l }: { l: Lineage }) {
         </div>
       </Step>
       <li className="pl-5">
-        <ul className="text-[11px] text-muted list-disc pl-4 space-y-0.5">{l.notes.map((t) => <li key={t}>{t}</li>)}</ul>
+        <ul className="text-[11px] text-muted list-disc pl-4 space-y-0.5">{l.notes.map((t) => <li key={t}><Prose text={t} /></li>)}</ul>
         <a className="inline-block mt-2 text-xs text-accent hover:underline" href={`/api/v1/alerts/${l.alertId}/lineage`} download={`lineage-${l.alertId}.json`}>계보 JSON 내려받기</a>
       </li>
     </ol>

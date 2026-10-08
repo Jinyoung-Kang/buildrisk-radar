@@ -2,7 +2,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { Fragment, useState, type FormEvent } from "react";
 import Layout from "@/components/Layout";
-import { Card, Empty, ErrorBox, Loading, PageTitle, Pager, Segmented, SeverityBadge } from "@/components/ui";
+import { Card, Empty, ErrorBox, Loading, Pager, PageTitle, Prose, Segmented, SeverityBadge } from "@/components/ui";
 import {
   mutate, qs, type Inbox, type RuleView, type Severity, type Subscription, type SubscriptionInput, type Watch, type Webhook,
   type WebhookDelivery, type WebhookList,
@@ -295,13 +295,13 @@ function WebhooksCard() {
       sub="Slack Incoming Webhook 또는 서명된 JSON(GENERIC: X-BuildRisk-Signature = sha256=HMAC(비밀, 타임스탬프.본문)). https · 공인 주소만, 리다이렉트는 따라가지 않음. 실패하면 1분 · 5분 · 30분 · 2시간 · 12시간 뒤 다시 보내고 6번째에 포기">
       <ErrorBox error={error} />
       {data && !data.available && (
-        <p role="alert" className="text-sm text-warn mb-3">NOTIFY_SECRET_KEY 가 설정되지 않아 웹훅을 쓸 수 없습니다 — <code>make env</code> 로 만든 뒤 api · worker 를 다시 시작하세요. 알림함은 그대로 동작합니다.</p>
+        <p role="alert" className="text-sm text-warn mb-3"><span className="block">NOTIFY_SECRET_KEY 가 설정되지 않아 웹훅을 쓸 수 없습니다 — <code>make env</code> 로 만든 뒤 api · worker 를 다시 시작하세요.</span><span className="block">알림함은 그대로 동작합니다.</span></p>
       )}
       {note && <p role="status" className="text-xs text-good mb-2">{note}</p>}
       {err && <p role="alert" className="text-xs text-crit mb-2">{err}</p>}
       {secret && (
         <div role="status" className="mb-3 border border-warn rounded-lg p-3 text-xs space-y-1">
-          <p className="font-medium">서명 비밀 — 지금 한 번만 보여 줍니다. 받는 서버에 저장하세요.</p>
+          <p className="font-medium"><Prose text="서명 비밀 — 지금 한 번만 보여 줍니다. 받는 서버에 저장하세요." /></p>
           <div className="flex items-center gap-2">
             <code className="bg-page px-2 py-1 rounded break-all">{secret}</code>
             <button type="button" className={btn} onClick={() => navigator.clipboard?.writeText(secret)}>복사</button>

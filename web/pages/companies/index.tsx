@@ -35,7 +35,7 @@ export default function Companies() {
       <ErrorBox error={error} />
       <Card pad={false}>
         {loading && !data ? <Loading /> : !data?.items.length ? (
-          <Empty>대상 기업이 없습니다. <Link className="text-accent" href="/admin/batch">배치 모니터</Link>에서 corpCodeSyncJob → companyProfileJob 을 실행하세요 (DART_API_KEY 필요).</Empty>
+          <Empty><span className="block">대상 기업이 없습니다.</span><span className="block"><Link className="text-accent" href="/admin/batch">배치 모니터</Link>에서 corpCodeSyncJob → companyProfileJob 을 실행하세요 (DART_API_KEY 필요).</span></Empty>
         ) : (
           <div className="overflow-x-auto">
             <table className="data-table">
