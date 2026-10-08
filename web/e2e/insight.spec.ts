@@ -22,6 +22,18 @@ test("PF 우발채무: 노출 표를 PF 비율 순으로 정렬하고 기업 상
   await expect(page.getByRole("heading", { name: "분기별 정기보고서" })).toBeVisible();
 });
 
+test("사업장 카드: 기업 수주·보증 탭에서 동 단위 시장 · 해석 범위 · 원문", async ({ page }) => {
+  await page.goto("/exposure");
+  await page.getByRole("radio", { name: "수주 금액" }).click();
+  await page.locator("tbody tr").first().getByRole("link").first().click();
+  await expect(page).toHaveURL(/tab=filings/);
+  const card = page.getByRole("heading", { name: "사업장 카드" });
+  await expect(card).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/현재 공급계약 \d+건 중 동 · 지번까지 \d+건/)).toBeVisible();
+  await page.getByRole("radio", { name: "전체" }).last().click();                       // 해석 못 한 곳도 사유와 함께
+  await expect(page.getByText(/원문:/).first()).toBeVisible();
+});
+
 test("경보 검증 · 성적표: 부실 사건 대비 규칙별 정밀도 · 재현율과 사건 목록", async ({ page }) => {
   await page.goto("/backtest");
   await expect(page.getByRole("heading", { name: /경보 검증/ })).toBeVisible();

@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { TrendLine } from "@/components/Charts";
 import Layout from "@/components/Layout";
 import RegionPanel from "@/components/RegionPanel";
+import SiteCards from "@/components/SiteCards";
 import { Card, Loading } from "@/components/ui";
 import type { RegionSeries } from "@/lib/api";
 import { num, ym } from "@/lib/format";
@@ -31,6 +32,7 @@ export default function RegionDetail() {
             <Card title="매매가격지수 3개월 변화 (pt)" sub="R-R02: 3개월 연속 음수 + 미분양 증가">
               <TrendLine data={m("PRICE_IDX_3M_CHG")} series={[{ key: "v", name: "매매지수 변화" }]} threshold={0} thresholdLabel="0" fmt={(v) => num(v, 2)} />
             </Card>
+            <SiteCards path={`/regions/${encodeURIComponent(cd)}/sites`} showCorp title="이 지역의 사업장" />
             <Card title="출처 지역 코드 매핑" sub="각 출처의 지역 코드가 이 시군구로 연결된 방식 (FR-405)">
               <div className="table-wrap"><table className="data-table compact">
                 <thead><tr><th>출처</th><th>코드</th><th>출처 표기</th><th>방식</th></tr></thead>

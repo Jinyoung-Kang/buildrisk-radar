@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import EvidenceView from "@/components/EvidenceView";
 import CompanyFilings from "@/components/CompanyFilings";
 import CompanyPf from "@/components/CompanyPf";
+import SiteCards from "@/components/SiteCards";
 import WatchButton from "@/components/WatchButton";
 import Layout from "@/components/Layout";
 import { PriceChart, SignedBars, TrendLine } from "@/components/LazyCharts";
@@ -152,7 +153,7 @@ export default function CompanyDetail() {
 
           </TabPanel>}
 
-          {tab === "filings" && corp && <TabPanel id="filings"><div className="space-y-8"><CompanyPf corp={corp} /><CompanyFilings corp={corp} /></div></TabPanel>}
+          {tab === "filings" && corp && <TabPanel id="filings"><div className="space-y-8"><CompanyPf corp={corp} /><SiteCards path={`/companies/${encodeURIComponent(corp)}/sites`} /><CompanyFilings corp={corp} /></div></TabPanel>}
 
           {tab === "price" && corp && <TabPanel id="price">
             <Card title="주가와 경보" sub="일별 종가 3년 · 경보가 공개된 날 표시 — 규칙별 평균 효과는 '경보 검증' 화면">

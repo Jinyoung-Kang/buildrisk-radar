@@ -13,6 +13,7 @@ import com.buildrisk.radar.domain.metric.RegionMetricCalculator;
 import com.buildrisk.radar.domain.metric.RegionSeriesAssembler;
 import com.buildrisk.radar.domain.metric.StandardizeService;
 import com.buildrisk.radar.domain.region.RegionRepository;
+import com.buildrisk.radar.domain.region.SiteLocationRepository;
 import com.buildrisk.radar.domain.rule.AlertService;
 import com.buildrisk.radar.domain.rule.DbRuleData;
 import com.buildrisk.radar.domain.rule.RuleEvaluator;
@@ -46,8 +47,8 @@ import java.util.UUID;
 
 /**
  * 그림 2 — 표준화 → 지표 → 규칙 평가
- *   standardizeMetricJob: standardizeStep(fs_raw→fs_std) → companyMetricStep → pfMetricStep → regionMetricStep
- *                         (Step 4개, 재시작하면 실패한 Step 부터만 다시 실행)
+ *   standardizeMetricJob: standardizeStep(fs_raw→fs_std) → companyMetricStep → pfMetricStep → regionMetricStep → siteLocateStep
+ *                         (Step 5개, 재시작하면 실패한 Step 부터만 다시 실행)
  *   ruleEvalJob         : 사용 중인 규칙(최신 버전) × 대상 → 경보 UPSERT + 근거 (chunk 100)
  * 두 Job 모두 ops.calc_run 을 남기고, 완료되면 조회 캐시 세대를 올립니다.
  */
@@ -59,9 +60,9 @@ public class CalcJobsConfig {
 
     @Bean
     Job standardizeMetricJob(JobRepository repo, Step standardizeStep, Step companyMetricStep, Step pfMetricStep, Step regionMetricStep,
-                             RunRecorder runs, JsonCache cache) {
+                             Step siteLocateStep, RunRecorder runs, JsonCache cache) {
         return new JobBuilder("standardizeMetricJob", repo).listener(runs.calc("METRIC", cache::invalidateAll))
-                .start(standardizeStep).next(companyMetricStep).next(pfMetricStep).next(regionMetricStep).build();
+                .start(standardizeStep).next(companyMetricStep).next(pfMetricStep).next(regionMetricStep).next(siteLocateStep).build();
     }
 
     @Bean
@@ -126,6 +127,17 @@ public class CalcJobsConfig {
             int n = metrics.insertPfMetrics(run);
             contribution.incrementWriteCount(n);
             log.info("PF 우발채무 지표 {}건", n);
+            return RepeatStatus.FINISHED;
+        }, tm).build();
+    }
+
+    /** 사업장 위치 (ADR-026) — 공급계약 주소의 법정동 · 지번을 실거래와 대조 (호출 없음, 실거래 사전이 넓어지므로 매번 전체) */
+    @Bean
+    Step siteLocateStep(JobRepository repo, PlatformTransactionManager tm, SiteLocationRepository sites) {
+        return new StepBuilder("siteLocateStep", repo).tasklet((contribution, chunk) -> {
+            var counts = sites.relocateAll();
+            contribution.incrementWriteCount(counts.values().stream().mapToInt(Integer::intValue).sum());
+            log.info("사업장 위치 해석 {}", counts);
             return RepeatStatus.FINISHED;
         }, tm).build();
     }

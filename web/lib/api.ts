@@ -212,3 +212,20 @@ export type Webhook = {
 };
 export type WebhookList = { available: boolean; items: Webhook[] };
 export type WebhookDelivery = { deliveryId: number; alertId: number; title: string; kind: string; status: string; attempts: number; lastError?: string; createdAt: string; nextAt: string; sentAt?: string };
+
+/** 사업장 카드 (ADR-026) */
+export type SiteMatch = "JIBUN" | "UMD" | "UMD_NO_TRADE" | "MULTI" | "NONE";
+export type UmdMarket = {
+  fromYm: number; toYm: number; trades: number; tradesPrev: number; tradesYoyPct?: number; cancels: number; cancelRatePct?: number;
+  medianPriceM2?: number; medianPriceM2Prev?: number; priceYoyPct?: number;
+};
+export type SiteCard = {
+  rceptNo: string; rceptDt: string; corpCode: string; corpName: string; contractName: string; amount?: number; endDate?: string;
+  regionCd: string; regionName?: string; regionText: string; unsoldPer1kHh?: number; unsoldPeriod?: string; match: SiteMatch;
+  umd?: string; umdAggregate: boolean; jibun?: string; market?: UmdMarket;
+  complex?: { aptNm?: string; trades: number; medianPriceM2?: number; lastDealDate?: string; buildYear?: number };
+};
+export type Sites = {
+  items: SiteCard[]; coverage: { total: number; jibun: number; umd: number; noTrade: number; multi: number; none: number };
+  method: string[]; disclaimer: string;
+};

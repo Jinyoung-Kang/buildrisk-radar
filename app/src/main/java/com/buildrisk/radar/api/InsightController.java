@@ -29,14 +29,16 @@ public class InsightController {
     private final BacktestService backtest;
     private final ScorecardService scorecard;
     private final PfExposureService pf;
+    private final SiteService sites;
     private final JsonCache cache;
 
     public InsightController(ExposureService exposure, BacktestService backtest, ScorecardService scorecard, PfExposureService pf,
-                             JsonCache cache) {
+                             SiteService sites, JsonCache cache) {
         this.exposure = exposure;
         this.backtest = backtest;
         this.scorecard = scorecard;
         this.pf = pf;
+        this.sites = sites;
         this.cache = cache;
     }
 
@@ -68,6 +70,18 @@ public class InsightController {
                                          @RequestParam(defaultValue = "730") @Min(30) @Max(3650) int days) {
         return cache.get("prices:" + corpCode + ":" + days, Duration.ofMinutes(30), ExposureService.Prices.class,
                 () -> exposure.prices(corpCode, days));
+    }
+
+    @GetMapping("/companies/{corpCode}/sites")
+    @Operation(summary = "기업 사업장 카드 — 현재 공급계약 위치를 법정동 · 지번까지 풀어 그 동의 아파트 시장과 잇기 (ADR-026)")
+    public SiteService.Sites companySites(@PathVariable @Pattern(regexp = "\\d{8}") String corpCode) {
+        return cache.get("sites:c:" + corpCode, Duration.ofMinutes(10), SiteService.Sites.class, () -> sites.company(corpCode));
+    }
+
+    @GetMapping("/regions/{regionCd}/sites")
+    @Operation(summary = "지역 사업장 카드 — 이 시군구의 현재 공급계약과 동 단위 아파트 시장 (ADR-026)")
+    public SiteService.Sites regionSites(@PathVariable @Pattern(regexp = "\\d{5}") String regionCd) {
+        return cache.get("sites:r:" + regionCd, Duration.ofMinutes(10), SiteService.Sites.class, () -> sites.region(regionCd));
     }
 
     @GetMapping("/regions/{regionCd}/contracts")
