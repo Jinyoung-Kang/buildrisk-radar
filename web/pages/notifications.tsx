@@ -162,7 +162,7 @@ function SubscriptionsCard({ admin }: { admin: boolean }) {
   return (
     <Card title="구독" sub="어떤 경보를 어디로 받을지 — 규칙 평가 뒤 새로 생기거나 다시 열린 경보만 (다음 분기로 이어지기만 한 경보는 알리지 않음)"
       right={editing === null && <button type="button" className={btn} onClick={() => setEditing("new")}>+ 새 구독</button>}>
-      <ErrorBox error={subs.error} />
+      <ErrorBox error={subs.error ?? rules.error ?? hooks.error} />
       {err && <p role="alert" className="text-xs text-crit mb-2">{err}</p>}
       {editing !== null && (
         <div className="mb-3">

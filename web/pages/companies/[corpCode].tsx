@@ -21,7 +21,8 @@ const EVENT_LABEL: Record<string, string> = {
 };
 
 function AlertCard({ id }: { id: number }) {
-  const { data } = useApi(queries.alert(id));
+  const { data, error } = useApi(queries.alert(id));
+  if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
   return (
     <div className="border border-line rounded-lg p-3">
@@ -60,7 +61,8 @@ export default function CompanyDetail() {
   return (
     <Layout title={s?.corpName ?? "기업"}>
       <ErrorBox error={summary.error} />
-      {!s ? <Loading /> : (
+      {isReady && !corp ? <Empty>기업 코드(8자리 숫자) 형식이 아닙니다 — <Link href="/companies" className="text-accent hover:underline">기업 목록</Link>에서 고르세요.</Empty>
+        : summary.error ? null : !s ? <Loading /> : (
         <>
           <PageTitle title={<>{s.corpName} <span className="text-sm font-normal text-muted">{s.stockCode} · {s.corpCode}</span></>}
             sub={<>{s.indutyCode} · {s.address ?? ""} {s.homepage && <a className="text-accent ml-1" href={s.homepage.startsWith("http") ? s.homepage : `http://${s.homepage}`} target="_blank" rel="noreferrer">홈페이지</a>} <span className="ml-2 align-middle"><WatchButton type="COMPANY" keyCd={s.corpCode} /></span></>}
@@ -98,6 +100,7 @@ export default function CompanyDetail() {
           {corp && <div className="flex justify-end mb-2">
             <DownloadLink href={downloads.companyMetricsCsv(corp)}>지표 CSV (모든 기간 · 분자 · 분모)</DownloadLink>
           </div>}
+          <ErrorBox error={metrics.error} />
           <div className="grid lg:grid-cols-2 gap-5 mb-5">
             <Card title="부채비율 (%)" sub="부채총계 ÷ 자본총계 × 100 · R-C01 임계 300%">
               <TrendLine data={(series.DEBT_RATIO ?? []).map((d) => ({ x: d.x, v: d.v }))} series={[{ key: "v", name: "부채비율" }]}
@@ -120,7 +123,7 @@ export default function CompanyDetail() {
           <Card title="표준계정 재무 (최근 8개 기간)" sub={fin.data?.basisNote} className="mb-5"
             right={<Segmented label="연결·별도" value={fsDiv} onChange={setFsDiv}
               options={[{ value: "AUTO", label: "자동(연결 우선)" }, { value: "CFS", label: "연결" }, { value: "OFS", label: "별도" }]} />}>
-            {!fin.data?.series.some((x) => x.points.length) ? <Empty>이 구분의 재무 데이터가 없습니다.</Empty> : (
+            {fin.error ? <ErrorBox error={fin.error} /> : !fin.data ? <Loading /> : !fin.data.series.some((x) => x.points.length) ? <Empty>이 구분의 재무 데이터가 없습니다.</Empty> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm tabular">
                   <thead><tr className="text-xs text-ink2 border-b border-line">
@@ -164,7 +167,7 @@ export default function CompanyDetail() {
           <Card title="공시 타임라인 (최근 1년)" sub="보고서명 키워드 사전으로 분류 · 원문은 DART"
             right={<Segmented label="공시 필터" value={eventFilter} onChange={setEventFilter}
               options={[{ value: "all", label: "전체" }, { value: "risk", label: "중대 공시만" }]} />}>
-            {disclosures.length === 0 ? <Empty>표시할 공시가 없습니다.</Empty> : (
+            {disc.error ? <ErrorBox error={disc.error} /> : !disc.data ? <Loading /> : disclosures.length === 0 ? <Empty>표시할 공시가 없습니다.</Empty> : (
               <ol className="relative border-l border-line ml-2">
                 {disclosures.slice(0, 80).map((d) => (
                   <li key={d.rceptNo} className="ml-4 py-1.5">

@@ -53,7 +53,7 @@ function RegionFix({ r, onDone }: { r: Row; onDone: (m: string) => void }) {
 
 function UserRules({ onChanged }: { onChanged: (m: string) => void }) {
   const { has } = useAuth();
-  const { data, reload } = useApi(queries.mappingAccountRules());
+  const { data, error, reload } = useApi(queries.mappingAccountRules());
   const [err, setErr] = useState<Error | null>(null);
   const rules = (data ?? []).filter((r) => r.origin === "USER");
   const remove = async (id: number) => {
@@ -62,8 +62,8 @@ function UserRules({ onChanged }: { onChanged: (m: string) => void }) {
   };
   return (
     <Card title={`화면에서 추가한 매핑 규칙 (${rules.length})`} sub="seed 규칙은 seed/account_map.csv 에서 관리합니다">
-      <ErrorBox error={err} />
-      {rules.length === 0 ? <div className="text-xs text-muted">없음</div> : (
+      <ErrorBox error={err ?? error} />
+      {!data ? (error ? null : <Loading />) : rules.length === 0 ? <div className="text-xs text-muted">없음</div> : (
         <div className="table-wrap">
           <table className="data-table compact">
             <thead><tr><th className="num">#</th><th>표준계정</th><th>재무제표 · 구간</th><th>방식</th><th>패턴</th><th className="num">우선순위</th><th></th></tr></thead>

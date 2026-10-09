@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SignedBars, TrendLine } from "@/components/LazyCharts";
-import { DartLink, Empty, Loading, PhraseList, Phrases, SeverityBadge, StatusPill } from "@/components/ui";
+import { DartLink, Empty, ErrorBox, Loading, PhraseList, Phrases, SeverityBadge, StatusPill } from "@/components/ui";
 import { queries } from "@/lib/api";
 import { eok, int, num, ym, signed } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
@@ -9,8 +9,9 @@ import WatchButton from "@/components/WatchButton";
 /** 지역 카드 — 미분양 추이 · 가격지수 추이 · 경보 (지도 옆, 지역 상세 화면 공용) */
 /** headingAs: 지도 옆 패널은 h3, 지역 상세 페이지에서는 이 이름이 페이지 제목이라 h1 */
 export default function RegionPanel({ regionCd, compact, headingAs: H = "h3" }: { regionCd: string; compact?: boolean; headingAs?: "h1" | "h3" }) {
-  const { data } = useApi(queries.regionSeries(regionCd));
+  const { data, error } = useApi(queries.regionSeries(regionCd));
   const contracts = useApi(queries.regionContracts(regionCd));
+  if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
   const stat = (c: string) => data.stats.find((s) => s.code === c)?.points ?? [];
   const tail = compact ? -24 : -37;
@@ -71,7 +72,7 @@ export default function RegionPanel({ regionCd, compact, headingAs: H = "h3" }: 
       </div>
       <div>
         <div className="text-xs font-medium mb-1">이 지역에 걸린 수주 (공시 원문)</div>
-        {!contracts.data ? <Loading /> : contracts.data.items.length === 0 ? <div className="text-xs text-muted">유니버스 건설사의 현재 수주 공시 없음</div> : (
+        {contracts.error ? <ErrorBox error={contracts.error} /> : !contracts.data ? <Loading /> : contracts.data.items.length === 0 ? <div className="text-xs text-muted">유니버스 건설사의 현재 수주 공시 없음</div> : (
           <>
             <div className="text-[11px] text-ink2 mb-1">{contracts.data.companies}개사 · {contracts.data.items.length}건 · {eok(contracts.data.totalAmount)}</div>
             <ul className="space-y-1 text-sm">

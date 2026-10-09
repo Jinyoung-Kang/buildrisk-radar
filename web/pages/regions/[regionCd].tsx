@@ -4,7 +4,7 @@ import { TrendLine } from "@/components/LazyCharts";
 import Layout from "@/components/Layout";
 import RegionPanel from "@/components/RegionPanel";
 import SiteCards from "@/components/SiteCards";
-import { Card, Loading } from "@/components/ui";
+import { Card, Empty, ErrorBox, Loading } from "@/components/ui";
 import { queries } from "@/lib/api";
 import { num, ym } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
@@ -13,13 +13,14 @@ export default function RegionDetail() {
   const { query, isReady } = useRouter();
   const raw = isReady ? String(query.regionCd) : null;
   const cd = raw && /^\d{5}$/.test(raw) ? raw : null;         // 형식이 맞을 때만 API 경로에 씀
-  const { data } = useApi(cd ? queries.regionSeries(cd) : null);
+  const { data, error } = useApi(cd ? queries.regionSeries(cd) : null);
   const m = (code: string) => (data?.metrics.find((x) => x.code === code)?.points ?? []).slice(-24)
     .map((p) => ({ x: ym(p.period), v: p.value ?? null }));
   return (
     <Layout title={data?.name ?? "지역"}>
       <Link href="/regions" className="text-sm text-accent hover:underline">← 지도</Link>
-      {!data || !cd ? <Loading /> : (
+      {isReady && !cd ? <Empty>지역 코드(5자리 숫자) 형식이 아닙니다 — <Link href="/regions" className="text-accent hover:underline">지도</Link>에서 고르세요.</Empty>
+        : error ? <ErrorBox error={error} /> : !data || !cd ? <Loading /> : (
         <div className="grid lg:grid-cols-[380px_1fr] gap-5 mt-3">
           <Card><RegionPanel regionCd={cd} headingAs="h1" /></Card>
           <div className="space-y-5">

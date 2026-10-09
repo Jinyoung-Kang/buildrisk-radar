@@ -8,7 +8,8 @@ import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/hooks/useApi";
 
 function ExecutionDetail({ id }: { id: number }) {
-  const { data } = useApi(queries.batchExecution(id));
+  const { data, error } = useApi(queries.batchExecution(id));
+  if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
   let changed: Record<string, number> = {};
   try {
@@ -172,7 +173,8 @@ export default function Batch() {
         <Card title="실행 이력" right={<select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Job 필터"
           className="text-xs bg-raised border border-line rounded px-1.5 py-1"><option value="">전체 Job</option>
           {((jobs.data?.jobs as Row[]) ?? []).map((j) => <option key={j.name} value={j.name}>{j.name}</option>)}</select>} pad={false}>
-          {!execs.data ? <Loading /> : execs.data.length === 0 ? <Empty>실행 이력이 없습니다.</Empty> : (
+          <ErrorBox error={execs.error} />
+          {execs.error ? null : !execs.data ? <Loading /> : execs.data.length === 0 ? <Empty>실행 이력이 없습니다.</Empty> : (
             <div className="max-h-[70vh] overflow-auto">
               <table className="data-table">
                 <thead><tr><th className="num">#</th><th>Job</th><th>상태</th><th className="num">읽음</th><th className="num">씀</th>
@@ -191,7 +193,8 @@ export default function Batch() {
         <div className="space-y-4">
           <Card title="실행 상세">{sel ? <ExecutionDetail key={sel} id={sel} /> : <Empty>실행을 고르면 Step·스킵 목록이 보입니다.</Empty>}</Card>
           <Card title="실행 요청 큐" sub="요청자 · 가져간 worker · 결과 (스케줄러 · 체인 요청 포함)" pad={false}>
-            {!requests.data ? <Loading /> : requests.data.length === 0 ? <Empty>요청이 없습니다.</Empty> : (
+            <ErrorBox error={requests.error} />
+            {requests.error ? null : !requests.data ? <Loading /> : requests.data.length === 0 ? <Empty>요청이 없습니다.</Empty> : (
               <div className="table-wrap max-h-80">
                 <table className="data-table compact">
                   <thead><tr><th className="num">요청</th><th>Job</th><th>상태</th><th>요청자</th><th>실행</th><th>요청 시각</th></tr></thead>

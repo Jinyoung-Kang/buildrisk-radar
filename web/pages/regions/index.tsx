@@ -76,7 +76,7 @@ export default function Regions() {
           </label>
         </div>
       </div>
-      <ErrorBox error={geo.error ?? list.error} />
+      <ErrorBox error={geo.error ?? list.error ?? meta.error} />
       <div className="grid lg:grid-cols-[1fr_380px] gap-4">
         <div>
           <RegionMap geo={geo.data} colorOf={colorOf} tooltipOf={tooltipOf} selected={selected}

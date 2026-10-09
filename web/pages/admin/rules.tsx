@@ -74,7 +74,7 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
         <button onClick={save} className="px-3 py-1.5 rounded-lg bg-accent text-white text-sm focus-ring">새 버전으로 저장</button>
         {msg && <span className="text-xs text-good"><Prose text={msg} /></span>}
       </div>
-      <ErrorBox error={err} />
+      <ErrorBox error={err ?? history.error} />
       <div>
         <div className="section-label">버전 이력</div>
         <div className="table-wrap">
