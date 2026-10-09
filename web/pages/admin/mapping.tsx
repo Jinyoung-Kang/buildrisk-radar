@@ -155,10 +155,11 @@ export default function Mapping() {
               <div className="table-wrap max-h-[70vh]">
                 <table className="data-table">
                   <thead><tr><th>기업</th><th>표준계정</th><th>기간</th><th>후보 원천 계정</th><th>규칙 추가</th></tr></thead>
-                  <tbody>{(data.accounts as Row[]).map((a, i) => {
+                  <tbody>{(data.accounts as Row[]).map((a) => {
                     const ps = String(a.periods ?? "").split(",").filter(Boolean);
                     return (
-                      <tr key={i}>
+                      // key 는 (기업, 표준계정) — 순번이면 목록이 바뀐 뒤 앞 줄에 쓰던 패턴이 다른 계정의 규칙으로 저장됨 (VERIFICATION 124)
+                      <tr key={`${a.corp_code}:${a.std_code}`}>
                         <td className="font-medium whitespace-nowrap">{a.corp_name}</td>
                         <td className="whitespace-nowrap">{a.name_ko}<span className="sub">{a.std_code}</span></td>
                         <td className="whitespace-nowrap" title={a.periods}>{ps.length}개 기간<span className="sub tabular">{ps.length ? `${ps[ps.length - 1]} ~ ${ps[0]}` : ""}</span></td>

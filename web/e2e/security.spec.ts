@@ -66,3 +66,37 @@ test("X-Forwarded-For 위조는 감사 로그 IP 를 바꾸지 못함 (edge 가 
   await expect(page.getByText(forged)).toHaveCount(0);                                   // 그러나 위조 IP 는 기록되지 않음
 });
 
+test("관리자: 매핑 목록이 바뀌어도 규칙 추가는 그 줄의 계정과 입력값으로 (다른 계정에 붙지 않음)", async ({ page }) => {
+  test.skip(!ADMIN, "E2E_ADMIN_PASSWORD 미설정");
+  // 줄 key 가 순번이라, 규칙을 더한 뒤 목록이 바뀌면 앞 줄에 쓰던 패턴이 다음 계정의 규칙으로 저장됐음 (VERIFICATION 124)
+  const row = (corp: string, name: string, std: string, nameKo: string, sj: string, cand: string) =>
+    ({ corp_code: corp, corp_name: name, std_code: std, name_ko: nameKo, sj_div: sj, periods: "2026Q2", candidates: [{ sj_div: sj, account_id: "x", account_nm: cand, thstrm_amount: 1 }] });
+  const base = { accountMappingRate: 90, accountMappingByStd: [], accountNote: "", regionMappingBySource: [], regions: [],
+    universe: { listed: 1, targets: 1, listed_without_induty: 0, byInduty: [] } };
+  const first = { ...base, accounts: [row("00000001", "가건설", "BONDS", "사채", "BS", "사채"), row("00000002", "나건설", "REVENUE", "매출액", "IS", "공사수익")] };
+  const after = { ...base, accounts: [row("00000002", "나건설", "REVENUE", "매출액", "IS", "공사수익")] };
+  let calls = 0;
+  await page.route("**/api/v1/mapping/unmapped", (r) => r.fulfill({ json: calls++ === 0 ? first : after }));
+  const posted: Record<string, unknown>[] = [];
+  await page.route("**/api/v1/mapping/account-rules", (r) => {
+    if (r.request().method() !== "POST") return r.fallback();
+    posted.push(r.request().postDataJSON());
+    return r.fulfill({ json: { mapId: posted.length, next: "다시 표준화하면 반영" } });
+  });
+
+  await page.goto("/login?next=/admin/mapping");
+  await page.getByLabel("아이디").fill("admin");
+  await page.getByLabel("비밀번호").fill(ADMIN!);
+  await page.getByRole("button", { name: "로그인" }).click();
+  const first0 = page.getByRole("row").filter({ hasText: "가건설" });
+  await first0.getByPlaceholder("계정명·패턴").fill("사채|유동성사채");
+  await first0.getByRole("button", { name: "매핑 규칙 추가" }).click();
+  const next0 = page.getByRole("row").filter({ hasText: "나건설" });
+  await expect(page.getByRole("row").filter({ hasText: "가건설" })).toHaveCount(0);
+  await expect(next0.getByPlaceholder("계정명·패턴")).toHaveValue("공사수익");
+  await next0.getByRole("button", { name: "매핑 규칙 추가" }).click();
+  await expect.poll(() => posted.length).toBe(2);
+  expect(posted[0]).toMatchObject({ stdCode: "BONDS", pattern: "사채|유동성사채" });
+  expect(posted[1]).toMatchObject({ stdCode: "REVENUE", sjDiv: "IS", pattern: "공사수익" });
+});
+
