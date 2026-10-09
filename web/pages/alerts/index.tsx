@@ -7,7 +7,7 @@ import RequireRole from "@/components/RequireRole";
 import { Card, DownloadLink, Empty, ErrorBox, Loading, PageTitle, Prose, Segmented, SeverityBadge, StatusPill, TargetLink, Pager } from "@/components/ui";
 import { commands, downloads, queries } from "@/lib/api";
 import { dt } from "@/lib/domain/format";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { asOfLabel } from "@/lib/domain/alerts";
 
 function Detail({ id, onChanged }: { id: string; onChanged: () => void }) {

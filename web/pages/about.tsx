@@ -1,7 +1,7 @@
 import Layout from "@/components/Layout";
 import { Card, Loading, PageTitle, Prose } from "@/components/ui";
 import { queries, type Meta } from "@/lib/api";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { RISK_EVENTS } from "@/lib/domain/company";
 
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchQuery, type ApiError, type Query } from "./api/client";
+import { fetchQuery, type ApiError, type Query } from "../api/client";
 
 /** GET 조회 훅 — query 가 null 이면 부르지 않음. reload() 로 다시 조회 */
 export function useApi<T>(q: Query<T> | null) {

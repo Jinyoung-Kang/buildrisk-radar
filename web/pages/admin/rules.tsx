@@ -6,8 +6,8 @@ import { commands, queries, type RuleView } from "@/lib/api";
 import { dt } from "@/lib/domain/format";
 import { useAuth } from "@/lib/auth";
 import { paramLabel, paramValue } from "@/lib/domain/ruleLabels";
-import { useEventTypes } from "@/lib/useEventNames";
-import { useApi } from "@/lib/useApi";
+import { useEventTypes } from "@/lib/hooks/useEventNames";
+import { useApi } from "@/lib/hooks/useApi";
 
 function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) {
   const [params, setParams] = useState<Record<string, string>>(
@@ -17,7 +17,7 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
   const [note, setNote] = useState("");
   const [err, setErr] = useState<Error | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const history = useApiHistory(rule.ruleCode);
+  const history = useApi(queries.ruleHistory(rule.ruleCode));
   const eventTypes = useEventTypes("eventTypes" in rule.params);
   const names = Object.fromEntries(eventTypes.map((t) => [t.code, t.name]));
   const save = async () => {
@@ -94,10 +94,6 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
       </div>
     </div>
   );
-}
-
-function useApiHistory(code: string) {
-  return useApi(queries.ruleHistory(code));
 }
 
 export default function Rules() {

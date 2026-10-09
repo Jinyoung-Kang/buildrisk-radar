@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { commands, queries } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 /** 관심 목록 넣기 · 빼기 (로그인했을 때만). '관심 목록만' 구독이 이 목록으로 알림을 거름 (ADR-025) */
 export default function WatchButton({ type, keyCd }: { type: "COMPANY" | "REGION"; keyCd: string }) {

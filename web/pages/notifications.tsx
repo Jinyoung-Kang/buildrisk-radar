@@ -9,7 +9,7 @@ import { dt } from "@/lib/domain/format";
 import { targetHref } from "@/lib/domain/nav";
 import { describeSubscription, EMPTY_SUBSCRIPTION, subscriptionBody, toggleCode } from "@/lib/domain/notify";
 import { notifyChanged } from "@/lib/notify";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const input = "w-full bg-raised border border-line rounded-md px-2 py-1.5 text-sm focus-ring";
 const btn = "text-xs px-2.5 py-1 rounded-md border border-line hover:bg-line/40 focus-ring disabled:opacity-40";

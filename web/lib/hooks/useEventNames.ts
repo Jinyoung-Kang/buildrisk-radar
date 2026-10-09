@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { fetchQuery } from "./api/client";
-import { queries } from "./api/endpoints";
+import { fetchQuery } from "../api/client";
+import { queries } from "../api/endpoints";
 
 export type EventNames = Record<string, string>;
 let shared: Promise<{ code: string; name: string }[]> | null = null;

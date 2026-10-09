@@ -4,7 +4,7 @@ import RequireRole from "@/components/RequireRole";
 import { Card, Empty, ErrorBox, Loading, PageTitle } from "@/components/ui";
 import { queries } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 function AuditTable() {
   const [actor, setActor] = useState("");

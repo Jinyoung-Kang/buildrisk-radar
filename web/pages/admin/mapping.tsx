@@ -5,7 +5,7 @@ import { Card, Empty, ErrorBox, Loading, PageTitle, Prose } from "@/components/u
 import { commands, queries, type Row } from "@/lib/api";
 import { eok, num } from "@/lib/domain/format";
 import { useAuth } from "@/lib/auth";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 function AddRule({ stdCode, sjDiv, suggest, onDone }: { stdCode: string; sjDiv: string; suggest?: string; onDone: (m: string) => void }) {
   const [pattern, setPattern] = useState(suggest ?? "");

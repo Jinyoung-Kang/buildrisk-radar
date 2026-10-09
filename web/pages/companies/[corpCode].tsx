@@ -12,7 +12,7 @@ import Tabs, { TabPanel, useTab } from "@/components/Tabs";
 import { Card, DartLink, DownloadLink, Empty, ErrorBox, Loading, MetricStatus, PageTitle, Segmented, SeverityBadge, StatusPill } from "@/components/ui";
 import { downloads, queries } from "@/lib/api";
 import { eok, num, pk, withUnit } from "@/lib/domain/format";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { filterDisclosures, metricSeries, recentPeriods, RISK_EVENTS } from "@/lib/domain/company";
 
 const EVENT_LABEL: Record<string, string> = {

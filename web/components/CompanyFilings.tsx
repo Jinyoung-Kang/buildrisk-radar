@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Card, DartLink, Empty, ErrorBox, Loading, Phrases, Prose, Segmented } from "@/components/ui";
 import { queries } from "@/lib/api";
 import { eok, num } from "@/lib/domain/format";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { contractState, type ContractState } from "@/lib/domain/filings";
 
 const MATCH: Record<string, string> = { SIGUNGU: "", SIDO: "시도만", OVERSEAS: "해외", UNKNOWN: "주소 해석 불가", NONE: "지역 없음" };

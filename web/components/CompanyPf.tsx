@@ -3,7 +3,7 @@ import { Card, DartLink, DownloadLink, Empty, ErrorBox, Loading, Prose } from "@
 import { TrendLine } from "@/components/LazyCharts";
 import { downloads, queries, type PfReport, type PfScope, type PfStatus } from "@/lib/api";
 import { eok, num, pk } from "@/lib/domain/format";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { due12, PF_BUCKETS, PF_DUE12_TH, PF_GUARANTEE_TH } from "@/lib/domain/filings";
 
 const SCOPE: Record<PfScope, string> = { SOLE: "단독사업", CONSORTIUM_ALL: "컨소시엄 전체 (참고)", CONSORTIUM_SHARE: "컨소시엄 회사분" };

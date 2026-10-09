@@ -9,7 +9,7 @@ import { queries, type GeoJson, type RegionProps } from "@/lib/api";
 import { makeScale, MISSING } from "@/lib/domain/colors";
 import { num, STATUS_LABEL, withUnit, ym } from "@/lib/domain/format";
 import { joinRegionValues, SIGNED_METRICS, sidoOptions } from "@/lib/domain/regions";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 export default function Regions() {
   const router = useRouter();

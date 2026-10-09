@@ -5,7 +5,7 @@ import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle, SeverityBadge, St
 import { queries, type Personas, type Row } from "@/lib/api";
 import { SEVERITY } from "@/lib/domain/colors";
 import { dt, int, num, pk, ym } from "@/lib/domain/format";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 export default function Dashboard() {
   const { data, error, loading } = useApi(queries.dashboard());

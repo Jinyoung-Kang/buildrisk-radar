@@ -5,7 +5,7 @@ import Layout from "@/components/Layout";
 import { Card, Empty, ErrorBox, Loading, MetricStatus, PageTitle, Segmented, SeverityBadge, Pager } from "@/components/ui";
 import { queries } from "@/lib/api";
 import { num, pk } from "@/lib/domain/format";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 type Sort = "alerts" | "debtRatio" | "interestCoverage" | "name";
 

@@ -1,7 +1,7 @@
 import type { Evidence } from "@/lib/api";
 import { dt } from "@/lib/domain/format";
 import { needsEventNames, paramLabel, paramValue } from "@/lib/domain/ruleLabels";
-import { useEventNames, type EventNames } from "@/lib/useEventNames";
+import { useEventNames, type EventNames } from "@/lib/hooks/useEventNames";
 import { DartLink, Prose } from "./ui";
 
 /** 관측값 열 이름 — 규칙이 남기는 키(영문)를 짧은 한글로. 단위는 괄호 안 */

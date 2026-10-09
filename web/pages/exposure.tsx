@@ -5,7 +5,7 @@ import { Card, DownloadLink, Empty, ErrorBox, Loading, PageTitle, Prose, Segment
 import { downloads, queries } from "@/lib/api";
 import { sortExposure, type ExposureSort } from "@/lib/domain/exposure";
 import { eok, num, pk } from "@/lib/domain/format";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 /** 막대 한 칸 (0~100%) — 숫자와 함께 표시해 색에만 의존하지 않음 */
 function ShareBar({ pct, warn }: { pct?: number; warn: number }) {

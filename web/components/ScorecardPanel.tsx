@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Card, DartLink, Empty, ErrorBox, Loading, Prose, Segmented } from "@/components/ui";
 import { queries, type ScInterval, type ScOutcome, type ScRule } from "@/lib/api";
 import { num } from "@/lib/domain/format";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { bestRule, episodesOf, ruleCodesOf } from "@/lib/domain/scorecard";
 
 const months = (days?: number | null) => (days == null ? "–" : `${num(days / 30.44, 1, true)}개월`);

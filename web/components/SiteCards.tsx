@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Card, DartLink, Empty, ErrorBox, Loading, PhraseList, Prose, Segmented } from "@/components/ui";
 import type { Query, SiteCard, SiteMatch, Sites } from "@/lib/api";
 import { eok, num } from "@/lib/domain/format";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const MATCH: Record<SiteMatch, { label: string; cls: string; note?: string }> = {
   JIBUN: { label: "지번까지", cls: "border-accent text-accent" },

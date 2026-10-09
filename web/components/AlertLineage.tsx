@@ -2,8 +2,8 @@ import { useState } from "react";
 import { queries, type Lineage, type LineageStatement } from "@/lib/api";
 import { dt } from "@/lib/domain/format";
 import { needsEventNames, paramLabel, paramValue } from "@/lib/domain/ruleLabels";
-import { useEventNames } from "@/lib/useEventNames";
-import { useApi } from "@/lib/useApi";
+import { useEventNames } from "@/lib/hooks/useEventNames";
+import { useApi } from "@/lib/hooks/useApi";
 import { DartLink, ErrorBox, Loading, PhraseList, Prose } from "./ui";
 
 const BASIS: Record<string, string> = { POINT: "시점", CUM: "누적", QTR: "분기" };

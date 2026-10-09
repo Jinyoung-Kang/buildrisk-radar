@@ -5,7 +5,7 @@ import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle, Prose } from "@/c
 import { commands, queries, type Row } from "@/lib/api";
 import { dt, int } from "@/lib/domain/format";
 import { useAuth } from "@/lib/auth";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 function ExecutionDetail({ id }: { id: number }) {
   const { data } = useApi(queries.batchExecution(id));

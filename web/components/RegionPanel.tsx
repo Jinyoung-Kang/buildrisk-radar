@@ -3,7 +3,7 @@ import { SignedBars, TrendLine } from "@/components/LazyCharts";
 import { DartLink, Empty, Loading, PhraseList, Phrases, SeverityBadge, StatusPill } from "@/components/ui";
 import { queries } from "@/lib/api";
 import { eok, int, num, ym, signed } from "@/lib/domain/format";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import WatchButton from "@/components/WatchButton";
 
 /** 지역 카드 — 미분양 추이 · 가격지수 추이 · 경보 (지도 옆, 지역 상세 화면 공용) */

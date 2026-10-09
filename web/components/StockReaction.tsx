@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer,
 import { Card, Empty, ErrorBox, Loading, Prose, Segmented } from "@/components/ui";
 import { queries, type BtStats } from "@/lib/api";
 import { int, num, signed, isNeg } from "@/lib/domain/format";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 const pct = (v?: number | null, d = 1) => (v == null ? "–" : `${signed(v * 100, d)}%`);
 const neg = (v?: number | null) => isNeg(v == null ? v : v * 100);

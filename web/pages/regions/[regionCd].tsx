@@ -7,7 +7,7 @@ import SiteCards from "@/components/SiteCards";
 import { Card, Loading } from "@/components/ui";
 import { queries } from "@/lib/api";
 import { num, ym } from "@/lib/domain/format";
-import { useApi } from "@/lib/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 export default function RegionDetail() {
   const { query, isReady } = useRouter();
