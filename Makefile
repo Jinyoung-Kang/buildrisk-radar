@@ -86,7 +86,7 @@ e2e:
 	@# web 을 막 다시 만들었으면 화면도 답할 때까지 (VERIFICATION 125)
 	@for i in $$(seq 1 60); do curl -sf -o /dev/null -m 2 http://localhost:3400/ && break; sleep 1; done
 	@# 실패하면 기록(트레이스 · 스크린샷 · HTML 보고서)을 시각별 폴더로 옮겨 둠 — 다음 실행이 test-results 를 비워도 남도록
-	@cd web && npx playwright install chromium && E2E_ADMIN_PASSWORD="$$(grep -E '^ADMIN_PASSWORD=' ../.env | cut -d= -f2-)" npx playwright test smoke security insight notify \
+	@cd web && npx playwright install chromium && E2E_ADMIN_PASSWORD="$$(grep -E '^ADMIN_PASSWORD=' ../.env | cut -d= -f2-)" npx playwright test smoke security insight notify frontend \
 	  || { d=e2e-failures/$$(date +%Y%m%d-%H%M%S); mkdir -p $$d && cp -R test-results playwright-report $$d/ 2>/dev/null; \
 	       echo "실패 기록: web/$$d — 보기: cd web && npx playwright show-report $$d/playwright-report"; exit 1; }
 

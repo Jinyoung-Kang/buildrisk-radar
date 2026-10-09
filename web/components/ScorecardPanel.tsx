@@ -48,10 +48,12 @@ function RuleRow({ r, name, base, h }: { r: ScRule; name: string; base?: number;
 export default function ScorecardPanel() {
   const [h, setH] = useState<"6" | "12" | "24">("12");
   const [outcome, setOutcome] = useState<"" | ScOutcome>("MISS");
-  const { data, error } = useApi(queries.scorecard(h));
-  // 기간 이름은 지금 보이는 숫자의 기간으로 — 새 기간을 불러오는 동안 이전 숫자에 새 이름이 붙지 않게 (VERIFICATION 103)
+  const sc = useApi(queries.scorecard(h));
+  const { error } = sc;
+  // 새 기간을 불러오는 동안 이전 기간의 숫자를 흐리게 남김 — 기간 이름도 보이는 숫자의 기간으로 (VERIFICATION 103)
+  const data = sc.data ?? sc.stale;
   const shown = data ? data.horizonMonths : Number(h);
-  const loadingNew = !!data && data.horizonMonths !== Number(h);
+  const loadingNew = !sc.data && !!sc.stale;
   const ruleCodes = useMemo(() => ruleCodesOf(data), [data]);
   const any = data?.rules.find((r) => r.ruleCode === "ANY");
   const best = useMemo(() => bestRule(data), [data]);
