@@ -33,9 +33,11 @@ public final class Params {
     public int count(String key, int min, int max) {
         BigDecimal v = num(key);
         if (v.scale() > 0 && v.stripTrailingZeros().scale() > 0) throw new RuleParamException(key + " 는 정수여야 합니다.");
-        int i = v.intValue();
-        if (i < min || i > max) throw new RuleParamException(key + " 는 " + min + "~" + max + " 사이여야 합니다.");
-        return i;
+        // 범위를 BigDecimal 로 먼저 봄 — intValue() 는 넘치면 아래 비트만 남겨(4294967298 → 2) 범위 검사를 통과시켰음 (VERIFICATION 135)
+        if (v.compareTo(BigDecimal.valueOf(min)) < 0 || v.compareTo(BigDecimal.valueOf(max)) > 0) {
+            throw new RuleParamException(key + " 는 " + min + "~" + max + " 사이여야 합니다.");
+        }
+        return v.intValueExact();
     }
 
     @SuppressWarnings("unchecked")

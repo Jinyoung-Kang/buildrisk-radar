@@ -97,6 +97,15 @@ class RuleEvaluatorTest {
     }
 
     @Test
+    void 정수_파라미터는_넘치는_값을_범위_안의_값으로_바꾸지_않는다() {
+        // 4294967298 이 intValue() 로 2 가 되어 범위 검사(1~8)를 통과 — 이력에는 큰 값, 평가는 2 로 돌았음 (VERIFICATION 135)
+        var p = new com.buildrisk.radar.domain.rule.Params(Map.of("consecutive", 4294967298L));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> p.count("consecutive", 1, 8))
+                .hasMessageContaining("1~8");
+        assertThat(new com.buildrisk.radar.domain.rule.Params(Map.of("consecutive", 3)).count("consecutive", 1, 8)).isEqualTo(3);
+    }
+
+    @Test
     void 최신_분기가_판단_불가면_판단할_수_있는_마지막_분기가_기준() {
         // 실데이터(00122694): 2025Q3 · Q4 영업손실 뒤 2026Q1 · Q2 분기 이자비용 0(ZERO_DENOM) — '해소'가 아니라 '모름' (VERIFICATION 118)
         var d = new Mem().put("DEBT_RATIO", "2025Q3", "100").put("DEBT_RATIO", "2025Q4", "100").put("DEBT_RATIO", "2026Q1", "100")
