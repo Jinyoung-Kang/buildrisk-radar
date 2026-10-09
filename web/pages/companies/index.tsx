@@ -35,8 +35,8 @@ export default function Companies() {
         </div>} />
       <ErrorBox error={error} />
       <Card pad={false}>
-        {/* 실패하면 오류만 — 전에는 오류 아래에 '대상 기업이 없습니다(배치를 실행하세요)'가 함께 보였음 (VERIFICATION 163) */}
-        {error ? null : !data ? <Loading /> : !data.items.length && term ? (
+        {/* 값이 없을 때 실패하면 오류만 — 전에는 오류 아래에 '대상 기업이 없습니다(배치를 실행하세요)'가 함께 보였음 (VERIFICATION 163 · 167) */}
+        {!data ? (error ? null : <Loading />) : !data.items.length && term ? (
           // 검색 결과가 없을 때도 '대상 기업이 없습니다 — 배치를 실행하세요'가 보였음 (VERIFICATION 165)
           <Empty>‘{term}’에 맞는 기업이 없습니다.</Empty>
         ) : !data.items.length ? (

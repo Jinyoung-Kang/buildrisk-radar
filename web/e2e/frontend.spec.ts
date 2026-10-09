@@ -98,6 +98,26 @@ test("목록 화면도 조회가 실패하면 오류만 — 불러오는 중 · 
   }
 });
 
+test("경보 확인 뒤 목록을 다시 불러오다 실패해도 보이던 목록은 남음 (VERIFICATION 167)", async ({ page }) => {
+  // 163 에서 오류면 목록을 숨기게 해, 같은 조건을 다시 부르다 실패하면(이전 값은 남겨 둠) 행 없이 쪽 넘김만 남았음
+  await page.route("**/api/v1/auth/me", (route) => route.fulfill({ json: { authenticated: true, username: "e2e", roles: ["ANALYST"] } }));
+  await page.route(/\/api\/v1\/alerts\/\d+$/, (route) =>
+    route.request().method() === "PATCH" ? route.fulfill({ json: {} }) : route.continue());
+  let lists = 0;
+  await page.route("**/api/v1/alerts?*", (route) => (++lists === 1 ? route.continue() : route.fulfill({ status: 500,
+    contentType: "application/json", body: JSON.stringify({ code: "INTERNAL_ERROR", message: "시험용 실패", traceId: "e2e" }) })));
+  await page.goto("/alerts?status=OPEN");
+  const first = page.locator("tbody tr.clickable").first();
+  const hasAlerts = await first.waitFor({ timeout: 10_000 }).then(() => true).catch(() => false);
+  test.skip(!hasAlerts, "열린 경보가 없음 — 배치를 먼저 실행");
+  const rows = await page.locator("tbody tr.clickable").count();
+  await first.click();
+  await page.getByRole("button", { name: "확인(ACK)" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "시험용 실패" })).toBeVisible();
+  expect(lists).toBe(2);
+  await expect(page.locator("tbody tr.clickable")).toHaveCount(rows);
+});
+
 test("잘못된 주소의 기업 · 지역은 계속 불러오는 대신 찾을 수 없다고 보임 (VERIFICATION 141)", async ({ page }) => {
   for (const path of ["/regions/abcde", "/companies/12ab"]) {
     await page.goto(path);

@@ -81,8 +81,8 @@ export default function Alerts() {
       <ErrorBox error={list.error} />
       <div className="grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-4 items-start">
         <Card pad={false}>
-          {/* 실패하면 오류만 — 전에는 오류와 함께 '불러오는 중'이 끝나지 않았음 (VERIFICATION 163) */}
-          {list.error ? null : !list.data ? <Loading /> : list.data.items.length === 0 ? <Empty>조건에 맞는 경보가 없습니다.</Empty> : (
+          {/* 값이 없을 때 실패하면 오류만(163). 같은 조건을 다시 부르다 실패하면 보이던 목록은 남김 — 숨기면 쪽 넘김만 남았음 (VERIFICATION 167) */}
+          {!list.data ? (list.error ? null : <Loading />) : list.data.items.length === 0 ? <Empty>조건에 맞는 경보가 없습니다.</Empty> : (
             <div className="max-h-[76vh] overflow-auto">
               <table className="data-table">
                 <thead><tr><th>심각도</th><th>대상</th><th>내용</th><th className="hidden sm:table-cell">기준</th><th>상태</th></tr></thead>
