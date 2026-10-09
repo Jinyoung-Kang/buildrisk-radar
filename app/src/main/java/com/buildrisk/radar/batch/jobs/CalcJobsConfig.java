@@ -75,7 +75,7 @@ public class CalcJobsConfig {
 
     @Bean
     Step standardizeStep(JobRepository repo, PlatformTransactionManager tm, ListItemReader<String> targetCorpReader,
-                         StandardizeService svc, FsRepository fs) {
+                         StandardizeService svc, FsRepository fs, CalcRunHolder calcRun) {
         AccountStandardizer[] std = new AccountStandardizer[1];
         return new StepBuilder("standardizeStep", repo).<String, StdResult>chunk(10).transactionManager(tm)
                 .reader(targetCorpReader)
@@ -84,7 +84,8 @@ public class CalcJobsConfig {
                     return new StdResult(corp, svc.standardize(corp, std[0]));
                 })
                 .writer(chunk -> {
-                    for (StdResult r : chunk.getItems()) fs.replaceStd(r.corpCode(), r.rows(), null);
+                    // 표준화 결과에도 계산 실행을 남김 — 근거 계보가 '어느 계산이 만든 값인지' 보이게 (VERIFICATION 134)
+                    for (StdResult r : chunk.getItems()) fs.replaceStd(r.corpCode(), r.rows(), calcRun.id());
                 })
                 .listener(new StepExecutionListener() {
                     @Override

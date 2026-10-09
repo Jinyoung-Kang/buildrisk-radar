@@ -156,6 +156,8 @@ class FinancialStatementJobIT extends IntegrationTest {
         launcher.runAndWait("financialStatementJob", RUN);
         var je = launcher.runAndWait("standardizeMetricJob", Map.of());
         assertThat(je.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        // 표준화 결과에도 그 값을 만든 계산 실행을 남김 — 실데이터 13,815행 모두 비어 있었음 (VERIFICATION 134)
+        assertThat(count("SELECT count(*) FROM dart.fs_std WHERE calc_run_id IS NULL")).isZero();
         Map<String, Object> std = jdbc.queryForList("""
                 SELECT std_code, amount FROM dart.fs_std WHERE corp_code = '00000001' AND period_key = '2025Q2' AND basis <> 'QTR'""")
                 .stream().collect(java.util.stream.Collectors.toMap(r -> (String) r.get("std_code"), r -> r.get("amount")));
