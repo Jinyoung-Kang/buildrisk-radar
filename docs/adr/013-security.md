@@ -13,7 +13,7 @@
 | 계정 | 환경변수로만(`ADMIN_PASSWORD` 등), 기동 시 BCrypt 로 해시해 메모리에. 12자 미만이면 계정 비활성. DB 사용자 테이블 없음 — 운영자 2역할 서비스 |
 | 무차별 대입 | (아이디, IP) 연속 실패 5회 → 15분 잠금(429 + Retry-After), IP 전체 20회 → 잠금. 없는 아이디도 같은 메시지 · DaoAuthenticationProvider 의 타이밍 완화 |
 | 레이트리밋 | IP 당 분당 1,200 (Redis 고정 창, 인스턴스 간 공유). Redis 장애 시 통과(fail-open) — 조회 서비스 가용성 우선 |
-| 감사 로그 | 모든 변경 요청(POST·PUT·PATCH·DELETE)을 결과 상태와 함께 `ops.audit_log` 에 — **거부된 시도(401·403)도**. 경로 템플릿 · 요청 본문(4KB) · IP · traceId. 로그인 본문(비밀번호)은 남기지 않음. 이름이 비밀 같은 값(secret · password · token …)은 `***`, 주소는 출처(scheme://host:port)만 — 경로와 사용자 정보(`user:pass@`)는 버림, query string 은 2KB 까지(VERIFICATION 106 · 115 · 158). `GET /api/v1/admin/audit` |
+| 감사 로그 | 모든 변경 요청(POST·PUT·PATCH·DELETE)을 결과 상태와 함께 `ops.audit_log` 에 — **거부된 시도(401·403)도**. 경로 템플릿 · 요청 본문(4KB) · IP · traceId. 로그인 본문(비밀번호)은 남기지 않음. 이름이 비밀 같은 값(secret · password · token …)은 `***`, 주소는 출처(scheme://host:port)만 — 경로와 사용자 정보(`user:pass@`)는 버리고, 권한부 밖에도 `@` 가 있어 사용자 정보의 끝을 가릴 수 없으면 출처도 버림. query string 은 2KB 까지(VERIFICATION 106 · 115 · 158 · 166). `GET /api/v1/admin/audit` |
 | 누가 바꿨나 | 규칙 버전 `created_by`, 경보 `acked_by` |
 | 보안 헤더 | API: `CSP default-src 'none'` · nosniff · DENY · no-referrer. Web(Next): CSP(인라인 스크립트 없음 — 테마 초기화도 파일로) · 카카오맵 도메인만 허용 |
 | 로그인 뒤 이동 | `next` 는 같은 출처의 경로만 — URL 로 해석해 출처를 비교하고, 정규화한 경로가 `//` · `/\` 로 시작하면(프로토콜 상대 주소) 버림(VERIFICATION 160) |

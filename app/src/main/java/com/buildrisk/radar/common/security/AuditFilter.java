@@ -111,10 +111,15 @@ public class AuditFilter extends OncePerRequestFilter {
         return out.length() > QUERY_LIMIT ? out.substring(0, QUERY_LIMIT) + "…" : out.toString();
     }
 
-    /** 출처(scheme://host:port) — 사용자 정보(user:pass@)는 뺌. 그대로 두면 주소에 넣은 비밀번호가 평문으로 남았음 (VERIFICATION 158) */
+    /**
+     * 출처(scheme://host:port) — 사용자 정보(user:pass@)는 뺌. 그대로 두면 주소에 넣은 비밀번호가 평문으로 남았음 (VERIFICATION 158).
+     * 권한부 밖에도 '@' 가 있으면(비밀번호에 '/' · '?' 같은 구분 문자가 있거나 경로의 '@') 어디까지가 사용자 정보인지 가릴 수 없으므로
+     * 출처도 남기지 않음 — 권한부 안에서만 찾으면 비밀번호 앞부분이 호스트로 남았음 (VERIFICATION 166)
+     */
     private static String origin(String url) {
         Matcher m = ORIGIN.matcher(url);
         if (!m.find()) return "";
+        if (url.indexOf('@', m.end()) >= 0) return "";
         String authority = m.group(2);
         return m.group(1) + authority.substring(authority.lastIndexOf('@') + 1);
     }
