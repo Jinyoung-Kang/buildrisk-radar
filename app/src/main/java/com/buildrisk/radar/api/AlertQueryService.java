@@ -89,11 +89,13 @@ public class AlertQueryService {
         if ("CLOSED".equals(cur.status())) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "이미 닫힌 경보입니다 (" + cur.closeReason() + ").");
         }
-        jdbc.sql("""
-                UPDATE risk.alert SET status = :s, acked_at = CASE WHEN :s = 'ACK' THEN now() END,
-                       acked_by = CASE WHEN :s = 'ACK' THEN :actor END
-                 WHERE alert_id = :id""")
+        // 닫히지 않은 경보만 — 위 확인 뒤 규칙 평가가 막 닫은 행을 'ACK + 닫힌 사유'로 되살리지 않게 (행 잠금 뒤 조건을 다시 봄, VERIFICATION 133)
+        int n = jdbc.sql("""
+                        UPDATE risk.alert SET status = :s, acked_at = CASE WHEN :s = 'ACK' THEN now() END,
+                               acked_by = CASE WHEN :s = 'ACK' THEN :actor END
+                         WHERE alert_id = :id AND status <> 'CLOSED'""")
                 .param("s", status).param("actor", actor).param("id", id).update();
+        if (n == 0) throw new ApiException(ErrorCode.VALIDATION_ERROR, "이미 닫힌 경보입니다 (" + detail(id).closeReason() + ").");
         return detail(id);
     }
 }

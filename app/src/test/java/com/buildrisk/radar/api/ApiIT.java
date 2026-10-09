@@ -24,6 +24,8 @@ class ApiIT extends IntegrationTest {
     MockMvc mvc;
     @Autowired
     io.micrometer.core.instrument.MeterRegistry meters;
+    @Autowired
+    javax.sql.DataSource dataSource;
 
     @Test
     void 없는_기업은_404_와_오류_형식() throws Exception {
@@ -114,6 +116,35 @@ class ApiIT extends IntegrationTest {
                 .andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/alerts/424242")).andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ALERT_NOT_FOUND"));
+    }
+
+    @Test
+    void 규칙_평가가_막_닫은_경보를_ACK_로_되살리지_않는다() throws Exception {
+        // 닫혔는지 확인한 뒤 조건 없이 UPDATE 해, 그 사이 규칙 평가가 닫은 경보가 'ACK + 닫힌 사유'가 됐음 (VERIFICATION 133)
+        company("00000005", "경합건설");
+        Long id = jdbc.queryForObject("""
+                INSERT INTO risk.alert (rule_code, rule_version, target_type, target_key, as_of, severity, title, message, evidence, status)
+                VALUES ('R-C02', 1, 'COMPANY', '00000005', '2026Q2', 'HIGH', 't', 'm', '{"condition":"x"}', 'OPEN') RETURNING alert_id""", Long.class);
+        try (java.sql.Connection evaluation = dataSource.getConnection()) {
+            evaluation.setAutoCommit(false);
+            try (var st = evaluation.prepareStatement("UPDATE risk.alert SET status = 'CLOSED', close_reason = 'RESOLVED', closed_at = now() WHERE alert_id = ?")) {
+                st.setLong(1, id);
+                st.executeUpdate();                                          // 행을 잠근 채 아직 커밋 전
+            }
+            var ack = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                try {
+                    return mvc.perform(patch("/api/v1/alerts/" + id).header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\":\"ACK\"}")).andReturn().getResponse().getStatus();
+                } catch (Exception e) {
+                    throw new IllegalStateException(e);
+                }
+            });
+            Thread.sleep(500);                                               // ACK 의 UPDATE 가 잠금에서 기다리는 동안
+            evaluation.commit();
+            org.assertj.core.api.Assertions.assertThat(ack.get(10, java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(400);
+        }
+        org.assertj.core.api.Assertions.assertThat(jdbc.queryForMap("SELECT status, acked_by FROM risk.alert WHERE alert_id = ?", id))
+                .containsEntry("status", "CLOSED").containsEntry("acked_by", null);
     }
 
     @Test
