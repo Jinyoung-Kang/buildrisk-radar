@@ -3,6 +3,7 @@ import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
 import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle, Prose } from "@/components/ui";
 import { commands, queries, type Row } from "@/lib/api";
+import { changedRows } from "@/lib/domain/batch";
 import { dt, int } from "@/lib/domain/format";
 import { useAuth } from "@/lib/auth";
 import { useAction } from "@/lib/hooks/useAction";
@@ -13,12 +14,7 @@ function ExecutionDetail({ id }: { id: number }) {
   const { data, error } = useApi(queries.batchExecution(id));
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
-  let changed: Record<string, number> = {};
-  try {
-    const st = data.runStats ? JSON.parse(data.runStats).steps ?? {} : {};
-    changed = Object.fromEntries(Object.entries(st).filter(([, v]) => (v as Row).changedRows != null)
-      .map(([k, v]) => [k, (v as Row).changedRows as number]));
-  } catch { /* 통계 없음 */ }
+  const changed = changedRows(data.runStats);
   return (
     <div className="space-y-4 text-sm">
       <div className="flex flex-wrap gap-3 items-center">

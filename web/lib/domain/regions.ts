@@ -1,5 +1,6 @@
 // 지역 지도 — 경계와 지표 값 잇기 · 색 기준 · 투영
-import type { Boundaries, GeoJson, RegionList, RegionRow } from "@/lib/api";
+import type { Boundaries, GeoJson, RegionList, RegionRow, RegionSeries } from "@/lib/api";
+import { ym } from "./format";
 
 /** 부호가 있는 지표는 0 을 중심으로 한 발산형 색 (증가·감소를 구분) */
 export const SIGNED_METRICS = new Set(["UNSOLD_3M_CHG", "PRICE_IDX_3M_CHG", "JEONSE_IDX_3M_CHG", "JEONSE_SALE_GAP", "TRADE_YOY", "PRICE_M2_YOY"]);
@@ -37,4 +38,28 @@ export function projectShapes(geo: GeoJson): { d: string[]; W: number; H: number
   const d = polys.map((parts) => parts.map((rings) => rings.map((ring) =>
     "M" + ring.map(([x, y]) => `${((x - minX) * s).toFixed(1)},${((y - minY) * s).toFixed(1)}`).join("L") + "Z").join("")).join(""));
   return { d, W, H };
+}
+
+type Pt = { x: string; v: number | null };
+type Latest = RegionSeries["metrics"][number]["points"][number] | undefined;
+
+/** 지역 카드 — 통계 · 지표를 차트 점과 최신 값으로. compact(지도 옆)면 2년 · 1년, 아니면 3년 · 2년 */
+export function regionPanel(data: RegionSeries, compact: boolean) {
+  const stat = (c: string) => data.stats.find((s) => s.code === c)?.points ?? [];
+  const pts = (c: string, n: number): Pt[] => stat(c).slice(n).map((p) => ({ x: ym(p.period), v: p.value ?? null }));
+  const tail = compact ? -24 : -37, tradeTail = compact ? -13 : -25;
+  const sale = Object.fromEntries(stat("SALE_IDX").map((p) => [p.period, p.value]));
+  const jeonse = Object.fromEntries(stat("JEONSE_IDX").map((p) => [p.period, p.value]));
+  const idxPeriods = Array.from(new Set([...Object.keys(sale), ...Object.keys(jeonse)])).sort().slice(tail);
+  /** 값이 있는 마지막 시점 */
+  const latest = (code: string): Latest => data.metrics.find((m) => m.code === code)?.points.filter((p) => p.value != null).at(-1);
+  return {
+    unsold: pts("UNSOLD", tail),
+    idx: idxPeriods.map((p) => ({ x: ym(p), sale: sale[p] ?? null, jeonse: jeonse[p] ?? null })),
+    households: stat("HOUSEHOLDS").at(-1),
+    trades: pts("TRADE_CNT", tradeTail),
+    priceM2: pts("PRICE_M2", tradeTail),
+    per1k: latest("UNSOLD_PER_1K_HH"), chg: latest("UNSOLD_3M_CHG"), units: latest("UNSOLD_UNITS"),
+    tradeYoy: latest("TRADE_YOY"), cancel: latest("CANCEL_RATE"), priceYoy: latest("PRICE_M2_YOY"), tradeCount: latest("TRADE_COUNT"),
+  };
 }

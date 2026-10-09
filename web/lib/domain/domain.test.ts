@@ -1,8 +1,9 @@
 // 화면에서 옮긴 순수 함수의 지금 동작 고정 (ADR-030) — 문장 · 이동 · 구독 · 공시 · 지역 · 노출 · 기업 · 성적표 · 축 · 색
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { Boundaries, ContractRow, Disclosure, ExposureRow, Financials, GeoJson, Metrics, RegionList, Scorecard, Subscription } from "@/lib/api";
+import type { Boundaries, ContractRow, Disclosure, ExposureRow, Financials, GeoJson, Metrics, RegionList, RegionSeries, Scorecard, Subscription } from "@/lib/api";
 import { asOfLabel } from "@/lib/domain/alerts";
+import { changedRows } from "@/lib/domain/batch";
 import { niceAxis } from "@/lib/domain/axis";
 import { DIV_NEG, DIV_POS, makeScale, MISSING, NEUTRAL, SEQ } from "@/lib/domain/colors";
 import { filterDisclosures, metricSeries, recentPeriods } from "@/lib/domain/company";
@@ -10,7 +11,7 @@ import { sortExposure } from "@/lib/domain/exposure";
 import { contractState, due12 } from "@/lib/domain/filings";
 import { pageKey, safeNext, targetHref } from "@/lib/domain/nav";
 import { describeSubscription, subscriptionBody, toggleCode } from "@/lib/domain/notify";
-import { joinRegionValues, projectShapes, sidoOptions } from "@/lib/domain/regions";
+import { joinRegionValues, projectShapes, regionPanel, sidoOptions } from "@/lib/domain/regions";
 import { bestRule, episodesOf, ruleCodesOf } from "@/lib/domain/scorecard";
 import { ruleParamsBody, ruleParamsForm } from "@/lib/domain/ruleLabels";
 import { phraseParts, splitSentences } from "@/lib/domain/text";
@@ -182,6 +183,27 @@ describe("rule params", () => {
     assert.deepEqual(ruleParamsBody({ threshold: 1 }, { threshold: "  " }), { key: "threshold", error: "값을 넣으세요" });
     assert.deepEqual(ruleParamsBody({ threshold: 1 }, { threshold: "1,5" }), { key: "threshold", error: "숫자를 넣으세요" });
     assert.deepEqual(ruleParamsBody({ basis: "CFS" }, { basis: "OFS" }), { body: { basis: "OFS" } });   // 글자 파라미터는 그대로
+  });
+});
+
+describe("region panel · batch", () => {
+  it("지역 카드: 매매 · 전세 지수를 같은 달끼리 잇고, 최신 값은 값이 있는 마지막 시점", () => {
+    const months = (code: string, vals: [string, number | undefined][]) => ({ code, nameKo: "", unit: "", source: "", points: vals.map(([period, value]) => ({ period, value })) });
+    const s = { stats: [months("UNSOLD", [["202605", 10], ["202606", 12]]), months("SALE_IDX", [["202605", 100]]), months("JEONSE_IDX", [["202606", 98]]),
+      months("HOUSEHOLDS", [["2023", 1000], ["2024", 1100]])],
+      metrics: [{ code: "UNSOLD_PER_1K_HH", nameKo: "", unit: "", formula: "", points: [{ period: "202605", value: 9, status: "OK", components: {} }, { period: "202606", status: "MISSING", components: {} }] }],
+    } as unknown as RegionSeries;
+    const r = regionPanel(s, true);
+    assert.deepEqual(r.unsold, [{ x: "2026.05", v: 10 }, { x: "2026.06", v: 12 }]);
+    assert.deepEqual(r.idx, [{ x: "2026.05", sale: 100, jeonse: null }, { x: "2026.06", sale: null, jeonse: 98 }]);
+    assert.equal(r.households?.period, "2024");
+    assert.equal(r.per1k?.period, "202605");
+    assert.equal(r.tradeCount, undefined);
+  });
+  it("실행 통계의 바뀐 행 — 없거나 깨졌으면 빈 값", () => {
+    assert.deepEqual(changedRows(JSON.stringify({ steps: { a: { changedRows: 3 }, b: { changedRows: null }, c: {} } })), { a: 3 });
+    assert.deepEqual(changedRows("{not json"), {});
+    assert.deepEqual(changedRows(null), {});
   });
 });
 

@@ -3,6 +3,7 @@ import { SignedBars, TrendLine } from "@/components/LazyCharts";
 import { DartLink, Empty, ErrorBox, Loading, PhraseList, Phrases, SeverityBadge, StatusPill } from "@/components/ui";
 import { queries } from "@/lib/api";
 import { eok, int, num, ym, signed } from "@/lib/domain/format";
+import { regionPanel } from "@/lib/domain/regions";
 import { useApi } from "@/lib/hooks/useApi";
 import WatchButton from "@/components/WatchButton";
 
@@ -13,19 +14,8 @@ export default function RegionPanel({ regionCd, compact, headingAs: H = "h3" }: 
   const contracts = useApi(queries.regionContracts(regionCd));
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
-  const stat = (c: string) => data.stats.find((s) => s.code === c)?.points ?? [];
-  const tail = compact ? -24 : -37;
-  const unsold = stat("UNSOLD").slice(tail).map((p) => ({ x: ym(p.period), v: p.value ?? null }));
-  const sale = Object.fromEntries(stat("SALE_IDX").map((p) => [p.period, p.value]));
-  const jeonse = Object.fromEntries(stat("JEONSE_IDX").map((p) => [p.period, p.value]));
-  const idxPeriods = Array.from(new Set([...Object.keys(sale), ...Object.keys(jeonse)])).sort().slice(tail);
-  const idx = idxPeriods.map((p) => ({ x: ym(p), sale: sale[p] ?? null, jeonse: jeonse[p] ?? null }));
-  const hh = stat("HOUSEHOLDS").at(-1);
-  const latest = (code: string) => data.metrics.find((m) => m.code === code)?.points.filter((p) => p.value != null).at(-1);
-  const per1k = latest("UNSOLD_PER_1K_HH"), chg = latest("UNSOLD_3M_CHG"), units = latest("UNSOLD_UNITS");
-  const trades = stat("TRADE_CNT").slice(compact ? -13 : -25).map((p) => ({ x: ym(p.period), v: p.value ?? null }));
-  const priceM2 = stat("PRICE_M2").slice(compact ? -13 : -25).map((p) => ({ x: ym(p.period), v: p.value ?? null }));
-  const tYoy = latest("TRADE_YOY"), cancel = latest("CANCEL_RATE"), pYoy = latest("PRICE_M2_YOY"), tCnt = latest("TRADE_COUNT");
+  const { unsold, idx, households: hh, per1k, chg, units, trades, priceM2, tradeYoy: tYoy, cancel, priceYoy: pYoy, tradeCount: tCnt } =
+    regionPanel(data, !!compact);
   const sign = (v?: number | null) => (v == null ? "–" : `${signed(v)}%`);
   return (
     <div className="space-y-4">
