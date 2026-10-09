@@ -38,6 +38,12 @@ describe("nav", () => {
       assert.equal(safeNext(bad, O), "/", String(bad));
     }
   });
+  it("정규화한 결과가 '//' 로 시작하면 / — 같은 출처여도 경로 자체가 프로토콜 상대 주소 (VERIFICATION 160)", () => {
+    for (const bad of ["/.//evil.example/x", "/%2e//evil.example", "/a/..//evil.example", "/./\\evil.example"]) {
+      assert.equal(safeNext(bad, O), "/", bad);
+    }
+    assert.equal(safeNext("/a//b", O), "/a//b");
+  });
   it("화면 상태의 기준: 경로 값만, 쿼리는 무시 (VERIFICATION 148)", () => {
     assert.equal(pageKey("/companies/[corpCode]", { corpCode: "00122694", tab: "financials" }), "/companies/[corpCode]|00122694");
     assert.notEqual(pageKey("/companies/[corpCode]", { corpCode: "A" }), pageKey("/companies/[corpCode]", { corpCode: "B" }));

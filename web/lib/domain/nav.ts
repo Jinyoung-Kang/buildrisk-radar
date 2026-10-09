@@ -6,7 +6,9 @@ export function safeNext(next: unknown, origin: string): string {
   if (typeof next !== "string" || !next.startsWith("/")) return "/";
   try {
     const u = new URL(next, origin);
-    return u.origin === origin ? u.pathname + u.search + u.hash : "/";
+    // 정규화하면 '/.//evil.example' 의 경로가 '//evil.example' 이 되어 같은 출처여도 프로토콜 상대 주소가 됨 (VERIFICATION 160)
+    if (u.origin !== origin || /^\/[/\\]/.test(u.pathname)) return "/";
+    return u.pathname + u.search + u.hash;
   } catch {
     return "/";
   }
