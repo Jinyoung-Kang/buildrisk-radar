@@ -1,4 +1,4 @@
-# Next.js 15 (Pages Router, React 18) — standalone 출력
+# Next.js 16 (Pages Router, React 18) — standalone 출력, 운영 빌드는 webpack (ADR-028)
 FROM node:24-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./

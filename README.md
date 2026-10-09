@@ -123,7 +123,7 @@ flowchart TB
     edge["edge · nginx<br/>X-Forwarded-For = 실제 접속 주소로 덮어씀<br/>도커 DNS 재해석(컨테이너 IP 변경 추적)"]
   end
   subgraph internal["내부망 (포트 미공개)"]
-    web["web · Next.js 15 (React 18 · Tailwind · Recharts · 카카오 지도)<br/>CSP"]
+    web["web · Next.js 16 (React 18 · Tailwind · Recharts · 카카오 지도)<br/>CSP"]
     api["api · Spring Boot 4.1 / Java 25 (G1 · 힙 60% · 1 GB 한도)<br/>REST · Spring Security(세션+CSRF · 역할 · 토큰)<br/>레이트리밋 · 감사 로그 · 조회 캐시 · 외부 API 키 없음"]
     worker["worker · 같은 이미지<br/>요청 큐 소비(SKIP LOCKED) · 스케줄러<br/>Spring Batch Job 14개 · 외부 API 호출<br/>알림 outbox 나누기 · 웹훅 전송(재시도)"]
     pg[("PostgreSQL 16 + PostGIS<br/>ref · dart · mkt · risk · ops · notify + BATCH_*<br/>런타임 계정 buildrisk_app = DML 전용")]
@@ -169,7 +169,7 @@ sequenceDiagram
   W->>Q: DONE / FAILED (+ _next 로 다음 Job)
 ```
 
-자세한 설계 결정은 [docs/adr](docs/adr/README.md) (ADR 27건).
+자세한 설계 결정은 [docs/adr](docs/adr/README.md) (ADR 28건).
 
 ### 기술 스택
 
@@ -179,7 +179,7 @@ sequenceDiagram
 | 보안 | **Spring Security 7** (세션 + `csrf.spa()` · 역할 · 서비스 토큰) · **Spring Session Redis** · BCrypt | [ADR-013](docs/adr/013-security.md) |
 | 저장 | PostgreSQL 16 + PostGIS 3.6 | 경계 · 실거래 월 파티션 · 마이그레이션/런타임 계정 분리 ([ADR-014](docs/adr/014-db-least-privilege.md)) |
 | 캐시 · 세션 | Redis 7 · 프로세스 안 캐시 | 목록 · 상세 read-through(세대 키 `br:gen` 일괄 무효화) · 세션 · 레이트리밋 · 로그인 잠금 / 지도 경계는 버전별 gzip 바이트 ([ADR-022](docs/adr/022-read-cache.md)) |
-| 화면 | Next.js 15 (Pages Router) · React 18 · TypeScript · Tailwind · Recharts 3 · 카카오 지도 | 접근성 탭 · 좁은 화면 메뉴 · 역할에 따른 버튼 · CSP · 차트 지연 로드 · 페이지 넘김 · 1·2·5 눈금 |
+| 화면 | Next.js 16 (Pages Router, 운영 빌드 webpack — [ADR-028](docs/adr/028-nextjs16-bundler.md)) · React 18 · TypeScript · Tailwind · Recharts 3 · 카카오 지도 | 접근성 탭 · 좁은 화면 메뉴 · 역할에 따른 버튼 · CSP · 차트 지연 로드 · 페이지 넘김 · 1·2·5 눈금 |
 | 관측 | Micrometer → Prometheus · Grafana · ECS 구조화 로그 | 관리 포트 8411 분리, 조회 캐시 적중률 지표 ([ADR-018](docs/adr/018-observability.md)) |
 | 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright · **k6** | 백엔드 246개 · E2E 24개 · 부하 · 레이트리밋 |
 | 도구 | Python 3.11 (표준 라이브러리) | 외부 API 키 스모크 · 골든 fixture 캡처 (`tools/smoke.py`) |
@@ -389,7 +389,7 @@ buildrisk-radar/
 │     └─ common/             설정 · 역할(api/worker) · security(세션 · CSRF · 토큰 · 레이트리밋 · 감사) · 오류 규약 · traceId · cache(Redis · 프로세스 안) · seed
 ├─ app/src/main/resources/db/migration/   V1 … V20 · afterMigrate(런타임 계정 권한)
 ├─ app/src/test/             단위 · Testcontainers 통합 · WireMock fixture (DART 재무 · 공시 원문 · 실거래 · 주가 실응답)
-├─ web/                      Next.js 15 (pages · components · lib(auth · api) · e2e)
+├─ web/                      Next.js 16 (pages · components · lib(auth · api) · e2e)
 ├─ ops/                      prometheus · grafana(프로비저닝 대시보드) · k6(부하 · 레이트리밋)
 ├─ seed/                     표준계정 · 매핑 규칙 · 업종코드 · 이벤트 사전 · 규칙 · 통계 시리즈 · 지역 별칭
 ├─ tools/smoke.py            외부 API 키 스모크 · 골든 fixture 캡처

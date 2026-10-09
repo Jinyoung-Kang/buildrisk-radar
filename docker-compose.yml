@@ -6,7 +6,7 @@
 #   api     Spring Boot 4.1 — REST 만 (외부 API 키 없음). 배치 실행은 요청 큐에 넣기만 (ADR-012)
 #   worker  같은 이미지 — 요청 큐 소비 · 스케줄 · 외부 API 호출 (키는 여기만)
 #   edge    nginx :3400 — 유일한 외부 진입점. /api/v1 · /swagger-ui → api, 나머지 → web. X-Forwarded-For 를 덮어씀
-#   web     Next.js 15 — 화면 (포트 미공개)
+#   web     Next.js 16 — 화면 (포트 미공개)
 #   batch   (profile batch) 일회성 CLI 실행 — make batch-all / make job JOB=…
 #   prometheus · grafana  (profile obs) — make obs
 #

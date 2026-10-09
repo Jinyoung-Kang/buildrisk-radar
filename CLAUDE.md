@@ -6,7 +6,7 @@
 ## 구조 한눈에
 
 - `app/` Spring Boot 4.1 · Java 25 · Spring Batch 6 — 같은 이미지가 역할(`BUILDRISK_ROLE`)로 **api**(REST, 외부 API 키 없음)와 **worker**(DB 큐 소비 · 배치 · 외부 API 호출)로 나뉨
-- `web/` Next.js 15 (Pages Router) · TypeScript · Tailwind · Recharts
+- `web/` Next.js 16 (Pages Router, 운영 빌드 webpack — ADR-028) · TypeScript · Tailwind · Recharts
 - `ops/` nginx(edge) · prometheus · grafana · k6
 - 진입점은 **edge(nginx) 하나** `http://localhost:3400` — `/api/v1` 은 api 로, 나머지는 web 으로. api · web 은 포트를 열지 않음
 - 기타 포트: Grafana :3401 · Prometheus :9490 (`make obs`) · Postgres :5472 · Redis :6419 (모두 127.0.0.1)
