@@ -49,7 +49,8 @@ public final class AlertLifecycle {
                 // 공시 규칙: 창 안에 있는데 참이 아니면(재분류 등) RESOLVED, 창을 벗어났으면 EXPIRED
                 reason = singleActive || ev.evaluatedAsOfs().contains(a.asOf()) ? "RESOLVED" : "EXPIRED";
             }
-            else if (singleActive && !a.asOf().equals(openAsOf)) reason = "SUPERSEDED";
+            // 대체는 최신 시점에 열 경보가 있을 때만 — 최신 시점이 참이 아니면 과거 발견이 남아 있어도 해소 (VERIFICATION 139)
+            else if (singleActive && !a.asOf().equals(openAsOf)) reason = openAsOf != null ? "SUPERSEDED" : "RESOLVED";
             if (reason != null) closes.add(new Close(a.alertId(), reason));
         }
 

@@ -50,6 +50,15 @@ class AlertLifecycleTest {
     }
 
     @Test
+    void 기간_규칙의_최신_시점이_거짓이면_과거_발견이_남아도_대체가_아닌_해소() {
+        // 실데이터 R-R03: 202607 참 → 202608 거래 감소율이 기준 밖. 202607 경보가 '최신 시점으로 대체'로 닫혔지만
+        // 대체한 경보가 없었음 — 과거 시점의 발견은 그대로 남으므로 '최신 시점이 참이 아님'을 해소로 봐야 함 (VERIFICATION 139)
+        Plan p = AlertLifecycle.plan(1, true, ev("202608", List.of("202607", "202608"), "202607"), List.of(new Active(10, 1, "202607")));
+        assertThat(p.closes()).containsExactly(new Close(10, "RESOLVED"));
+        assertThat(upserts(p)).containsExactly("202607:RESOLVED");
+    }
+
+    @Test
     void 규칙_버전이_바뀌면_이전_버전_경보는_닫고_새_버전으로_다시_씀() {
         Plan p = AlertLifecycle.plan(2, true, ev("2026Q2", List.of("2026Q2"), "2026Q2"), List.of(new Active(10, 1, "2026Q2")));
         assertThat(p.closes()).containsExactly(new Close(10, "RULE_CHANGED"));
