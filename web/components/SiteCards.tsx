@@ -2,7 +2,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Card, DartLink, Empty, ErrorBox, Loading, PhraseList, Prose, Segmented } from "@/components/ui";
 import type { Query, SiteCard, SiteMatch, Sites } from "@/lib/api";
-import { eok, num } from "@/lib/format";
+import { eok, num } from "@/lib/domain/format";
 import { useApi } from "@/lib/useApi";
 
 const MATCH: Record<SiteMatch, { label: string; cls: string; note?: string }> = {

@@ -6,12 +6,10 @@ import RegionMap from "@/components/RegionMap";
 import { RegionPanel } from "@/components/LazyCharts";
 import { Card, ErrorBox, PhraseList } from "@/components/ui";
 import { queries, type GeoJson, type RegionProps } from "@/lib/api";
-import { makeScale, MISSING } from "@/lib/colors";
-import { num, STATUS_LABEL, withUnit, ym } from "@/lib/format";
+import { makeScale, MISSING } from "@/lib/domain/colors";
+import { num, STATUS_LABEL, withUnit, ym } from "@/lib/domain/format";
+import { joinRegionValues, SIGNED_METRICS, sidoOptions } from "@/lib/domain/regions";
 import { useApi } from "@/lib/useApi";
-
-// 부호가 있는 지표는 0 을 중심으로 한 발산형 색 (증가·감소를 구분)
-const SIGNED = new Set(["UNSOLD_3M_CHG", "PRICE_IDX_3M_CHG", "JEONSE_IDX_3M_CHG", "JEONSE_SALE_GAP", "TRADE_YOY", "PRICE_M2_YOY"]);
 
 export default function Regions() {
   const router = useRouter();
@@ -34,30 +32,19 @@ export default function Regions() {
   // 경계는 버전이 바뀔 때만 받음(브라우저 영구 캐시) — 지표·기간·시도를 바꾸면 값 목록(약 20KB)만 다시 받아 색을 칠함
   const version = list.data?.boundaryVersion;
   const bounds = useApi(version ? queries.regionBoundaries(version) : null);
-  const geo = useMemo<{ data: GeoJson | null; error: Error | null }>(() => {
-    if (!bounds.data || !list.data) return { data: null, error: bounds.error };
-    const byCd = new Map(list.data.items.map((r) => [r.regionCd, r]));
-    const features = bounds.data.features.filter((f) => byCd.has(f.properties.regionCd)).map((f) => {
-      const r = byCd.get(f.properties.regionCd)!;
-      return { ...f, properties: { ...f.properties, value: r.value ?? null, status: r.status ?? "MISSING", alertCount: r.alertCount } };
-    });
-    return { data: { type: "FeatureCollection", features, meta: { metric: list.data.metric, nameKo: "", unit: list.data.unit,
-      period: list.data.period, calcRunId: list.data.calcRunId, sources: [] } }, error: null };
-  }, [bounds.data, bounds.error, list.data]);
+  const geo = useMemo<{ data: GeoJson | null; error: Error | null }>(() =>
+    !bounds.data || !list.data ? { data: null, error: bounds.error } : { data: joinRegionValues(bounds.data, list.data), error: null },
+  [bounds.data, bounds.error, list.data]);
   const def = meta.data?.metrics.find((m) => m.code === metric);
   const regionDefs = meta.data?.metrics.filter((m) => m.target === "REGION") ?? [];
   const scale = useMemo(() => makeScale((list.data?.items ?? []).map((r) => r.value).filter((v): v is number => v != null),
-    SIGNED.has(metric), def?.higherIsRisk ?? true), [list.data, metric, def]);
+    SIGNED_METRICS.has(metric), def?.higherIsRisk ?? true), [list.data, metric, def]);
   const colorOf = useCallback((p: RegionProps) => scale.color(p.value), [scale]);
   const unit = def?.unit ?? "";
   const tooltipOf = useCallback((p: RegionProps) =>
     `${def?.nameKo ?? metric}: <b>${p.value == null ? STATUS_LABEL[p.status] ?? "없음" : withUnit(p.value, unit)}</b>${p.alertCount ? `<br/>경보 ${p.alertCount}건` : ""}`,
     [def, metric, unit]);
-  const sidos = useMemo(() => {
-    const m = new Map<string, string>();
-    list.data?.items.forEach((r) => m.set(r.sidoCd, r.sidoName));
-    return Array.from(m.entries()).sort();
-  }, [list.data]);
+  const sidos = useMemo(() => sidoOptions(list.data?.items ?? []), [list.data]);
   const ranked = (list.data?.items ?? []).filter((r) => r.value != null);
 
   return (

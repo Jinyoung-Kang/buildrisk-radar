@@ -3,7 +3,7 @@ import RequireRole from "@/components/RequireRole";
 import Layout from "@/components/Layout";
 import { Card, Empty, ErrorBox, Loading, PageTitle, Prose } from "@/components/ui";
 import { commands, queries, type Row } from "@/lib/api";
-import { eok, num } from "@/lib/format";
+import { eok, num } from "@/lib/domain/format";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/useApi";
 

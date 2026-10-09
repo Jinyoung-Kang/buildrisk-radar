@@ -22,6 +22,18 @@ const config = [
       "no-restricted-globals": ["error", { name: "fetch", message: "API 호출은 @/lib/api 의 queries · commands 로 (ADR-030)" }],
     },
   },
+  {
+    // 규칙 · 변환은 React · 화면 · 네트워크 · 브라우저를 모르는 순수 함수로 (ADR-030) — API 응답 타입만 import type
+    files: ["lib/domain/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": ["error", { patterns: [
+        { group: ["react", "react-dom", "next", "next/*", "@/components/*", "@/lib/hooks/*", "@/lib/api/client", "@/lib/api/endpoints"],
+          message: "lib/domain 은 순수 함수만 — React · 화면 · 네트워크를 모름 (ADR-030)" },
+        { group: ["@/lib/api"], allowTypeImports: true, message: "lib/domain 은 API 응답 타입만 import type 으로 (ADR-030)" },
+      ] }],
+      "no-restricted-globals": ["error", "window", "document", "fetch", "localStorage", "sessionStorage", "navigator"],
+    },
+  },
 ];
 
 export default config;

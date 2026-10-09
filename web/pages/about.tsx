@@ -2,8 +2,8 @@ import Layout from "@/components/Layout";
 import { Card, Loading, PageTitle, Prose } from "@/components/ui";
 import { queries, type Meta } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
+import { RISK_EVENTS } from "@/lib/domain/company";
 
-const RISK_EVENTS = new Set(["REHAB", "DEFAULT", "SUSPENSION", "AUDIT_OPINION"]);
 
 export default function About() {
   const { data } = useApi(queries.meta());

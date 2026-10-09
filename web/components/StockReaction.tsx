@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, Empty, ErrorBox, Loading, Prose, Segmented } from "@/components/ui";
 import { queries, type BtStats } from "@/lib/api";
-import { int, num, signed, isNeg } from "@/lib/format";
+import { int, num, signed, isNeg } from "@/lib/domain/format";
 import { useApi } from "@/lib/useApi";
 
 const pct = (v?: number | null, d = 1) => (v == null ? "–" : `${signed(v * 100, d)}%`);

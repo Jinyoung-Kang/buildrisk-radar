@@ -3,9 +3,9 @@ import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
 import { ErrorBox, Loading, PageTitle, Prose, SeverityBadge } from "@/components/ui";
 import { commands, queries, type RuleView } from "@/lib/api";
-import { dt } from "@/lib/format";
+import { dt } from "@/lib/domain/format";
 import { useAuth } from "@/lib/auth";
-import { paramLabel, paramValue } from "@/lib/ruleLabels";
+import { paramLabel, paramValue } from "@/lib/domain/ruleLabels";
 import { useEventTypes } from "@/lib/useEventNames";
 import { useApi } from "@/lib/useApi";
 

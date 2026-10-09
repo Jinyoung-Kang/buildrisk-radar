@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Personas } from "@/lib/api";
-import { num, pk } from "@/lib/format";
+import { num, pk } from "@/lib/domain/format";
 import EntitySearch from "./EntitySearch";
 import { PhraseList, Prose } from "./ui";
 

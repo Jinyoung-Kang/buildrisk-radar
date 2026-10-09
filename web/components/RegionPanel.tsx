@@ -2,7 +2,7 @@ import Link from "next/link";
 import { SignedBars, TrendLine } from "@/components/LazyCharts";
 import { DartLink, Empty, Loading, PhraseList, Phrases, SeverityBadge, StatusPill } from "@/components/ui";
 import { queries } from "@/lib/api";
-import { eok, int, num, ym, signed } from "@/lib/format";
+import { eok, int, num, ym, signed } from "@/lib/domain/format";
 import { useApi } from "@/lib/useApi";
 import WatchButton from "@/components/WatchButton";
 

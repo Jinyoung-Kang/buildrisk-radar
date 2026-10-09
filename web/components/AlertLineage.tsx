@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { queries, type Lineage, type LineageStatement } from "@/lib/api";
-import { dt } from "@/lib/format";
-import { needsEventNames, paramLabel, paramValue } from "@/lib/ruleLabels";
+import { dt } from "@/lib/domain/format";
+import { needsEventNames, paramLabel, paramValue } from "@/lib/domain/ruleLabels";
 import { useEventNames } from "@/lib/useEventNames";
 import { useApi } from "@/lib/useApi";
 import { DartLink, ErrorBox, Loading, PhraseList, Prose } from "./ui";

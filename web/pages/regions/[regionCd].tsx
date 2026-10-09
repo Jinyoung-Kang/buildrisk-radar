@@ -6,7 +6,7 @@ import RegionPanel from "@/components/RegionPanel";
 import SiteCards from "@/components/SiteCards";
 import { Card, Loading } from "@/components/ui";
 import { queries } from "@/lib/api";
-import { num, ym } from "@/lib/format";
+import { num, ym } from "@/lib/domain/format";
 import { useApi } from "@/lib/useApi";
 
 export default function RegionDetail() {

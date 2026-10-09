@@ -1,17 +1,19 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Card, DartLink, Empty, ErrorBox, Loading, Phrases, Prose, Segmented } from "@/components/ui";
-import { queries, type ContractRow } from "@/lib/api";
-import { eok, num } from "@/lib/format";
+import { queries } from "@/lib/api";
+import { eok, num } from "@/lib/domain/format";
 import { useApi } from "@/lib/useApi";
+import { contractState, type ContractState } from "@/lib/domain/filings";
 
 const MATCH: Record<string, string> = { SIGUNGU: "", SIDO: "시도만", OVERSEAS: "해외", UNKNOWN: "주소 해석 불가", NONE: "지역 없음" };
 
-function state(c: ContractRow) {
-  if (c.terminatedBy) return { label: "해지", cls: "border-crit text-crit" };
-  if (c.supersededBy) return { label: "정정됨", cls: "border-line text-muted" };
-  return { label: c.correction ? "현재(정정)" : "현재", cls: "border-good text-good" };
-}
+const STATE: Record<ContractState, { label: string; cls: string }> = {
+  TERMINATED: { label: "해지", cls: "border-crit text-crit" },
+  SUPERSEDED: { label: "정정됨", cls: "border-line text-muted" },
+  CORRECTED: { label: "현재(정정)", cls: "border-good text-good" },
+  CURRENT: { label: "현재", cls: "border-good text-good" },
+};
 
 /** 수주 계약 · 채무보증 — 공시 원문 구조화 결과 (ADR-016) */
 export default function CompanyFilings({ corp, riskTh = 5 }: { corp: string; riskTh?: number }) {
@@ -50,7 +52,7 @@ export default function CompanyFilings({ corp, riskTh = 5 }: { corp: string; ris
               <thead><tr><th>접수</th><th>계약</th><th className="num">금액</th><th className="num">매출 대비</th><th>지역</th>
                 <th className="num">천 가구당 미분양</th><th>종료</th><th>상태</th></tr></thead>
               <tbody>{contracts.map((c) => {
-                const st = state(c);
+                const st = STATE[contractState(c)];
                 const hot = (c.unsoldPer1kHh ?? 0) >= riskTh;
                 return (
                   <tr key={c.rceptNo}>

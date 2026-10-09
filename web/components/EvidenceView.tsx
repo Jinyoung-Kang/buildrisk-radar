@@ -1,6 +1,6 @@
 import type { Evidence } from "@/lib/api";
-import { dt } from "@/lib/format";
-import { needsEventNames, paramLabel, paramValue } from "@/lib/ruleLabels";
+import { dt } from "@/lib/domain/format";
+import { needsEventNames, paramLabel, paramValue } from "@/lib/domain/ruleLabels";
 import { useEventNames, type EventNames } from "@/lib/useEventNames";
 import { DartLink, Prose } from "./ui";
 

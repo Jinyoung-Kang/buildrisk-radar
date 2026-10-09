@@ -2,8 +2,9 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Card, DartLink, Empty, ErrorBox, Loading, Prose, Segmented } from "@/components/ui";
 import { queries, type ScInterval, type ScOutcome, type ScRule } from "@/lib/api";
-import { num } from "@/lib/format";
+import { num } from "@/lib/domain/format";
 import { useApi } from "@/lib/useApi";
+import { bestRule, episodesOf, ruleCodesOf } from "@/lib/domain/scorecard";
 
 const months = (days?: number | null) => (days == null ? "–" : `${num(days / 30.44, 1, true)}개월`);
 const pct0 = (v?: number | null) => (v == null ? "–" : `${num(v * 100, 0)}%`);
@@ -51,13 +52,11 @@ export default function ScorecardPanel() {
   // 기간 이름은 지금 보이는 숫자의 기간으로 — 새 기간을 불러오는 동안 이전 숫자에 새 이름이 붙지 않게 (VERIFICATION 103)
   const shown = data ? data.horizonMonths : Number(h);
   const loadingNew = !!data && data.horizonMonths !== Number(h);
-  const ruleCodes = useMemo(() => (data?.rules ?? []).filter((r) => r.ruleCode !== "ANY").map((r) => r.ruleCode), [data]);
+  const ruleCodes = useMemo(() => ruleCodesOf(data), [data]);
   const any = data?.rules.find((r) => r.ruleCode === "ANY");
-  const best = useMemo(() => [...(data?.rules ?? [])].filter((r) => r.ruleCode !== "ANY" && r.precision != null && r.hits > 0)
-    .sort((a, b) => (b.lift ?? 0) - (a.lift ?? 0))[0], [data]);
+  const best = useMemo(() => bestRule(data), [data]);
   const catchOf = (rule: string, corp: string) => data?.catches.find((c) => c.ruleCode === rule && c.corpCode === corp);
-  const episodes = (data?.episodes ?? []).filter((e) => e.ruleCode !== "ANY" && (!outcome || e.outcome === outcome))
-    .sort((a, b) => b.start.localeCompare(a.start));
+  const episodes = episodesOf(data, outcome);
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">

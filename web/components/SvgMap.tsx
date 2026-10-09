@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { GeoJson, RegionProps } from "@/lib/api";
-import { MISSING } from "@/lib/colors";
+import { MISSING } from "@/lib/domain/colors";
+import { projectShapes } from "@/lib/domain/regions";
 
 /**
  * 카카오 지도를 쓸 수 없을 때의 대체 단계구분도 (SVG). 같은 GeoJSON 을 등장방형 투영(위도 36° 보정)으로 그립니다.
@@ -11,21 +12,7 @@ export default function SvgMap({ geo, colorOf, tooltipOf, selected, onSelect }: 
   selected?: string | null; onSelect?: (cd: string) => void;
 }) {
   const [hover, setHover] = useState<{ p: RegionProps; x: number; y: number } | null>(null);
-  const shapes = useMemo(() => {
-    const k = Math.cos((36 * Math.PI) / 180);
-    const polys = geo.features.map((f) => {
-      const parts = (f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates) as number[][][][];
-      return parts.map((rings) => rings.map((ring) => ring.map(([lon, lat]) => [lon * k, -lat])));
-    });
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const parts of polys) for (const rings of parts) for (const ring of rings) for (const [x, y] of ring) {
-      if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y;
-    }
-    const W = 1000, s = W / (maxX - minX || 1), H = (maxY - minY) * s;
-    const d = polys.map((parts) => parts.map((rings) => rings.map((ring) =>
-      "M" + ring.map(([x, y]) => `${((x - minX) * s).toFixed(1)},${((y - minY) * s).toFixed(1)}`).join("L") + "Z").join("")).join(""));
-    return { d, W, H };
-  }, [geo]);
+  const shapes = useMemo(() => projectShapes(geo), [geo]);
   return (
     <div className="absolute inset-0 overflow-hidden rounded-xl bg-page" onMouseLeave={() => setHover(null)}>
       <svg viewBox={`-10 -10 ${shapes.W + 20} ${shapes.H + 20}`} className="w-full h-full" role="img" aria-label="시군구 단계구분도">

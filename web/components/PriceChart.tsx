@@ -1,8 +1,8 @@
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Empty, ErrorBox, Loading, Prose, SeverityBadge } from "@/components/ui";
 import { queries } from "@/lib/api";
-import { SEVERITY } from "@/lib/colors";
-import { int } from "@/lib/format";
+import { SEVERITY } from "@/lib/domain/colors";
+import { int } from "@/lib/domain/format";
 import { useApi } from "@/lib/useApi";
 
 /** 종가 추이 + 경보 처음 발생일 표시 (금융위 주식시세, 수정주가 아님) */

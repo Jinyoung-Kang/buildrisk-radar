@@ -1,7 +1,7 @@
 // 표기 함수의 지금 동작을 고정 — 화면 로직을 순수 함수로 옮기기 전에 (개선 계획 P5)
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { eok, int, isNeg, num, pk, signed, withUnit, ym } from "@/lib/format";
+import { eok, int, isNeg, num, pk, signed, withUnit, ym } from "@/lib/domain/format";
 
 describe("format", () => {
   it("num: 자릿수 · 고정 소수 · 반올림한 음수 0", () => {

@@ -3,8 +3,8 @@ import Layout from "@/components/Layout";
 import PersonaEntry from "@/components/PersonaEntry";
 import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle, SeverityBadge, Stat, StatusPill, TargetLink } from "@/components/ui";
 import { queries, type Personas, type Row } from "@/lib/api";
-import { SEVERITY } from "@/lib/colors";
-import { dt, int, num, pk, ym } from "@/lib/format";
+import { SEVERITY } from "@/lib/domain/colors";
+import { dt, int, num, pk, ym } from "@/lib/domain/format";
 import { useApi } from "@/lib/useApi";
 
 export default function Dashboard() {

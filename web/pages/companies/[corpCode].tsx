@@ -11,14 +11,14 @@ import { PriceChart, SignedBars, TrendLine } from "@/components/LazyCharts";
 import Tabs, { TabPanel, useTab } from "@/components/Tabs";
 import { Card, DartLink, DownloadLink, Empty, ErrorBox, Loading, MetricStatus, PageTitle, Segmented, SeverityBadge, StatusPill } from "@/components/ui";
 import { downloads, queries } from "@/lib/api";
-import { eok, num, pk, withUnit } from "@/lib/format";
+import { eok, num, pk, withUnit } from "@/lib/domain/format";
 import { useApi } from "@/lib/useApi";
+import { filterDisclosures, metricSeries, recentPeriods, RISK_EVENTS } from "@/lib/domain/company";
 
 const EVENT_LABEL: Record<string, string> = {
   REHAB: "회생·구조조정", DEFAULT: "부도·채무불이행", SUSPENSION: "거래정지", AUDIT_OPINION: "감사의견",
   GUARANTEE: "채무보증", LITIGATION: "소송", FUNDING: "자금조달", CONTRACT: "수주·공급계약", PERIODIC: "정기공시", OTHER: "기타",
 };
-const RISK_EVENTS = new Set(["REHAB", "DEFAULT", "SUSPENSION", "AUDIT_OPINION"]);
 
 function AlertCard({ id }: { id: number }) {
   const { data } = useApi(queries.alert(id));
@@ -52,14 +52,10 @@ export default function CompanyDetail() {
   const disc = useApi(corp && tab === "disclosures" ? queries.companyDisclosures(corp) : null);
   const s = summary.data;
 
-  const series = useMemo(() => {
-    const by: Record<string, { x: string; v?: number }[]> = {};
-    metrics.data?.metrics.forEach((m) => { by[m.code] = m.points.map((p) => ({ x: pk(p.periodKey), v: p.value ?? undefined })); });
-    return by;
-  }, [metrics.data]);
+  const series = useMemo(() => metricSeries(metrics.data), [metrics.data]);
 
-  const periods = useMemo(() => Array.from(new Set(fin.data?.series.flatMap((x) => x.points.map((p) => p.periodKey)) ?? [])).sort().slice(-8), [fin.data]);
-  const disclosures = (disc.data ?? []).filter((d) => eventFilter === "all" || RISK_EVENTS.has(d.eventType));
+  const periods = useMemo(() => recentPeriods(fin.data), [fin.data]);
+  const disclosures = filterDisclosures(disc.data ?? [], eventFilter);
 
   return (
     <Layout title={s?.corpName ?? "기업"}>

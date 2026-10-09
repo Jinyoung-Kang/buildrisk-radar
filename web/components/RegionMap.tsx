@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { GeoJson, RegionProps } from "@/lib/api";
 import { loadKakao, toPaths } from "@/lib/kakao";
 import SvgMap from "./SvgMap";
-import { MISSING } from "@/lib/colors";
+import { MISSING } from "@/lib/domain/colors";
 
 type Props = {
   geo: GeoJson | null;

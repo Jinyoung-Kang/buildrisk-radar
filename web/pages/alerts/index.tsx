@@ -6,8 +6,9 @@ import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
 import { Card, DownloadLink, Empty, ErrorBox, Loading, PageTitle, Prose, Segmented, SeverityBadge, StatusPill, TargetLink, Pager } from "@/components/ui";
 import { commands, downloads, queries } from "@/lib/api";
-import { dt } from "@/lib/format";
+import { dt } from "@/lib/domain/format";
 import { useApi } from "@/lib/useApi";
+import { asOfLabel } from "@/lib/domain/alerts";
 
 function Detail({ id, onChanged }: { id: string; onChanged: () => void }) {
   const { data, error, reload } = useApi(queries.alert(id));
@@ -44,11 +45,6 @@ function Detail({ id, onChanged }: { id: string; onChanged: () => void }) {
       <p className="text-[11px] text-muted mt-4"><span className="block">{data.ruleDescription}</span><Prose text={data.disclaimer} /></p>
     </div>
   );
-}
-
-/** 기준 시점: 공시 접수번호(14자리)는 날짜로, 분기·월은 그대로 */
-function asOfLabel(asOf: string) {
-  return asOf.length === 14 ? `${asOf.slice(0, 4)}-${asOf.slice(4, 6)}-${asOf.slice(6, 8)}` : asOf;
 }
 
 export default function Alerts() {

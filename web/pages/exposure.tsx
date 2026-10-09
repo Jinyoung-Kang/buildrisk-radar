@@ -2,11 +2,10 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, DownloadLink, Empty, ErrorBox, Loading, PageTitle, Prose, Segmented } from "@/components/ui";
-import { downloads, queries, type ExposureRow } from "@/lib/api";
-import { eok, num, pk } from "@/lib/format";
+import { downloads, queries } from "@/lib/api";
+import { sortExposure, type ExposureSort } from "@/lib/domain/exposure";
+import { eok, num, pk } from "@/lib/domain/format";
 import { useApi } from "@/lib/useApi";
-
-type SortKey = "risk" | "guarantee" | "pf" | "amount" | "name";
 
 /** 막대 한 칸 (0~100%) — 숫자와 함께 표시해 색에만 의존하지 않음 */
 function ShareBar({ pct, warn }: { pct?: number; warn: number }) {
@@ -24,19 +23,9 @@ function ShareBar({ pct, warn }: { pct?: number; warn: number }) {
 export default function ExposurePage() {
   const [days, setDays] = useState<"180" | "365" | "730">("365");
   const [th, setTh] = useState<"3" | "5" | "10">("5");
-  const [sort, setSort] = useState<SortKey>("risk");
+  const [sort, setSort] = useState<ExposureSort>("risk");
   const { data, error } = useApi(queries.exposure(days, th));
-  const rows = useMemo(() => {
-    const r = [...(data?.items ?? [])];
-    const by: Record<SortKey, (a: ExposureRow, b: ExposureRow) => number> = {
-      risk: (a, b) => (b.riskSharePct ?? -1) - (a.riskSharePct ?? -1),
-      guarantee: (a, b) => (b.latestBalanceToEquityPct ?? -1) - (a.latestBalanceToEquityPct ?? -1),
-      pf: (a, b) => (b.pfGuaranteeToEquityPct ?? -1) - (a.pfGuaranteeToEquityPct ?? -1),
-      amount: (a, b) => (b.totalAmount ?? 0) - (a.totalAmount ?? 0),
-      name: (a, b) => a.corpName.localeCompare(b.corpName, "ko"),
-    };
-    return r.sort(by[sort]);
-  }, [data, sort]);
+  const rows = useMemo(() => sortExposure(data?.items ?? [], sort), [data, sort]);
   const withContracts = rows.filter((r) => r.contracts > 0).length;
   return (
     <Layout title="수주·보증 노출">

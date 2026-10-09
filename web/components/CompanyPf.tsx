@@ -1,23 +1,16 @@
 import Link from "next/link";
 import { Card, DartLink, DownloadLink, Empty, ErrorBox, Loading, Prose } from "@/components/ui";
 import { TrendLine } from "@/components/LazyCharts";
-import { downloads, queries, type PfDue, type PfReport, type PfScope, type PfStatus } from "@/lib/api";
-import { eok, num, pk } from "@/lib/format";
+import { downloads, queries, type PfReport, type PfScope, type PfStatus } from "@/lib/api";
+import { eok, num, pk } from "@/lib/domain/format";
 import { useApi } from "@/lib/useApi";
+import { due12, PF_BUCKETS, PF_DUE12_TH, PF_GUARANTEE_TH } from "@/lib/domain/filings";
 
-// R-C06 기본값 — 화면의 빨강 표시 기준 (규칙 파라미터를 바꾸면 경보 기준은 달라짐)
-const G_TH = 100, D_TH = 50;
 const SCOPE: Record<PfScope, string> = { SOLE: "단독사업", CONSORTIUM_ALL: "컨소시엄 전체 (참고)", CONSORTIUM_SHARE: "컨소시엄 회사분" };
 const STATUS: Record<PfStatus, string> = {
   PARSED: "구조화", NO_STANDARD: "요약표 없음", NONE: "PF 없음", NO_SECTION: "구간 없음", NO_DOC: "원문 없음",
 };
 const MATCH: Record<string, string> = { SIDO: "시도만", OVERSEAS: "해외", UNKNOWN: "주소 해석 불가", NONE: "지역 없음" };
-const BUCKETS: { key: keyof PfDue; label: string; within: boolean }[] = [
-  { key: "m3", label: "3개월 이내", within: true }, { key: "m6", label: "3~6개월", within: true }, { key: "m12", label: "6~12개월", within: true },
-  { key: "y2", label: "1~2년", within: false }, { key: "y3", label: "2~3년", within: false }, { key: "over3", label: "3년 초과", within: false },
-];
-
-const due12 = (d?: PfDue) => (d && BUCKETS.some((b) => d[b.key] != null) ? (d.m3 ?? 0) + (d.m6 ?? 0) + (d.m12 ?? 0) : undefined);
 
 /** 검증 한 줄 — 색만으로 구분하지 않도록 기호 + 글자 */
 function Check({ ok, label, detail }: { ok?: boolean | null; label: string; detail: string }) {
@@ -44,11 +37,11 @@ function Pct({ v, th }: { v?: number; th: number }) {
 function Maturity({ r }: { r: PfReport }) {
   const d = r.due;
   if (!d) return <Empty>{r.message ?? "만기 구간이 없습니다."}</Empty>;
-  const vals = BUCKETS.map((b) => d[b.key] ?? 0);
+  const vals = PF_BUCKETS.map((b) => d[b.key] ?? 0);
   const max = Math.max(...vals, 1);
   return (
     <div className="space-y-1.5" role="list" aria-label="대출잔액 만기 구간">
-      {BUCKETS.map((b, i) => (
+      {PF_BUCKETS.map((b, i) => (
         <div key={b.key} role="listitem" className="grid grid-cols-[5.5rem_1fr_5rem] items-center gap-2 text-xs">
           <span className={b.within ? "text-ink font-medium" : "text-ink2"}>{b.label}</span>
           <div className="h-2.5 bg-line/60 rounded-full overflow-hidden" aria-hidden>
@@ -92,11 +85,11 @@ export default function CompanyPf({ corp, riskTh = 5 }: { corp: string; riskTh?:
               <div className="text-lg font-semibold tabular">{eok(cur.guarantee)}</div>
               <div className="text-[11px] text-muted">{pk(cur.periodKey)} · 단독 + 컨소시엄 회사분{cur.bridgeSharePct != null && ` · 브릿지론 ${num(cur.bridgeSharePct, 1, true)}%`}</div></div>
             <div className="bg-raised rounded-xl shadow-card px-4 py-3"><div className="text-xs text-ink2">PF 보증 / 자기자본</div>
-              <div className="text-lg font-semibold tabular"><Pct v={cur.guaranteeToEquityPct} th={G_TH} /></div>
+              <div className="text-lg font-semibold tabular"><Pct v={cur.guaranteeToEquityPct} th={PF_GUARANTEE_TH} /></div>
               <div className="text-[11px] text-muted">자본총계 {eok(cur.equity)}{cur.equityFsDiv && ` (${cur.equityFsDiv === "CFS" ? "연결" : "별도"})`}</div></div>
             <div className="bg-raised rounded-xl shadow-card px-4 py-3"><div className="text-xs text-ink2">12개월 내 만기 PF 대출</div>
               <div className="text-lg font-semibold tabular">{eok(d12)}</div>
-              <div className="text-[11px] text-muted">자기자본의 <Pct v={cur.due12mToEquityPct} th={D_TH} /></div></div>
+              <div className="text-[11px] text-muted">자기자본의 <Pct v={cur.due12mToEquityPct} th={PF_DUE12_TH} /></div></div>
             <div className="bg-raised rounded-xl shadow-card px-4 py-3 min-w-0 space-y-1"><div className="text-xs text-ink2">대조</div>
               <Check ok={cur.reconciled} label="사업장 합" detail={cur.sitesGuarantee != null ? eok(cur.sitesGuarantee) : "사업장 내역 없음"} />
               <Check ok={cur.statedMatch} label="본문 서술" detail={cur.statedTotal != null ? eok(cur.statedTotal) : "본문에 합계 없음"} />
@@ -104,10 +97,10 @@ export default function CompanyPf({ corp, riskTh = 5 }: { corp: string; riskTh?:
           </div>
 
           <div className="grid lg:grid-cols-2 gap-5">
-            <Card title="분기별 PF 보증 · 12개월 내 만기 / 자기자본" sub={`빨간 점선 = R-C06 기본 임계 ${G_TH}% (12개월 내 만기는 ${D_TH}%)`}>
+            <Card title="분기별 PF 보증 · 12개월 내 만기 / 자기자본" sub={`빨간 점선 = R-C06 기본 임계 ${PF_GUARANTEE_TH}% (12개월 내 만기는 ${PF_DUE12_TH}%)`}>
               {trend.length < 2 ? <Empty>구조화한 분기가 {trend.length}개라 추이를 그리지 않습니다.</Empty> : (
                 <TrendLine data={trend} series={[{ key: "g", name: "PF 보증 / 자기자본" }, { key: "d", name: "12개월 내 만기 / 자기자본" }]}
-                  fmt={(v) => `${num(v, 0)}%`} tipFmt={(v) => `${num(v, 1, true)}%`} threshold={G_TH} thresholdLabel={`${G_TH}%`} />
+                  fmt={(v) => `${num(v, 0)}%`} tipFmt={(v) => `${num(v, 1, true)}%`} threshold={PF_GUARANTEE_TH} thresholdLabel={`${PF_GUARANTEE_TH}%`} />
               )}
             </Card>
             <Card title={`만기 구간 — ${pk(cur.periodKey)} 대출잔액 ${eok(cur.balance)}`} sub="요약표 합계 줄 기준">
@@ -173,8 +166,8 @@ export default function CompanyPf({ corp, riskTh = 5 }: { corp: string; riskTh?:
                 <td><DartLink rceptNo={h.rceptNo}>{h.rceptDt}</DartLink><span className="sub">{h.reportNm}</span></td>
                 <td className="text-xs whitespace-nowrap" title={h.message}>{STATUS[h.status]}</td>
                 <td className="num whitespace-nowrap">{eok(h.guarantee)}</td>
-                <td className="num"><Pct v={h.guaranteeToEquityPct} th={G_TH} /></td>
-                <td className="num"><Pct v={h.due12mToEquityPct} th={D_TH} /></td>
+                <td className="num"><Pct v={h.guaranteeToEquityPct} th={PF_GUARANTEE_TH} /></td>
+                <td className="num"><Pct v={h.due12mToEquityPct} th={PF_DUE12_TH} /></td>
                 <td className="text-xs whitespace-nowrap">{h.status !== "PARSED" ? "–" : (
                   <>사업장 {h.reconciled == null ? "–" : h.reconciled ? "✓" : "!"} · 본문 {h.statedMatch == null ? "–" : h.statedMatch ? "✓" : "!"}</>)}</td>
               </tr>))}</tbody>

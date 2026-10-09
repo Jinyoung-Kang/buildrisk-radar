@@ -5,7 +5,9 @@ import Layout from "@/components/Layout";
 import { Card, Empty, ErrorBox, Loading, Pager, PageTitle, Prose, Segmented, SeverityBadge } from "@/components/ui";
 import { commands, queries, type RuleView, type Severity, type Subscription, type SubscriptionInput, type Watch, type Webhook } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { dt } from "@/lib/format";
+import { dt } from "@/lib/domain/format";
+import { targetHref } from "@/lib/domain/nav";
+import { describeSubscription, EMPTY_SUBSCRIPTION, subscriptionBody, toggleCode } from "@/lib/domain/notify";
 import { notifyChanged } from "@/lib/notify";
 import { useApi } from "@/lib/useApi";
 
@@ -17,10 +19,6 @@ const SEV_OPTIONS: { value: Severity; label: string }[] = [
 ];
 const DELIVERY_STATUS: Record<string, string> = { SENT: "보냄", PENDING: "대기", SENDING: "보내는 중", DEAD: "포기" };
 const msg = (e: unknown) => (e instanceof Error ? e.message : "요청이 실패했습니다");
-
-function targetHref(t: "COMPANY" | "REGION", key: string) {
-  return t === "COMPANY" ? `/companies/${key}` : `/regions/${key}`;
-}
 
 /** 받은 알림함 */
 function InboxCard() {
@@ -79,26 +77,23 @@ function InboxCard() {
   );
 }
 
-const EMPTY: SubscriptionInput = { name: "", minSeverity: "MEDIUM", ruleCodes: [], targetType: undefined, watchOnly: false, channel: "IN_APP", enabled: true };
-
 function SubscriptionForm({ initial, rules, webhooks, admin, onSaved, onCancel }: {
   initial: Subscription | null; rules: RuleView[]; webhooks: Webhook[]; admin: boolean; onSaved: () => void; onCancel: () => void;
 }) {
-  const [f, setF] = useState<SubscriptionInput>(initial ? { ...initial, ruleCodes: initial.ruleCodes ?? [] } : EMPTY);
+  const [f, setF] = useState<SubscriptionInput>(initial ? { ...initial, ruleCodes: initial.ruleCodes ?? [] } : EMPTY_SUBSCRIPTION);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const set = (p: Partial<SubscriptionInput>) => setF((x) => ({ ...x, ...p }));
   const submit = async (e: FormEvent) => {
     e.preventDefault(); setErr(null); setBusy(true);
     try {
-      const body = { ...f, targetType: f.targetType || null, ruleCodes: f.ruleCodes?.length ? f.ruleCodes : null,
-        webhookId: f.channel === "WEBHOOK" ? f.webhookId : null };
+      const body = subscriptionBody(f);
       if (initial) await commands.updateSubscription(initial.subscriptionId, body);
       else await commands.createSubscription(body);
       onSaved();
     } catch (ex) { setErr(msg(ex)); } finally { setBusy(false); }
   };
-  const toggleRule = (code: string) => set({ ruleCodes: f.ruleCodes?.includes(code) ? f.ruleCodes.filter((c) => c !== code) : [...(f.ruleCodes ?? []), code] });
+  const toggleRule = (code: string) => set({ ruleCodes: toggleCode(f.ruleCodes, code) });
   return (
     <form onSubmit={submit} className="space-y-3 border border-line rounded-lg p-3" aria-label={initial ? "구독 바꾸기" : "새 구독"}>
       <label className="block text-xs text-ink2">이름
@@ -156,13 +151,6 @@ function SubscriptionForm({ initial, rules, webhooks, admin, onSaved, onCancel }
   );
 }
 
-function describe(s: Subscription, rules: RuleView[]) {
-  const sev = s.minSeverity === "LOW" ? "모든 심각도" : s.minSeverity === "HIGH" ? "높음만" : "중간 이상";
-  const tgt = s.targetType === "COMPANY" ? "기업" : s.targetType === "REGION" ? "지역" : "기업 · 지역";
-  const rs = s.ruleCodes?.length ? s.ruleCodes.map((c) => rules.find((r) => r.ruleCode === c)?.ruleCode ?? c).join(", ") : "모든 규칙";
-  return `${sev} · ${tgt} · ${rs}${s.watchOnly ? " · 관심 목록만" : ""}`;
-}
-
 function SubscriptionsCard({ admin }: { admin: boolean }) {
   const subs = useApi(queries.subscriptions());
   const rules = useApi(queries.rules());
@@ -190,7 +178,7 @@ function SubscriptionsCard({ admin }: { admin: boolean }) {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-sm font-medium">{s.name} <span className="text-xs text-muted font-normal">→ {s.channel === "IN_APP" ? "알림함" : `웹훅 ${s.webhookName ?? ""}`}</span></div>
-                  <div className="text-xs text-muted">{describe(s, ruleList)}{s.enabled ? "" : " · 꺼짐"}</div>
+                  <div className="text-xs text-muted">{describeSubscription(s, ruleList)}{s.enabled ? "" : " · 꺼짐"}</div>
                 </div>
                 <div className="flex gap-1.5">
                   <button type="button" className={btn} aria-pressed={s.enabled}
