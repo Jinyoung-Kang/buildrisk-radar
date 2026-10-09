@@ -18,4 +18,17 @@ class PfTableGridTest {
         assertThat(grid.getFirst().size()).isEqualTo(1001);                      // HTML 표준 상한: colspan 1000 + 1칸
         assertThat(grid.get(1).getFirst()).isEqualTo("a");
     }
+
+    @Test
+    void 줄_너비나_전체_칸_수가_터무니없는_표는_펼치지_않고_건너뛴다() {
+        // 칸 하나의 병합 상한만으로는 부족 — colspan=1000 칸 10만 개(약 2.2 MB, 원문 상한 안)면 한 줄이 1억 칸, 큰 rowspan 에
+        // 빈 줄을 이어 붙여도 줄 수 × 너비로 같은 일 (VERIFICATION 155). 여기서는 시험 JVM 이 견딜 만큼만 키움
+        String wide = "<TABLE><TR>" + "<TD COLSPAN=\"1000\">x</TD>".repeat(3_000) + "</TR><TR><TD>a</TD></TR></TABLE>";
+        String tall = "<TABLE><TR><TD ROWSPAN=\"65534\" COLSPAN=\"1000\">x</TD></TR>" + "<TR></TR>".repeat(1_000) + "</TABLE>";
+        for (String html : java.util.List.of(wide, tall)) {
+            var table = Jsoup.parse(html, "", Parser.xmlParser()).selectFirst("TABLE");
+            assertThat(PfExposureParser.grid(table)).isNull();
+        }
+    }
 }
+

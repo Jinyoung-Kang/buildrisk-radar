@@ -136,6 +136,7 @@ public final class PfExposureParser {
                 continue;
             }
             List<List<String>> grid = grid(el);
+            if (grid == null) continue;                        // 터무니없이 큰 표 (PF 표가 아님)
             if (grid.size() <= 1) {                            // '(단위: 백만원)' 한 줄짜리 표
                 grid.forEach(r -> context.append(' ').append(String.join(" ", r)));
                 continue;
@@ -428,9 +429,16 @@ public final class PfExposureParser {
 
     private static boolean isTable(Element e) { return e.normalName().equals("table"); }
 
-    /** rowspan · colspan 을 펼친 격자 (병합된 칸은 같은 글자로 채움) */
+    /** 표 하나를 펼칠 때의 상한 — PF 종합요약표 · 사업장 표는 수십 열 · 수백 줄. 넘으면 PF 표가 아니므로 건너뜀 (VERIFICATION 155) */
+    static final int MAX_COLUMNS = 2_000, MAX_CELLS = 200_000;
+
+    /**
+     * rowspan · colspan 을 펼친 격자 (병합된 칸은 같은 글자로 채움). 한 줄이 MAX_COLUMNS 열을 넘거나 표 전체가 MAX_CELLS 칸을
+     * 넘으면 null — 칸 하나의 병합 상한(span)만으로는 칸 수 × 병합 · 줄 수 × 너비로 메모리를 다 쓸 수 있었음
+     */
     static List<List<String>> grid(Element table) {
         List<List<String>> out = new ArrayList<>();
+        long cells = 0;
         java.util.Map<Integer, Integer> left = new java.util.HashMap<>();      // 열 → 위에서 내려오는 rowspan 남은 줄 수
         java.util.Map<Integer, String> carried = new java.util.HashMap<>();
         for (Element tr : table.select("TR, tr")) {
@@ -443,6 +451,7 @@ public final class PfExposureParser {
                 c = carry(row, c, left, carried);
                 String text = cell.text().replace(' ', ' ').trim();
                 int cs = span(cell, "COLSPAN"), rs = span(cell, "ROWSPAN");
+                if (c + cs > MAX_COLUMNS) return null;
                 for (int k = 0; k < cs; k++) {
                     set(row, c + k, text);
                     if (rs > 1) {
@@ -465,6 +474,8 @@ public final class PfExposureParser {
                     left.put(col, k - 1);
                 }
             }
+            cells += row.size();
+            if (row.size() > MAX_COLUMNS || cells > MAX_CELLS) return null;
             out.add(row);
         }
         return out;
