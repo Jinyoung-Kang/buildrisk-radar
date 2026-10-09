@@ -50,7 +50,7 @@ public class FsRepository {
                               -- 최신을 씀'. 한 번 OK 면 영구히 빠져 정정이 반영되지 않았음 (VERIFICATION 122). 기간은 보고서명의
                               -- '(2025.12)' 로(12월 결산 기준 — PF 와 같은 한계). 받은 날과 같은 날 제출분도 보되(날짜만 있어 '뒤'를
                               -- 가릴 수 없음 — 새벽에 받고 오후에 낸 정정을 놓쳤음, VERIFICATION 157) 받은 접수번호보다 새 것만. 다시 받아도
-                              -- 정정이 아직 반영되지 않았으면 그날 실행마다 다시 받고, 다음 날부터는 받은 날이 늦어져 받지 않음
+                              -- 원래 번호로 응답하면(첨부정정 등) 그날 실행마다 · 다음 날 한 번 더 받고, 그 뒤로는 받은 날이 늦어져 받지 않음
                               AND NOT EXISTS (
                                 SELECT 1 FROM dart.disclosure d
                                 WHERE d.corp_code = f.corp_code AND d.event_type = 'PERIODIC'

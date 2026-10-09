@@ -13,12 +13,13 @@
 | 계정 | 환경변수로만(`ADMIN_PASSWORD` 등), 기동 시 BCrypt 로 해시해 메모리에. 12자 미만이면 계정 비활성. DB 사용자 테이블 없음 — 운영자 2역할 서비스 |
 | 무차별 대입 | (아이디, IP) 연속 실패 5회 → 15분 잠금(429 + Retry-After), IP 전체 20회 → 잠금. 없는 아이디도 같은 메시지 · DaoAuthenticationProvider 의 타이밍 완화 |
 | 레이트리밋 | IP 당 분당 1,200 (Redis 고정 창, 인스턴스 간 공유). Redis 장애 시 통과(fail-open) — 조회 서비스 가용성 우선 |
-| 감사 로그 | 모든 변경 요청(POST·PUT·PATCH·DELETE)을 결과 상태와 함께 `ops.audit_log` 에 — **거부된 시도(401·403)도**. 경로 템플릿 · 요청 본문(4KB) · IP · traceId. 로그인 본문(비밀번호)은 남기지 않음. `GET /api/v1/admin/audit` |
+| 감사 로그 | 모든 변경 요청(POST·PUT·PATCH·DELETE)을 결과 상태와 함께 `ops.audit_log` 에 — **거부된 시도(401·403)도**. 경로 템플릿 · 요청 본문(4KB) · IP · traceId. 로그인 본문(비밀번호)은 남기지 않음. 이름이 비밀 같은 값(secret · password · token …)은 `***`, 주소는 출처(scheme://host:port)만 — 경로와 사용자 정보(`user:pass@`)는 버림, query string 은 2KB 까지(VERIFICATION 106 · 115 · 158). `GET /api/v1/admin/audit` |
 | 누가 바꿨나 | 규칙 버전 `created_by`, 경보 `acked_by` |
 | 보안 헤더 | API: `CSP default-src 'none'` · nosniff · DENY · no-referrer. Web(Next): CSP(인라인 스크립트 없음 — 테마 초기화도 파일로) · 카카오맵 도메인만 허용 |
-| 진입점 | 외부 공개 포트는 **edge(nginx, :3400)** 하나. edge 는 `X-Forwarded-For` 를 실제 접속 주소로 **덮어쓰고**, api 는 고정 IP 의 edge 만 신뢰한다(`server.tomcat.remoteip.internal-proxies`). 처음에는 'api 포트를 닫고 web(Next) 만 공개'로 충분하다고 봤으나, 재검증에서 Next rewrites 가 XFF 를 전달만 해 위조가 통과하고 사용자 전체가 버킷 하나를 공유함을 발견(VERIFICATION 41). 2026-10-09: edge 는 `X-Forwarded-Host` · `Port` 도 덮어쓰고, `/api/v1` 등 api 경로는 대소문자를 가리지 않고 api 로 보냄 — 대문자 경로가 web 을 거쳐 클라이언트 IP 가 바뀌던 문제(VERIFICATION 111). edge 는 api(10.213.0.11) · web(10.213.0.12)도 이름이 아니라 compose 고정 IP 로 부름 — 컨테이너가 없는 사이 이름이 127.0.53.53 으로 풀려 다시 떠도 502 가 나던 문제(VERIFICATION 125) |
+| 로그인 뒤 이동 | `next` 는 같은 출처의 경로만 — URL 로 해석해 출처를 비교하고, 정규화한 경로가 `//` · `/\` 로 시작하면(프로토콜 상대 주소) 버림(VERIFICATION 160) |
+| 진입점 | 외부 공개 포트는 **edge(nginx, :3400)** 하나. edge 는 `X-Forwarded-For` 를 실제 접속 주소로 **덮어쓰고**, api 는 고정 IP 의 edge 만 신뢰한다(`server.tomcat.remoteip.internal-proxies`). 처음에는 'api 포트를 닫고 web(Next) 만 공개'로 충분하다고 봤으나, 재검증에서 Next rewrites 가 XFF 를 전달만 해 위조가 통과하고 사용자 전체가 버킷 하나를 공유함을 발견(VERIFICATION 41). 2026-10-09: edge 는 `X-Forwarded-Host` 를 덮어쓰고 `Port` 는 보내지 않음(클라이언트 값도 버림 — 컨테이너 안 포트는 밖의 포트가 아니고, api 는 요청의 호스트 · 포트로 절대 주소를 만들지 않음). `/api/v1` 등 api 경로는 대소문자를 가리지 않고, 끝 슬래시가 없어도 api 로 보냄 — web 을 거치면 Next rewrite 가 api 로 넘기며 클라이언트 IP 가 web 컨테이너로 바뀌었음(VERIFICATION 111 · 164). edge 는 api(10.213.0.11) · web(10.213.0.12)도 이름이 아니라 compose 고정 IP 로 부름 — 컨테이너가 없는 사이 이름이 127.0.53.53 으로 풀려 다시 떠도 502 가 나던 문제(VERIFICATION 125) |
 
-**검증** `SecurityIT`(6) · `LeastPrivilegeIT`(2): CSRF 없는 로그인 403 · 역할별 허용/거부 · 세션 쿠키 속성 · 로그아웃 · 잠금 429(다른 IP 영향 없음) ·
+**검증** `SecurityIT`(12) · `LeastPrivilegeIT`(2) · `AuditFilterTest` · E2E `security`: CSRF 없는 로그인 403 · 역할별 허용/거부 · 세션 쿠키 속성 · 로그아웃 · 잠금 429(다른 IP 영향 없음) ·
 레이트리밋 429 · 잘못된 토큰·익명 변경 시도가 감사에 남음 · 감사 로그에 비밀번호 없음.
 
 **하지 않은 것** OAuth2/OIDC(외부 IdP 가 없는 로컬 데모) · MFA · 계정 관리 화면. 운영이면 IdP 연동 + HTTPS 종단(COOKIE_SECURE=true)이 먼저다.

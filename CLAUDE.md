@@ -8,7 +8,10 @@
 - `app/` Spring Boot 4.1 · Java 25 · Spring Batch 6 — 같은 이미지가 역할(`BUILDRISK_ROLE`)로 **api**(REST, 외부 API 키 없음)와 **worker**(DB 큐 소비 · 배치 · 외부 API 호출)로 나뉨
   - 패키지는 기능 모듈 × 계층 `<기능>.api · app · domain · data` + 바깥 `adapters · batch · common` (ADR-029). 의존 방향 · domain 순수성 ·
     쓰기 SQL 위치(data 에만)는 `ArchitectureTest` 가 검사 — 새 클래스를 어디 둘지 모르면 이 테스트를 먼저 본다
-- `web/` Next.js 16 (Pages Router, 운영 빌드 webpack — ADR-028) · TypeScript · Tailwind · Recharts
+- 백엔드는 기능 모듈(company · metric · region · market · filing · alert · insight · notify · export · ops) × 계층(api · app · domain · data) — 의존 방향 ·
+  domain 순수성 · 쓰기 SQL 위치(기능 `data` 에만)를 `ArchitectureTest` 가 막는다(ADR-029). 새 클래스는 기능 모듈의 계층 하나에 넣는다
+- `web/` Next.js 16 (Pages Router, 운영 빌드 webpack — ADR-028) · TypeScript · Tailwind · Recharts — 화면 · `lib/hooks` · `lib/api`(기능별) · `lib/domain`(순수 함수),
+  화면에서 `fetch` · `lib/api/client` 직접 사용 금지(ESLint, ADR-030)
   - 화면은 그리기만, 상태 · 부수효과는 `lib/hooks`, API 는 기능별 `lib/api/<기능>`, 규칙 · 변환은 `lib/domain`(React 없음 — 단위 테스트) (ADR-030).
     경계는 ESLint 가 검사. 화면 경합 · 오류는 E2E `frontend` 처럼 응답을 붙잡거나 실패시켜 재현
 - `ops/` nginx(edge) · prometheus · grafana · k6
@@ -56,7 +59,7 @@ cd web && CAPTURE=1 E2E_CHANNEL=chrome npx playwright test capture   # README �
 
 - **메모리**: 모든 서비스에 `mem_limit`. JVM 설정은 `app/Dockerfile` 의 `JAVA_TOOL_OPTIONS` 한 곳(G1 · 힙 60%). ENTRYPOINT 에 메모리 플래그를 두면 덮어써진다 (ADR-021).
 - **도커 VM 공유**: 이 맥에서는 다른 프로젝트 스택이 함께 돌아 부하 수치가 흔들린다. 비교는 같은 날 연달아 잰 값끼리, 결과에 조건을 적는다.
-- **캐시**: 목록 · 상세는 Redis read-through, 세대 키 `br:gen` 으로 일괄 무효화 — 모든 Job 이 끝나는 `BatchLauncher.awaitFinished` 와 경보 ACK 에서. DB 를 직접 고치면 최대 10분 옛 값 (ADR-022).
+- **캐시**: 목록 · 상세는 Redis read-through, 세대 키 `br:gen` 으로 일괄 무효화 — 모든 Job 이 끝나는 `BatchLauncher.awaitFinished` 와 경보 ACK 에서(worker 에서 실패하면 뒤에서 다시 시도 — VERIFICATION 154). DB 를 직접 고치면 최대 10분 옛 값 (ADR-022).
 - **worker 종료**: drain 은 `ContextClosedEvent` 에서 (`@PreDestroy` 는 Redis 가 닫힌 뒤라 캐시 무효화가 실패했음).
 - **Job 멈춤**: Spring Batch 6 의 `JobOperator.stop` 은 Job · Step 을 곧바로 STOPPED 로 적는다(스레드는 청크 끝까지 돎) — 멈춤은 `BatchLauncher.stop`(STOPPING 신호)으로만. 상태만 보고 '끝났다'고 판단하면 재시작이 겹친다(VERIFICATION 102).
 - **레이트리밋**: IP 당 분당 1,200, CSV 내려받기(`/api/v1/export/`)는 따로 분당 30(`br:rl:x:*`). API 를 전수 호출하는 스크립트를 연달아 돌리면 429 — Redis 의 `br:rl:*` 를 비우거나 1분 기다린다. E2E 로그인 잠금은 `br:login:*`.
