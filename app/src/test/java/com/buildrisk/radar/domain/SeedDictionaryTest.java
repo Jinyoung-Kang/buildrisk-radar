@@ -2,7 +2,7 @@ package com.buildrisk.radar.domain;
 
 import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.domain.backtest.CreditEventRule;
-import com.buildrisk.radar.domain.disclosure.EventClassifier;
+import com.buildrisk.radar.filing.domain.EventClassifier;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 

@@ -4,8 +4,9 @@ import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
-import com.buildrisk.radar.domain.filing.ExposureRepository;
+import com.buildrisk.radar.filing.data.ExposureRepository;
 import com.buildrisk.radar.market.data.StockRepository;
+import com.buildrisk.radar.metric.data.MetricRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
@@ -65,14 +66,9 @@ public class ExposureService {
 
     public record Prices(String corpCode, String stockCode, List<PricePoint> bars, List<AlertMarker> alerts, String source) {}
 
-    /** 지역별 최신 '천 가구당 미분양' (위험 지역 판단 기준) */
-    static final String LATEST_UNSOLD = """
-            SELECT DISTINCT ON (region_cd) region_cd, value, period FROM mkt.region_metric
-             WHERE metric_code = 'UNSOLD_PER_1K_HH' AND status = 'OK' ORDER BY region_cd, period DESC""";
-
     public CompanyFilings companyFilings(String corpCode) {
         exists(corpCode);
-        List<ContractRow> contracts = jdbc.sql("WITH u AS (" + LATEST_UNSOLD + ")" + """
+        List<ContractRow> contracts = jdbc.sql("WITH u AS (" + MetricRepository.LATEST_UNSOLD + ")" + """
                 SELECT c.rcept_no, c.rcept_dt::text, c.contract_name, c.counterparty, c.amount, c.pct_of_revenue, c.region_text,
                        c.region_cd, r.full_name, c.region_match, u.value, u.period, c.contract_date::text, c.end_date::text,
                        c.corrects_date IS NOT NULL, c.superseded_by, c.terminated_by
@@ -105,7 +101,7 @@ public class ExposureService {
     /** 유니버스 기업별 노출 요약: 최근 days 일 현재 수주 중 위험 지역 비중 · 최신 보증 잔액/자기자본 · PF 보증 */
     public Exposure exposure(int days, BigDecimal unsoldTh) {
         LocalDate since = LocalDate.now(ApiQuotaService.KST).minusDays(days);
-        List<ExposureRow> rows = jdbc.sql("WITH u AS (" + LATEST_UNSOLD + "), " + """
+        List<ExposureRow> rows = jdbc.sql("WITH u AS (" + MetricRepository.LATEST_UNSOLD + "), " + """
                 cur AS (SELECT c.* , u.value AS unsold FROM dart.contract c LEFT JOIN u ON u.region_cd = c.region_cd
                          WHERE c.rcept_dt >= :since AND""" + " " + ExposureRepository.CURRENT + " " + """
                 ),

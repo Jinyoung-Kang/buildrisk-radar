@@ -6,9 +6,9 @@ import com.buildrisk.radar.domain.rule.RuleData;
 import com.buildrisk.radar.domain.rule.RuleEvaluator;
 import com.buildrisk.radar.domain.rule.RuleModels.Evaluation;
 import com.buildrisk.radar.domain.rule.RuleModels.Finding;
-import com.buildrisk.radar.domain.rule.RuleModels.GuaranteeFact;
 import com.buildrisk.radar.domain.rule.RuleModels.RuleDefinition;
 import com.buildrisk.radar.domain.rule.RuleModels.TargetType;
+import com.buildrisk.radar.filing.domain.FilingModels.GuaranteeFact;
 
 import java.math.BigDecimal;
 import java.math.MathContext;

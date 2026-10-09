@@ -1,4 +1,4 @@
-package com.buildrisk.radar.domain.filing;
+package com.buildrisk.radar.filing.domain;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;

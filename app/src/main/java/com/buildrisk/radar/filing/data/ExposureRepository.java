@@ -1,7 +1,7 @@
-package com.buildrisk.radar.domain.filing;
+package com.buildrisk.radar.filing.data;
 
-import com.buildrisk.radar.domain.rule.RuleModels.ContractFact;
-import com.buildrisk.radar.domain.rule.RuleModels.GuaranteeFact;
+import com.buildrisk.radar.filing.domain.FilingModels.ContractFact;
+import com.buildrisk.radar.filing.domain.FilingModels.GuaranteeFact;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 

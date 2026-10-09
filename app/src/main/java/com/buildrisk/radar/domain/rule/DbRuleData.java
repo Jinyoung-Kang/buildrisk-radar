@@ -2,10 +2,12 @@ package com.buildrisk.radar.domain.rule;
 
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.common.AppProperties;
-import com.buildrisk.radar.domain.disclosure.DisclosureRepository;
-import com.buildrisk.radar.domain.filing.ExposureRepository;
-import com.buildrisk.radar.domain.rule.RuleModels.DisclosureEvent;
 import com.buildrisk.radar.domain.rule.RuleModels.TargetType;
+import com.buildrisk.radar.filing.data.DisclosureRepository;
+import com.buildrisk.radar.filing.data.ExposureRepository;
+import com.buildrisk.radar.filing.domain.FilingModels.ContractFact;
+import com.buildrisk.radar.filing.domain.FilingModels.DisclosureEvent;
+import com.buildrisk.radar.filing.domain.FilingModels.GuaranteeFact;
 import com.buildrisk.radar.metric.data.MetricRepository;
 import com.buildrisk.radar.metric.domain.MetricPoint;
 import org.springframework.stereotype.Component;
@@ -44,10 +46,10 @@ public class DbRuleData implements RuleData {
     public List<DisclosureEvent> disclosures(String corpCode, LocalDate since) { return disclosures.events(corpCode, since); }
 
     @Override
-    public List<RuleModels.ContractFact> contracts(String corpCode, LocalDate since) { return exposure.contracts(corpCode, since); }
+    public List<ContractFact> contracts(String corpCode, LocalDate since) { return exposure.contracts(corpCode, since); }
 
     @Override
-    public List<RuleModels.GuaranteeFact> guarantees(String corpCode, LocalDate since) { return exposure.guarantees(corpCode, since); }
+    public List<GuaranteeFact> guarantees(String corpCode, LocalDate since) { return exposure.guarantees(corpCode, since); }
 
     @Override
     public int windowSize(TargetType type) {

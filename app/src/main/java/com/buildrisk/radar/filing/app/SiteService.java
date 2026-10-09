@@ -1,9 +1,10 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.filing.app;
 
 import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
-import com.buildrisk.radar.domain.filing.ExposureRepository;
+import com.buildrisk.radar.filing.data.ExposureRepository;
+import com.buildrisk.radar.metric.data.MetricRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -115,7 +116,7 @@ public class SiteService {
                             new Complex(rs.getString(4), rs.getInt(5), round(rs.getBigDecimal(6)), rs.getString(7), rs.wasNull() ? null : by));
                     return null;
                 }).list();
-        List<SiteCard> items = jdbc.sql("WITH u AS (" + ExposureService.LATEST_UNSOLD + ")" + """
+        List<SiteCard> items = jdbc.sql("WITH u AS (" + MetricRepository.LATEST_UNSOLD + ")" + """
                 SELECT c.rcept_no, c.rcept_dt::text, c.corp_code, co.corp_name, c.contract_name, c.amount, c.end_date::text, c.region_cd,
                        r.full_name, c.region_text, u.value, u.period, coalesce(c.site_match, 'NONE'), c.site_lawd_cd, c.site_umd,
                        c.site_jibun, c.site_apt

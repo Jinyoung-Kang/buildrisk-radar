@@ -1,17 +1,17 @@
 package com.buildrisk.radar.batch.jobs;
 
-import com.buildrisk.radar.common.AppProperties;
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.adapters.dart.DartClient;
-import com.buildrisk.radar.adapters.dart.DartModels.Disclosure;
 import com.buildrisk.radar.adapters.dart.DartModels.DisclosurePage;
 import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
+import com.buildrisk.radar.common.AppProperties;
 import com.buildrisk.radar.common.seed.SeedCatalog;
-import com.buildrisk.radar.domain.disclosure.DisclosureRepository;
-import com.buildrisk.radar.domain.disclosure.DisclosureRepository.Classified;
-import com.buildrisk.radar.domain.disclosure.EventClassifier;
+import com.buildrisk.radar.filing.data.DisclosureRepository.Classified;
+import com.buildrisk.radar.filing.data.DisclosureRepository;
+import com.buildrisk.radar.filing.domain.EventClassifier;
+import com.buildrisk.radar.filing.domain.FilingModels.Disclosure;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -30,11 +30,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import javax.sql.DataSource;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import javax.sql.DataSource;
 
 /**
  * disclosureSyncJob (FR-301~302)

@@ -1,10 +1,10 @@
-package com.buildrisk.radar.domain.filing;
+package com.buildrisk.radar.filing.domain;
 
-import com.buildrisk.radar.domain.filing.FilingModels.Contract;
-import com.buildrisk.radar.domain.filing.FilingModels.Correction;
-import com.buildrisk.radar.domain.filing.FilingModels.Guarantee;
-import com.buildrisk.radar.domain.filing.FilingModels.PfLine;
-import com.buildrisk.radar.domain.filing.FilingModels.Termination;
+import com.buildrisk.radar.filing.domain.FilingModels.Contract;
+import com.buildrisk.radar.filing.domain.FilingModels.Correction;
+import com.buildrisk.radar.filing.domain.FilingModels.Guarantee;
+import com.buildrisk.radar.filing.domain.FilingModels.PfLine;
+import com.buildrisk.radar.filing.domain.FilingModels.Termination;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;

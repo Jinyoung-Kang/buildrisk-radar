@@ -2,7 +2,7 @@ package com.buildrisk.radar.common.seed;
 
 import com.buildrisk.radar.common.AppProperties;
 import com.buildrisk.radar.domain.backtest.CreditEventRule;
-import com.buildrisk.radar.domain.disclosure.EventClassifier;
+import com.buildrisk.radar.filing.domain.EventClassifier;
 import com.buildrisk.radar.region.domain.RegionAliases;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

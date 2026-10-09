@@ -1,8 +1,9 @@
-package com.buildrisk.radar.domain.filing;
+package com.buildrisk.radar.filing.data;
 
-import com.buildrisk.radar.domain.filing.PfExposureParser.Due;
-import com.buildrisk.radar.domain.filing.PfExposureParser.Result;
-import com.buildrisk.radar.domain.filing.PfExposureParser.Status;
+import com.buildrisk.radar.filing.domain.PfExposureParser.Due;
+import com.buildrisk.radar.filing.domain.PfExposureParser.Result;
+import com.buildrisk.radar.filing.domain.PfExposureParser.Status;
+import com.buildrisk.radar.filing.domain.PfExposureParser;
 import com.buildrisk.radar.region.domain.AddressRegionMatcher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;

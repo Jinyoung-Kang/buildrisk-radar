@@ -1,4 +1,4 @@
-package com.buildrisk.radar.domain.disclosure;
+package com.buildrisk.radar.filing.domain;
 
 import java.util.List;
 import java.util.regex.Pattern;

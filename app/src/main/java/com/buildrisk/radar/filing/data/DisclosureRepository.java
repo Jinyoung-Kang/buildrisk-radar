@@ -1,7 +1,7 @@
-package com.buildrisk.radar.domain.disclosure;
+package com.buildrisk.radar.filing.data;
 
-import com.buildrisk.radar.adapters.dart.DartModels.Disclosure;
-import com.buildrisk.radar.domain.rule.RuleModels.DisclosureEvent;
+import com.buildrisk.radar.filing.domain.FilingModels.Disclosure;
+import com.buildrisk.radar.filing.domain.FilingModels.DisclosureEvent;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;

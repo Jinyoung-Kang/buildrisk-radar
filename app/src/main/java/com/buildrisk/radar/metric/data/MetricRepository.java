@@ -18,6 +18,10 @@ import java.util.UUID;
 @Repository
 public class MetricRepository {
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {};
+    /** 지역별 최신 '천 가구당 미분양' (위험 지역 판단 기준) */
+    public static final String LATEST_UNSOLD = """
+            SELECT DISTINCT ON (region_cd) region_cd, value, period FROM mkt.region_metric
+             WHERE metric_code = 'UNSOLD_PER_1K_HH' AND status = 'OK' ORDER BY region_cd, period DESC""";
     private final JdbcClient jdbc;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper mapper;

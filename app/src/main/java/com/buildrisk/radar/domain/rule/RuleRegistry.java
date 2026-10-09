@@ -1,17 +1,17 @@
 package com.buildrisk.radar.domain.rule;
 
-import com.buildrisk.radar.domain.disclosure.EventClassifier;
+import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.domain.rule.rules.RC01DebtRatioSurge;
 import com.buildrisk.radar.domain.rule.rules.RC02InterestCoverage;
 import com.buildrisk.radar.domain.rule.rules.RC03NegativeOcf;
 import com.buildrisk.radar.domain.rule.rules.RC04MaterialDisclosure;
 import com.buildrisk.radar.domain.rule.rules.RC05GuaranteeBalance;
 import com.buildrisk.radar.domain.rule.rules.RC06PfExposure;
-import com.buildrisk.radar.domain.rule.rules.RX01RiskRegionContracts;
 import com.buildrisk.radar.domain.rule.rules.RR01UnsoldSurge;
 import com.buildrisk.radar.domain.rule.rules.RR02PriceDeclineUnsold;
 import com.buildrisk.radar.domain.rule.rules.RR03TradeCliffUnsold;
-import com.buildrisk.radar.common.seed.SeedCatalog;
+import com.buildrisk.radar.domain.rule.rules.RX01RiskRegionContracts;
+import com.buildrisk.radar.filing.domain.EventClassifier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

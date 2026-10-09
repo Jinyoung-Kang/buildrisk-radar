@@ -1,7 +1,5 @@
 package com.buildrisk.radar.domain.rule;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -13,21 +11,6 @@ public final class RuleModels {
     /** risk.rule 한 버전 */
     public record RuleDefinition(String code, int version, TargetType targetType, String nameKo, String description,
                                  Map<String, Object> params, String severity, boolean enabled) {}
-
-    public record DisclosureEvent(String rceptNo, String reportNm, LocalDate rceptDt, String eventType, String keyword) {}
-
-    /** 현재(정정 반영·해지 제외) 수주 계약 — regionCd 는 화면 단위 시군구, 매핑 못 하면 null */
-    public record ContractFact(String rceptNo, LocalDate rceptDt, String name, BigDecimal amount, String regionCd,
-                               String regionName, String regionMatch) {}
-
-    /** 채무보증 결정 (정정 반영) — totalBalance 는 공시 시점 회사 전체 보증 잔액 */
-    public record GuaranteeFact(String rceptNo, LocalDate rceptDt, String debtor, BigDecimal amount, BigDecimal equity,
-                                BigDecimal totalBalance, BigDecimal pfAmount, boolean balanceIsLimit, BigDecimal unusedLimit) {
-        public GuaranteeFact(String rceptNo, LocalDate rceptDt, String debtor, BigDecimal amount, BigDecimal equity,
-                             BigDecimal totalBalance, BigDecimal pfAmount) {
-            this(rceptNo, rceptDt, debtor, amount, equity, totalBalance, pfAmount, false, null);
-        }
-    }
 
     /** 규칙이 특정 시점에서 참이 된 결과 — evidence 는 JSON 으로 저장 (근거 없는 경보 0, FR-503) */
     public record Finding(String asOf, String title, String message, Map<String, Object> evidence) {}

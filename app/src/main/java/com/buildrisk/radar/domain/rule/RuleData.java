@@ -1,6 +1,8 @@
 package com.buildrisk.radar.domain.rule;
 
-import com.buildrisk.radar.domain.rule.RuleModels.DisclosureEvent;
+import com.buildrisk.radar.filing.domain.FilingModels.ContractFact;
+import com.buildrisk.radar.filing.domain.FilingModels.DisclosureEvent;
+import com.buildrisk.radar.filing.domain.FilingModels.GuaranteeFact;
 import com.buildrisk.radar.metric.domain.MetricPoint;
 
 import java.time.LocalDate;
@@ -17,10 +19,10 @@ public interface RuleData {
     List<DisclosureEvent> disclosures(String corpCode, LocalDate since);
 
     /** since 이후 접수된 현재 수주 계약 (ADR-016) */
-    default List<RuleModels.ContractFact> contracts(String corpCode, LocalDate since) { return List.of(); }
+    default List<ContractFact> contracts(String corpCode, LocalDate since) { return List.of(); }
 
     /** since 이후 채무보증 결정 (정정된 원 공시 제외, 접수일 순) */
-    default List<RuleModels.GuaranteeFact> guarantees(String corpCode, LocalDate since) { return List.of(); }
+    default List<GuaranteeFact> guarantees(String corpCode, LocalDate since) { return List.of(); }
 
     /** 평가할 최근 기간 수 (기업 분기 · 지역 월) */
     int windowSize(RuleModels.TargetType type);

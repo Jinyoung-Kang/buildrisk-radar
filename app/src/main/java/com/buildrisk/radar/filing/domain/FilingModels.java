@@ -1,10 +1,10 @@
-package com.buildrisk.radar.domain.filing;
+package com.buildrisk.radar.filing.domain;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 공시 원문에서 뽑은 구조 (ADR-016). 원문에 없거나 '-' 인 값은 null. */
+/** 공시 목록 · 원문에서 뽑은 구조 (ADR-016)와 규칙이 읽는 정정 반영 사실. 원문에 없거나 '-' 인 값은 null. */
 public final class FilingModels {
     private FilingModels() {}
 
@@ -46,6 +46,25 @@ public final class FilingModels {
         public BigDecimal pfAmount() {
             return pf.isEmpty() ? null : pf.stream().map(PfLine::amount).filter(a -> a != null)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+    }
+
+    /** list.json 한 건 */
+    public record Disclosure(String rceptNo, String corpCode, String corpName, String reportNm, LocalDate rceptDt,
+                             String flrNm, String rm) {}
+
+    public record DisclosureEvent(String rceptNo, String reportNm, LocalDate rceptDt, String eventType, String keyword) {}
+
+    /** 현재(정정 반영·해지 제외) 수주 계약 — regionCd 는 화면 단위 시군구, 매핑 못 하면 null */
+    public record ContractFact(String rceptNo, LocalDate rceptDt, String name, BigDecimal amount, String regionCd,
+                               String regionName, String regionMatch) {}
+
+    /** 채무보증 결정 (정정 반영) — totalBalance 는 공시 시점 회사 전체 보증 잔액 */
+    public record GuaranteeFact(String rceptNo, LocalDate rceptDt, String debtor, BigDecimal amount, BigDecimal equity,
+                                BigDecimal totalBalance, BigDecimal pfAmount, boolean balanceIsLimit, BigDecimal unusedLimit) {
+        public GuaranteeFact(String rceptNo, LocalDate rceptDt, String debtor, BigDecimal amount, BigDecimal equity,
+                             BigDecimal totalBalance, BigDecimal pfAmount) {
+            this(rceptNo, rceptDt, debtor, amount, equity, totalBalance, pfAmount, false, null);
         }
     }
 }

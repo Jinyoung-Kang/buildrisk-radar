@@ -1,7 +1,9 @@
 package com.buildrisk.radar.domain.rule;
 
-import com.buildrisk.radar.domain.rule.RuleModels.DisclosureEvent;
 import com.buildrisk.radar.domain.rule.RuleModels.TargetType;
+import com.buildrisk.radar.filing.domain.FilingModels.ContractFact;
+import com.buildrisk.radar.filing.domain.FilingModels.DisclosureEvent;
+import com.buildrisk.radar.filing.domain.FilingModels.GuaranteeFact;
 import com.buildrisk.radar.metric.domain.MetricPoint;
 
 import java.time.LocalDate;
@@ -21,8 +23,8 @@ public final class FullHistoryRuleData implements RuleData {
     @Override public NavigableMap<String, MetricPoint> companyMetric(String c, String m) { return delegate.companyMetric(c, m); }
     @Override public NavigableMap<String, MetricPoint> regionMetric(String r, String m) { return delegate.regionMetric(r, m); }
     @Override public List<DisclosureEvent> disclosures(String c, LocalDate since) { return delegate.disclosures(c, since); }
-    @Override public List<RuleModels.ContractFact> contracts(String c, LocalDate since) { return delegate.contracts(c, since); }
-    @Override public List<RuleModels.GuaranteeFact> guarantees(String c, LocalDate since) { return delegate.guarantees(c, since); }
+    @Override public List<ContractFact> contracts(String c, LocalDate since) { return delegate.contracts(c, since); }
+    @Override public List<GuaranteeFact> guarantees(String c, LocalDate since) { return delegate.guarantees(c, since); }
     @Override public int windowSize(TargetType type) { return ALL; }
     @Override public LocalDate today() { return delegate.today(); }
 }

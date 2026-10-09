@@ -3,10 +3,10 @@ package com.buildrisk.radar.domain;
 import com.buildrisk.radar.domain.rule.Evidence;
 import com.buildrisk.radar.domain.rule.Params;
 import com.buildrisk.radar.domain.rule.RuleData;
-import com.buildrisk.radar.domain.rule.RuleModels.DisclosureEvent;
 import com.buildrisk.radar.domain.rule.RuleModels.RuleDefinition;
 import com.buildrisk.radar.domain.rule.RuleModels.TargetType;
 import com.buildrisk.radar.domain.rule.RuleRegistry;
+import com.buildrisk.radar.filing.domain.FilingModels.DisclosureEvent;
 import com.buildrisk.radar.metric.domain.MetricPoint;
 import org.junit.jupiter.api.Test;
 

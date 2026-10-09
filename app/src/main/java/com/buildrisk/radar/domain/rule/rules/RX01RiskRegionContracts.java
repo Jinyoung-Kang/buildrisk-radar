@@ -4,11 +4,11 @@ import com.buildrisk.radar.domain.rule.Evidence;
 import com.buildrisk.radar.domain.rule.Params;
 import com.buildrisk.radar.domain.rule.RuleData;
 import com.buildrisk.radar.domain.rule.RuleEvaluator;
-import com.buildrisk.radar.domain.rule.RuleModels.ContractFact;
 import com.buildrisk.radar.domain.rule.RuleModels.Evaluation;
 import com.buildrisk.radar.domain.rule.RuleModels.Finding;
 import com.buildrisk.radar.domain.rule.RuleModels.RuleDefinition;
 import com.buildrisk.radar.domain.rule.RuleModels.TargetType;
+import com.buildrisk.radar.filing.domain.FilingModels.ContractFact;
 import com.buildrisk.radar.metric.domain.MetricPoint;
 
 import java.math.BigDecimal;

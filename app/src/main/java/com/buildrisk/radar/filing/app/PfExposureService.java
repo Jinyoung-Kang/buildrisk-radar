@@ -1,8 +1,9 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.filing.app;
 
 import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
+import com.buildrisk.radar.metric.data.MetricRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -77,7 +78,7 @@ public class PfExposureService {
                 .param("r", current.rceptNo())
                 .query((rs, i) -> new SummaryRow(rs.getString(1), rs.getString(2), rs.getString(3), rs.getBoolean(4),
                         rs.getBigDecimal(5), rs.getBigDecimal(6), rs.getBigDecimal(7), due(rs, 8), rs.getBigDecimal(14))).list();
-        List<Site> sites = current == null ? List.of() : jdbc.sql("WITH u AS (" + ExposureService.LATEST_UNSOLD + ")" + """
+        List<Site> sites = current == null ? List.of() : jdbc.sql("WITH u AS (" + MetricRepository.LATEST_UNSOLD + ")" + """
                 SELECT s.seq, s.category, s.region_text, s.region_cd, rg.full_name, s.region_match, s.sido_name, s.site_type, s.pf_type,
                        s.enhancement, s.limit_total, s.share_pct, s.guarantee, s.debtor, s.related, s.lender_type, s.loan_balance,
                        s.prior_balance, s.loan_period, s.maturity, s.kind, s.completion_amount, u.value, u.period
