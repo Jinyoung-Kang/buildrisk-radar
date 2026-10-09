@@ -36,7 +36,15 @@ public final class AlertLifecycle {
         return !singleActive || ev.decided();
     }
 
+    /**
+     * 판단할 수 없으면(decides 가 거짓) 같은 버전 경보는 그대로 두고, 규칙 버전이 바뀐 옛 경보만 닫음 — 버전 교체는 판단과 무관
+     * (전에는 아무것도 하지 않아 옛 버전 경보가 계속 열려 있었음, VERIFICATION 156)
+     */
     public static Plan plan(int ruleVersion, boolean singleActive, Evaluation ev, List<Active> active) {
+        if (!decides(singleActive, ev)) {
+            return new Plan(active.stream().filter(a -> a.version() != ruleVersion).map(a -> new Close(a.alertId(), "RULE_CHANGED")).toList(),
+                    List.of());
+        }
         Map<String, Finding> fired = new LinkedHashMap<>();
         ev.findings().forEach(f -> fired.put(f.asOf(), f));
         String openAsOf = singleActive && ev.latestAsOf() != null && fired.containsKey(ev.latestAsOf()) ? ev.latestAsOf() : null;

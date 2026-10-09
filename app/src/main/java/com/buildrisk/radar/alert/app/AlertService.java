@@ -35,7 +35,6 @@ public class AlertService {
 
     public Applied apply(Outcome o, UUID calcRunId) {
         RuleDefinition rule = o.rule();
-        if (!AlertLifecycle.decides(o.singleActive(), o.evaluation())) return new Applied(0, 0, 0, 0);
         List<Active> active = alerts.active(rule.code(), o.targetKey());
         Plan plan = AlertLifecycle.plan(rule.version(), o.singleActive(), o.evaluation(), active);
         Prior prior = alerts.prior(rule.code(), rule.version(), o.targetKey(),

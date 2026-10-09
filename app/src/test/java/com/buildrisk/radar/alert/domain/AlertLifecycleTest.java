@@ -35,6 +35,15 @@ class AlertLifecycleTest {
     }
 
     @Test
+    void 판단할_수_없어도_규칙_버전이_바뀐_옛_경보는_닫는다() {
+        // 판단 불가면 아무것도 하지 않아(118) 자본잠식처럼 창 전체가 판단 불가인 대상은 옛 버전 경보가 계속 열려 있었음 (VERIFICATION 156)
+        var unknown = new Evaluation(List.of(), List.of("2026Q2"), "2026Q2", false);
+        Plan p = AlertLifecycle.plan(2, true, unknown, List.of(new Active(10, 1, "2026Q2"), new Active(11, 2, "2026Q1")));
+        assertThat(p.closes()).containsExactly(new Close(10, "RULE_CHANGED"));   // 같은 버전 경보는 '모름'이므로 그대로
+        assertThat(p.upserts()).isEmpty();
+    }
+
+    @Test
     void 기간_규칙이_다음_분기로_이어지면_이전_경보는_대체되고_최신만_열림() {
         Plan p = AlertLifecycle.plan(1, true, ev("2026Q3", List.of("2026Q2", "2026Q3"), "2026Q2", "2026Q3"),
                 List.of(new Active(10, 1, "2026Q2")));
