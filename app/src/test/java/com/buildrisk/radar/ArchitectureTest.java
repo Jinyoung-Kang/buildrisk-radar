@@ -30,12 +30,23 @@ class ArchitectureTest {
     static final Set<String> FEATURES = Set.of("company", "metric", "region", "market", "filing", "alert", "insight", "notify", "export", "ops");
     static final Set<String> LAYERS = Set.of("api", "app", "domain", "data");
     static final Set<String> OUTER = Set.of("adapters", "batch", "common");
-    static final Set<String> FRAMEWORK = Set.of("org.springframework.", "jakarta.", "java.sql.", "javax.sql.", "tools.jackson.", "io.micrometer.");
+    static final Set<String> FRAMEWORK = Set.of("org.springframework.", "jakarta.", "java.sql.", "javax.sql.", "tools.jackson.",
+            "com.fasterxml.jackson.", "io.micrometer.");
 
     /** 아직 옮기지 않은 위반 — '클래스 → 대상' (비면 규칙을 모두 지킴) */
     static final Set<String> KNOWN = Set.of();
 
-    record Source(String pkg, String cls, List<String> imports) {}
+    /** imports: import 문과 코드 안에 쓴 완전한 이름(com.buildrisk.radar.… · 프레임워크) — import 없이 써서 규칙을 비켜 가지 않게 */
+    record Source(String pkg, String cls, List<String> imports, String code) {}
+
+    static final Pattern QUALIFIED = Pattern.compile(
+            "(?<![\\w.])((?:com\\.buildrisk\\.radar|org\\.springframework|jakarta|java\\.sql|javax\\.sql|tools\\.jackson|com\\.fasterxml\\.jackson|io\\.micrometer)(?:\\.\\w+)+)");
+
+    /** 주석 · 문자열을 지운 코드 (텍스트 블록 포함) — 설명이나 SQL 문자열 속 이름을 의존으로 세지 않게 */
+    static String codeOnly(String s) {
+        return s.replaceAll("(?s)/\\*.*?\\*/", " ").replaceAll("//[^\\n]*", " ")
+                .replaceAll("(?s)\"\"\".*?\"\"\"", "\"\"").replaceAll("\"(?:\\\\.|[^\"\\\\\\n])*\"", "\"\"");
+    }
 
     static List<Source> sources() throws IOException {
         Pattern pkg = Pattern.compile("^package ([\\w.]+);", Pattern.MULTILINE);
@@ -49,8 +60,11 @@ class ArchitectureTest {
                 List<String> imports = new ArrayList<>();
                 Matcher i = imp.matcher(s);
                 while (i.find()) imports.add(i.group(1));
+                String body = codeOnly(s.replaceAll("(?m)^(package|import) .*$", ""));
+                Matcher q = QUALIFIED.matcher(body);
+                while (q.find()) imports.add(q.group(1));
                 out.add(new Source(pk.startsWith(BASE) ? pk.substring(BASE.length()) : pk,
-                        p.getFileName().toString().replace(".java", ""), imports));
+                        p.getFileName().toString().replace(".java", ""), imports, s));
             }
         }
         return out;
@@ -81,6 +95,7 @@ class ArchitectureTest {
                     else if (fromFeature && from[1].equals("data") && toFeature && (to[1].equals("api") || to[1].equals("app"))) why = "data → api · app 금지";
                     else if (fromFeature && from[1].equals("app") && toFeature && to[1].equals("api")) why = "app → api 금지";
                     else if (fromFeature && from[1].equals("api") && toFeature && to[1].equals("data")) why = "api → data 금지(app 을 거침)";
+                    else if (fromFeature && (from[1].equals("api") || from[1].equals("data")) && to[0].equals("adapters")) why = "외부 연결(adapters)은 app 만";
                     else if (fromFeature && toFeature && !sameModule && (to[1].equals("api"))) why = "다른 기능의 api 금지";
                 } else if (FEATURES.contains(from[0]) && from[1].equals("domain") && FRAMEWORK.stream().anyMatch(imp::startsWith)) {
                     why = "domain 은 프레임워크를 모름";
@@ -114,18 +129,31 @@ class ArchitectureTest {
         assertThat(stray).as("<기능>.api · app · domain · data 나 adapters · batch · common 밖의 클래스").isEmpty();
     }
 
+    /** 상태를 바꾸는 SQL — 대소문자 무시, 별칭(UPDATE dart.contract c SET), MERGE · TRUNCATE 포함 */
+    static final Pattern WRITE_SQL = Pattern.compile(
+            "(?i)\\b(INSERT\\s+INTO|UPDATE\\s+[\\w.]+(\\s+(AS\\s+)?\\w+)?\\s+SET|DELETE\\s+FROM|MERGE\\s+INTO|TRUNCATE\\s+(TABLE\\s+)?[\\w.]+)\\b");
+
+    @Test
+    void 규칙_검사기는_우회하기_쉬운_모양도_잡는다() {
+        // 별칭 · 소문자 · MERGE · TRUNCATE 쓰기와, import 없이 코드에 쓴 완전한 이름
+        for (String sql : List.of("UPDATE dart.contract c SET x = 1", "update risk.alert set status = 'X'", "UPDATE dart.contract AS c SET x = 1",
+                "MERGE INTO ref.region r USING x", "TRUNCATE TABLE mkt.region_stat", "delete from notify.watch")) {
+            assertThat(WRITE_SQL.matcher(sql).find()).as(sql).isTrue();
+        }
+        assertThat(WRITE_SQL.matcher("SELECT updated_at FROM risk.alert WHERE deleted = false").find()).isFalse();
+        Matcher q = QUALIFIED.matcher(codeOnly("private final com.buildrisk.radar.alert.data.AlertRepository r; @org.springframework.lang.Nullable String x; // com.buildrisk.radar.x.y"));
+        List<String> refs = new ArrayList<>();
+        while (q.find()) refs.add(q.group(1));
+        assertThat(refs).containsExactly("com.buildrisk.radar.alert.data.AlertRepository", "org.springframework.lang.Nullable");
+    }
+
     @Test
     void 쓰기_SQL_은_기능의_data_계층에만() throws IOException {
-        Pattern write = Pattern.compile("\\b(INSERT\\s+INTO|UPDATE\\s+\\w+\\.\\w+\\s+SET|DELETE\\s+FROM)\\b");
-        Pattern pkg = Pattern.compile("^package ([\\w.]+);", Pattern.MULTILINE);
         List<String> found = new ArrayList<>();
-        try (Stream<Path> files = Files.walk(SRC)) {
-            for (Path p : files.filter(f -> f.toString().endsWith(".java")).toList()) {
-                String s = Files.readString(p);
-                Matcher m = pkg.matcher(s);
-                String[] w = where(m.find() ? m.group(1).replace(BASE, "") : "");
-                if (FEATURES.contains(w[0]) && !w[1].equals("data") && write.matcher(s).find()) found.add(w[0] + "." + w[1] + "." + p.getFileName());
-            }
+        for (Source s : sources()) {
+            String[] w = where(s.pkg());
+            String code = s.code().replaceAll("(?s)/\\*.*?\\*/", " ").replaceAll("//[^\\n]*", " ");
+            if (FEATURES.contains(w[0]) && !w[1].equals("data") && WRITE_SQL.matcher(code).find()) found.add(s.pkg() + "." + s.cls());
         }
         // 화면용 조회 SQL(SELECT)은 app 의 조회 서비스에 둘 수 있지만, 상태를 바꾸는 SQL 은 저장소로 (ADR-029)
         assertThat(found).as("기능의 api · app · domain 에 쓰기 SQL").isEmpty();
