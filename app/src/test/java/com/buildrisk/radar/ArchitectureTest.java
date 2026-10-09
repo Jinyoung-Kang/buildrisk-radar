@@ -115,6 +115,23 @@ class ArchitectureTest {
     }
 
     @Test
+    void 쓰기_SQL_은_기능의_data_계층에만() throws IOException {
+        Pattern write = Pattern.compile("\\b(INSERT\\s+INTO|UPDATE\\s+\\w+\\.\\w+\\s+SET|DELETE\\s+FROM)\\b");
+        Pattern pkg = Pattern.compile("^package ([\\w.]+);", Pattern.MULTILINE);
+        List<String> found = new ArrayList<>();
+        try (Stream<Path> files = Files.walk(SRC)) {
+            for (Path p : files.filter(f -> f.toString().endsWith(".java")).toList()) {
+                String s = Files.readString(p);
+                Matcher m = pkg.matcher(s);
+                String[] w = where(m.find() ? m.group(1).replace(BASE, "") : "");
+                if (FEATURES.contains(w[0]) && !w[1].equals("data") && write.matcher(s).find()) found.add(w[0] + "." + w[1] + "." + p.getFileName());
+            }
+        }
+        // 화면용 조회 SQL(SELECT)은 app 의 조회 서비스에 둘 수 있지만, 상태를 바꾸는 SQL 은 저장소로 (ADR-029)
+        assertThat(found).as("기능의 api · app · domain 에 쓰기 SQL").isEmpty();
+    }
+
+    @Test
     void 기능_모듈_사이에_순환이_없다() throws IOException {
         // 기능 → 기능 의존 그래프에서 순환을 찾음
         java.util.Map<String, Set<String>> g = new java.util.TreeMap<>();
