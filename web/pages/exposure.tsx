@@ -38,7 +38,8 @@ export default function ExposurePage() {
         <DownloadLink href={insightApi.exposureCsv(days, th)}>CSV</DownloadLink>
       </div>
       <ErrorBox error={error} />
-      {!data ? <Loading /> : (
+      {/* 실패하면 오류만 — 전에는 오류와 함께 '불러오는 중'이 끝나지 않았음 (VERIFICATION 163) */}
+      {error ? null : !data ? <Loading /> : (
         <Card pad={false} title={`유니버스 ${rows.length}개사 · 수주 공시 있음 ${withContracts}개사`} sub={data.method}>
           {rows.length === 0 ? <Empty>기업이 없습니다.</Empty> : (
             <div className="table-wrap max-h-[70vh]">

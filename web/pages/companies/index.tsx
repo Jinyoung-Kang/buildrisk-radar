@@ -22,7 +22,7 @@ export default function Companies() {
     router.replace({ query: { sort: next.sort ?? sort, ...((next.p ?? 0) > 0 ? { p: String(next.p) } : {}) } }, undefined, { shallow: true });
   useEffect(() => { const t = setTimeout(() => setTerm(q.trim()), 250); return () => clearTimeout(t); }, [q]);
   // 검색 중에도 쪽은 주소의 p — 검색어를 바꾸면 첫 쪽으로 (전에는 검색 중 쪽을 0 으로 고정해 '다음'이 듣지 않음 — VERIFICATION 149)
-  const { data, error, loading } = useApi(router.isReady ? companyApi.list({ q: term, sort, page, size: PAGE }) : null);
+  const { data, error } = useApi(router.isReady ? companyApi.list({ q: term, sort, page, size: PAGE }) : null);
   return (
     <Layout title="기업">
       <PageTitle title="건설업 유니버스" sub="DART 기업개황 업종코드 41(종합 건설업)·421(토목 기반조성 전문공사업) 유가·코스닥 상장사 + 수동 포함. 지표는 최신 분기, 연결 우선."
@@ -35,7 +35,8 @@ export default function Companies() {
         </div>} />
       <ErrorBox error={error} />
       <Card pad={false}>
-        {loading && !data ? <Loading /> : !data?.items.length ? (
+        {/* 실패하면 오류만 — 전에는 오류 아래에 '대상 기업이 없습니다(배치를 실행하세요)'가 함께 보였음 (VERIFICATION 163) */}
+        {error ? null : !data ? <Loading /> : !data.items.length ? (
           <Empty><span className="block">대상 기업이 없습니다.</span><span className="block"><Link className="text-accent" href="/admin/batch">배치 모니터</Link>에서 corpCodeSyncJob → companyProfileJob 을 실행하세요 (DART_API_KEY 필요).</span></Empty>
         ) : (
           <div className="overflow-x-auto">

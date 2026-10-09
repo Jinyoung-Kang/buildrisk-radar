@@ -81,6 +81,23 @@ test("조회가 실패하면 무한 로딩 · '데이터 없음' 대신 오류�
   }
 });
 
+test("목록 화면도 조회가 실패하면 오류만 — 불러오는 중 · '없음' 안내를 함께 보이지 않음 (VERIFICATION 163)", async ({ page }) => {
+  const cases: [string, string, string][] = [
+    ["/companies", "**/api/v1/companies?*", "대상 기업이 없습니다."],
+    ["/alerts", "**/api/v1/alerts?*", "조건에 맞는 경보가 없습니다."],
+    ["/exposure", "**/api/v1/exposure?*", "기업이 없습니다."],
+  ];
+  for (const [path, api, empty] of cases) {
+    await page.unrouteAll();
+    await fail(page, api);
+    await page.goto(path);
+    await expect(page.getByRole("alert").filter({ hasText: "시험용 실패" }), path).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(300);
+    await expect(page.getByText("불러오는 중…"), path).toHaveCount(0);
+    await expect(page.getByText(empty, { exact: true }), path).toHaveCount(0);
+  }
+});
+
 test("잘못된 주소의 기업 · 지역은 계속 불러오는 대신 찾을 수 없다고 보임 (VERIFICATION 141)", async ({ page }) => {
   for (const path of ["/regions/abcde", "/companies/12ab"]) {
     await page.goto(path);
