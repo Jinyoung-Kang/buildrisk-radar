@@ -12,9 +12,12 @@ import com.buildrisk.radar.domain.universe.UniversePolicy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.listener.JobExecutionListener;
 import org.springframework.batch.core.listener.SkipListener;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.scope.context.StepSynchronizationManager;
@@ -31,6 +34,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -49,8 +53,28 @@ public class UniverseJobsConfig {
 
     @Bean
     Job corpCodeSyncJob(JobRepository repo, Step corpCodeDownloadStep, Step corpCodeLoadStep, RunRecorder runs) {
-        return new JobBuilder("corpCodeSyncJob", repo).listener(runs.collect("DART"))
+        return new JobBuilder("corpCodeSyncJob", repo).listener(runs.collect("DART")).listener(removeCorpCodeFileWhenDone())
                 .start(corpCodeDownloadStep).next(corpCodeLoadStep).build();
+    }
+
+    /**
+     * 끝나면(COMPLETED) 임시 CORPCODE.xml 과 디렉터리를 지움 — /tmp 는 메모리(tmpfs)라 매주 쌓이면 worker 메모리 한도를 먹음 (VERIFICATION 137).
+     * 실패 · 멈춤이면 restart 가 같은 파일을 이어 읽으므로 남김
+     */
+    private static JobExecutionListener removeCorpCodeFileWhenDone() {
+        return new JobExecutionListener() {
+            @Override
+            public void afterJob(JobExecution je) {
+                if (je.getStatus() != BatchStatus.COMPLETED || !je.getExecutionContext().containsKey("corpCodeXml")) return;
+                Path xml = Path.of(je.getExecutionContext().getString("corpCodeXml"));
+                try {
+                    Files.deleteIfExists(xml);
+                    Files.deleteIfExists(xml.getParent());
+                } catch (IOException e) {
+                    log.warn("CORPCODE 임시 파일을 지우지 못함 {}: {}", xml, e.getMessage());
+                }
+            }
+        };
     }
 
     @Bean
