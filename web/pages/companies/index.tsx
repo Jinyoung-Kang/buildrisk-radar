@@ -36,7 +36,10 @@ export default function Companies() {
       <ErrorBox error={error} />
       <Card pad={false}>
         {/* 실패하면 오류만 — 전에는 오류 아래에 '대상 기업이 없습니다(배치를 실행하세요)'가 함께 보였음 (VERIFICATION 163) */}
-        {error ? null : !data ? <Loading /> : !data.items.length ? (
+        {error ? null : !data ? <Loading /> : !data.items.length && term ? (
+          // 검색 결과가 없을 때도 '대상 기업이 없습니다 — 배치를 실행하세요'가 보였음 (VERIFICATION 165)
+          <Empty>‘{term}’에 맞는 기업이 없습니다.</Empty>
+        ) : !data.items.length ? (
           <Empty><span className="block">대상 기업이 없습니다.</span><span className="block"><Link className="text-accent" href="/admin/batch">배치 모니터</Link>에서 corpCodeSyncJob → companyProfileJob 을 실행하세요 (DART_API_KEY 필요).</span></Empty>
         ) : (
           <div className="overflow-x-auto">

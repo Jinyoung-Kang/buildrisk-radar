@@ -255,6 +255,14 @@ test("다른 기업으로 옮기면 앞 기업에서 고른 연결/별도가 남
   await expect(fs().getByRole("radio", { name: "자동(연결 우선)" })).toHaveAttribute("aria-checked", "true");
 });
 
+test("검색 결과가 없으면 배치를 실행하라는 안내 대신 검색어에 맞는 기업이 없다고 보임 (VERIFICATION 165)", async ({ page }) => {
+  await page.goto("/companies");
+  await expect(page.locator("tbody tr").first()).toBeVisible({ timeout: 10_000 });
+  await page.getByLabel("기업 검색").fill("없는기업이름zzz");
+  await expect(page.getByText("‘없는기업이름zzz’에 맞는 기업이 없습니다.")).toBeVisible();
+  await expect(page.getByText(/corpCodeSyncJob/)).toHaveCount(0);
+});
+
 test("기업 검색 결과도 쪽을 넘길 수 있음 (VERIFICATION 149)", async ({ page }) => {
   // 유니버스가 100곳보다 적어 실제로는 쪽이 하나 — 응답을 흉내 냄
   const seen: string[] = [];
