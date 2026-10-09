@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
     "lint": "eslint . --max-warnings 0",
-    "test": "node --import tsx --test \"lib/**/*.test.ts\" \"components/**/*.test.ts\""
+    "test": "TZ=UTC node --import tsx --test \"lib/**/*.test.ts\" \"components/**/*.test.ts\""
   },
   "dependencies": {
     "next": "16.3.8",

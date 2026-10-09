@@ -1,7 +1,7 @@
 // 표기 함수의 지금 동작을 고정 — 화면 로직을 순수 함수로 옮기기 전에 (개선 계획 P5)
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { eok, int, isNeg, num, pk, signed, withUnit, ym } from "@/lib/domain/format";
+import { dt, eok, int, isNeg, num, pk, signed, withUnit, ym } from "@/lib/domain/format";
 
 describe("format", () => {
   it("num: 자릿수 · 고정 소수 · 반올림한 음수 0", () => {
@@ -35,5 +35,17 @@ describe("format", () => {
     assert.equal(ym(null), "–");
     assert.equal(pk("2026Q2"), "26.2Q");
     assert.equal(pk("2026"), "2026");
+  });
+  it("0 으로 반올림된 음수는 '-0' 이 아니라 0 (VERIFICATION 143)", () => {
+    assert.equal(eok(-3_000_000), "0억");
+    assert.equal(eok(-12_340_000_000), "-123억");
+    assert.equal(int(-0.3), "0");
+    assert.equal(int(-1.6), "-2");
+  });
+  it("시각은 브라우저 시간대가 아니라 데이터의 시간대(KST)로 (VERIFICATION 143)", () => {
+    // 테스트는 TZ=UTC 로 돌림 — 브라우저가 한국이 아니어도 같은 시각이 보여야 함
+    assert.equal(dt("2026-10-09T01:30:00+09:00"), "10. 09. 01:30");
+    assert.equal(dt("2026-10-08T16:30:00Z"), "10. 09. 01:30");
+    assert.equal(dt("not a date"), "not a date");
   });
 });

@@ -22,15 +22,16 @@ export function isNeg(v: number | null | undefined, digits = 1): boolean {
   return v != null && Math.round(v * 10 ** digits) < 0;
 }
 
+/** 정수 — 0 으로 반올림된 음수(-0.3)는 "0" (VERIFICATION 143) */
 export function int(v: number | null | undefined): string {
-  return v === null || v === undefined ? "–" : nf.format(Math.round(v));
+  return v === null || v === undefined ? "–" : nf.format(Math.round(v) || 0);
 }
 
-/** 원 → 억 원 */
+/** 원 → 억 원. 0 으로 반올림된 음수(-300만 원)는 "0억" (VERIFICATION 143) */
 export function eok(won: number | null | undefined): string {
   if (won === null || won === undefined) return "–";
   const e = won / 1e8;
-  return `${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: Math.abs(e) >= 100 ? 0 : 1 }).format(e)}억`;
+  return `${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: Math.abs(e) >= 100 ? 0 : 1, signDisplay: "negative" }).format(e)}억`;
 }
 
 export function withUnit(v: number | null | undefined, unit: string): string {
@@ -55,11 +56,12 @@ export function pk(p?: string | null): string {
   return m ? `${m[1].slice(2)}.${m[2]}Q` : p;
 }
 
+/** 시각 — 데이터의 시간대(KST)로. 브라우저 시간대를 따르면 해외에서 보는 실행 · 수집 시각이 어긋남 (VERIFICATION 143) */
 export function dt(s?: string | null): string {
   if (!s) return "–";
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return s;
-  return d.toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+  return d.toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" });
 }
 
 export const STATUS_LABEL: Record<string, string> = {
