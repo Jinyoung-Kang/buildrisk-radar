@@ -212,6 +212,27 @@ class NotificationIT extends IntegrationTest {
     }
 
     @Test
+    void 다시_열린_경보는_첫_전송과_다른_Delivery_ID() throws Exception {
+        // 같은 경보 · 웹훅의 전송 행을 다시 쓰므로 Delivery ID 가 첫 전송과 같아, 이 헤더로 중복을 거르는 받는 쪽이 재발 알림을 버렸음 (VERIFICATION 153)
+        WM.stubFor(post(urlPathEqualTo("/reopen")).willReturn(aResponse().withStatus(200)));
+        JsonNode created = call(mvcPost("/api/v1/admin/webhooks"), ADMIN_USER,
+                Map.of("name", "다시 열림", "kind", "GENERIC", "url", WM.baseUrl() + "/reopen"), 201);
+        call(mvcPost("/api/v1/me/subscriptions"), ADMIN_USER,
+                Map.of("name", "웹훅", "minSeverity", "LOW", "channel", "WEBHOOK", "webhookId", created.get("webhook").get("webhookId").asLong()), 201);
+        jdbc.update("DELETE FROM risk.company_metric WHERE corp_code = ?", OTHER);
+        evaluate();
+        notifications.runOnce();                                              // NEW
+        metric(CORP, "2026Q2", "INTEREST_COVERAGE", "1.5");                  // 풀림 → 2026Q2 경보 RESOLVED
+        evaluate();
+        metric(CORP, "2026Q2", "INTEREST_COVERAGE", "0.5");                  // 다시 참 → 같은 경보가 다시 열림
+        evaluate();
+        notifications.runOnce();                                              // REOPENED
+        List<LoggedRequest> sent = WM.findAll(postRequestedFor(urlPathEqualTo("/reopen")));
+        assertThat(sent).hasSize(2);
+        assertThat(sent.get(1).getHeader("X-BuildRisk-Delivery")).isNotEqualTo(sent.get(0).getHeader("X-BuildRisk-Delivery"));
+    }
+
+    @Test
     void 다시_보내도_같은_전송은_같은_Delivery_ID() throws Exception {
         // 재시도마다 새 UUID 라 받는 쪽이 중복을 걸러낼 수 없었음 — 응답 시간 초과는 상대가 이미 처리했을 수 있는데도 (VERIFICATION 131)
         WM.stubFor(post(urlPathEqualTo("/dedupe")).inScenario("d").whenScenarioStateIs(com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED)

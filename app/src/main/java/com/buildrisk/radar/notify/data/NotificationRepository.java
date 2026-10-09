@@ -22,7 +22,8 @@ public class NotificationRepository {
     public record FanOut(int events, int inbox, int deliveries) {}
 
     /** leaseUntil: 이 worker 의 임대 — 결과를 적을 때 아직 이 임대인지 확인 (임대가 끝나 다른 worker 가 가져갔으면 덮어쓰지 않음) */
-    public record Claimed(long deliveryId, long webhookId, long alertId, String kind, int attempts, OffsetDateTime leaseUntil) {}
+    public record Claimed(long deliveryId, long webhookId, long alertId, String kind, int attempts, OffsetDateTime leaseUntil,
+                          OffsetDateTime cycleAt) {}
 
     public record WebhookRow(long webhookId, String kind, String urlEnc, String secretEnc, boolean enabled) {}
 
@@ -58,7 +59,7 @@ public class NotificationRepository {
                     SELECT DISTINCT ON (webhook_id, alert_id) webhook_id, alert_id, kind FROM m WHERE channel = 'WEBHOOK'
                      ORDER BY webhook_id, alert_id, event_id DESC
                     ON CONFLICT (webhook_id, alert_id) DO UPDATE SET kind = EXCLUDED.kind, status = 'PENDING', attempts = 0,
-                        next_at = now(), sent_at = NULL, last_error = NULL
+                        next_at = now(), sent_at = NULL, last_error = NULL, created_at = now()
                      WHERE EXCLUDED.kind = 'REOPENED' AND notify.delivery.status IN ('SENT', 'DEAD')
                     RETURNING 1),
                 done AS (
@@ -82,10 +83,10 @@ public class NotificationRepository {
                      ORDER BY next_at LIMIT :n FOR UPDATE SKIP LOCKED)
                 UPDATE notify.delivery d SET status = 'SENDING', lease_until = now() + interval '2 minutes', attempts = d.attempts + 1
                   FROM due WHERE d.delivery_id = due.delivery_id
-                RETURNING d.delivery_id, d.webhook_id, d.alert_id, d.kind, d.attempts, d.lease_until""")
+                RETURNING d.delivery_id, d.webhook_id, d.alert_id, d.kind, d.attempts, d.lease_until, d.created_at""")
                 .param("n", limit)
                 .query((rs, i) -> new Claimed(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getString(4), rs.getInt(5),
-                        rs.getObject(6, OffsetDateTime.class))).list();
+                        rs.getObject(6, OffsetDateTime.class), rs.getObject(7, OffsetDateTime.class))).list();
     }
 
     public Optional<WebhookRow> webhook(long id) {

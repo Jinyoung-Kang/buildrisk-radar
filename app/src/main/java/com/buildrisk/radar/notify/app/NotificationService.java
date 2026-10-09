@@ -36,10 +36,12 @@ public class NotificationService {
 
     /**
      * 받는 쪽 중복 제거용 X-BuildRisk-Delivery — 같은 전송 묶음을 다시 보내면 같은 값(전에는 매번 새 UUID 라 '시간 초과'로
-     * 다시 보낸 것을 받는 쪽이 걸러낼 수 없었음, VERIFICATION 131)
+     * 다시 보낸 것을 받는 쪽이 걸러낼 수 없었음, VERIFICATION 131). 전송 행의 주기 시작 시각도 넣어, 같은 경보가 다시 열려
+     * 같은 행으로 다시 보낼 때는 다른 값 (VERIFICATION 153)
      */
-    static String deliveryId(List<Long> deliveryIds) {
-        String key = deliveryIds.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+    static String deliveryId(List<Claimed> claimed) {
+        String key = claimed.stream().map(c -> c.deliveryId() + "@" + c.cycleAt().toInstant()).sorted()
+                .collect(java.util.stream.Collectors.joining(","));
         return UUID.nameUUIDFromBytes(("buildrisk-delivery:" + key).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
     }
     private final NotificationRepository repo;
@@ -115,17 +117,18 @@ public class NotificationService {
             }
             Map<Long, String> kinds = new LinkedHashMap<>();
             list.forEach(c -> kinds.put(c.alertId(), c.kind()));
-            Map<Long, Long> deliveryOf = new LinkedHashMap<>();
-            list.forEach(c -> deliveryOf.put(c.alertId(), c.deliveryId()));
+            Map<Long, Claimed> claimedOf = new LinkedHashMap<>();
+            list.forEach(c -> claimedOf.put(c.alertId(), c));
             List<AlertItem> items = repo.alertItems(kinds.keySet(), kinds);
             for (int i = 0; i < items.size(); i += WebhookSender.MAX_ALERTS_PER_MESSAGE) {
                 List<AlertItem> chunk = items.subList(i, Math.min(items.size(), i + WebhookSender.MAX_ALERTS_PER_MESSAGE));
-                List<Long> chunkIds = chunk.stream().map(a -> deliveryOf.get(a.alertId())).toList();
+                List<Claimed> chunkClaimed = chunk.stream().map(a -> claimedOf.get(a.alertId())).toList();
+                List<Long> chunkIds = chunkClaimed.stream().map(Claimed::deliveryId).toList();
                 if (System.nanoTime() > deadline) {
                     repo.release(chunkIds, lease);
                     continue;
                 }
-                Result r = sender.send(t, chunk, false, deliveryId(chunkIds));
+                Result r = sender.send(t, chunk, false, deliveryId(chunkClaimed));
                 if (r.ok()) {
                     repo.markSent(chunkIds, lease);
                     sent.increment(chunkIds.size());
