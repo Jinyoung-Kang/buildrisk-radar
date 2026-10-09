@@ -32,7 +32,8 @@ public class AuditFilter extends OncePerRequestFilter {
     private static final int QUERY_LIMIT = 2048;
     private static final List<String> SECRET_KEYS = List.of("secret", "password", "token", "apikey", "api_key", "authorization", "credential");
     private static final String MASK = "***";
-    private static final Pattern ORIGIN = Pattern.compile("^[A-Za-z][A-Za-z0-9+.-]*://[^/?#]*");
+    /** scheme:// 과 권한부 — 역슬래시 · 공백도 경로의 시작으로 봄(브라우저 · 일부 클라이언트는 '\' 를 '/' 로 읽음) */
+    private static final Pattern ORIGIN = Pattern.compile("^([A-Za-z][A-Za-z0-9+.-]*://)([^/?#\\\\\\s]*)");
     private final AuditService audit;
     private final ObjectMapper mapper;
     private final Function<HttpServletRequest, String> templateResolver;
@@ -110,9 +111,12 @@ public class AuditFilter extends OncePerRequestFilter {
         return out.length() > QUERY_LIMIT ? out.substring(0, QUERY_LIMIT) + "…" : out.toString();
     }
 
+    /** 출처(scheme://host:port) — 사용자 정보(user:pass@)는 뺌. 그대로 두면 주소에 넣은 비밀번호가 평문으로 남았음 (VERIFICATION 158) */
     private static String origin(String url) {
         Matcher m = ORIGIN.matcher(url);
-        return m.find() ? m.group() : "";
+        if (!m.find()) return "";
+        String authority = m.group(2);
+        return m.group(1) + authority.substring(authority.lastIndexOf('@') + 1);
     }
 
     /** 경로 템플릿(예: /api/v1/rules/{ruleCode}) — 핸들러가 안 정해졌으면 매핑에서 찾고, 그래도 없으면 실제 경로 */
