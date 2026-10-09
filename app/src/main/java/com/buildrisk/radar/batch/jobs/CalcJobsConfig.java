@@ -177,9 +177,25 @@ public class CalcJobsConfig {
     public record RuleTarget(RuleDefinition rule, String targetKey) {}
 
     @Bean
-    Job ruleEvalJob(JobRepository repo, Step ruleEvalStep, RunRecorder runs, JsonCache cache) {
+    Job ruleEvalJob(JobRepository repo, Step ruleEvalStep, Step ruleScopeStep, RunRecorder runs, JsonCache cache) {
         return new JobBuilder("ruleEvalJob", repo).listener(runs.calc("RULE", cache::invalidateAll))
-                .start(ruleEvalStep).build();
+                .start(ruleEvalStep).next(ruleScopeStep).build();
+    }
+
+    /**
+     * 평가 대상(켜진 규칙 × 지금의 대상)에서 빠진 열린 경보를 닫음 — 다시 평가되지 않아 영구히 OPEN 이었음 (VERIFICATION 127).
+     * 대상 목록이 비면(적재 중 등) 그 종류는 건너뜀: 빈 목록을 '모두 빠짐'으로 보지 않음
+     */
+    @Bean
+    Step ruleScopeStep(JobRepository repo, PlatformTransactionManager tm, RuleRepository rules, CompanyRepository companies,
+                       RegionRepository regions, AlertService alerts) {
+        return new StepBuilder("ruleScopeStep", repo).tasklet((contribution, chunk) -> {
+            List<String> ruleCodes = rules.latestEnabled().stream().map(RuleDefinition::code).toList();
+            List<String> corps = companies.targetCorpCodes();
+            List<String> regionCds = regions.refs().stream().filter(r -> r.level() == 2).map(r -> r.regionCd()).toList();
+            contribution.incrementWriteCount(alerts.closeOutOfScope(ruleCodes, corps, regionCds));
+            return RepeatStatus.FINISHED;
+        }, tm).build();
     }
 
     @Bean

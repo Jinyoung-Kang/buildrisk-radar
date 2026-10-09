@@ -64,6 +64,28 @@ class RuleEvalJobIT extends IntegrationTest {
         assertThat(alerts("status = 'OPEN'")).isEqualTo(1);
     }
 
+    @Test
+    void 끈_규칙과_대상에서_빠진_기업의_열린_경보는_사유와_함께_닫는다() throws Exception {
+        // 평가 대상(켜진 규칙 × 현재 대상)에서 빠지면 다시 평가되지 않아 열린 경보가 영구히 OPEN 이었음 (VERIFICATION 127)
+        launcher.runAndWait("ruleEvalJob", Map.of());
+        assertThat(alerts("status = 'OPEN'")).isEqualTo(1);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/v1/rules/R-C02")
+                        .header("X-Admin-Token", ADMIN).contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"enabled\":false,\"changeNote\":\"끔\"}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        launcher.runAndWait("ruleEvalJob", Map.of());
+        assertThat(alerts("status = 'CLOSED' AND close_reason = 'RULE_DISABLED'")).isEqualTo(1);
+
+        jdbc.execute("DELETE FROM risk.rule WHERE version > 1");          // 다시 켬(시드 버전)
+        jdbc.update("DELETE FROM risk.alert");
+        launcher.runAndWait("ruleEvalJob", Map.of());
+        assertThat(alerts("status = 'OPEN'")).isEqualTo(1);
+        company("00000010", "남는건설");                                    // 대상 목록이 비면 건너뛰므로(적재 중 보호) 다른 대상 하나
+        jdbc.update("UPDATE ref.company SET is_target = false WHERE corp_code = '00000009'");   // 유니버스에서 빠짐(상장폐지 등)
+        launcher.runAndWait("ruleEvalJob", Map.of());
+        assertThat(alerts("status = 'CLOSED' AND close_reason = 'OUT_OF_SCOPE'")).isEqualTo(1);
+    }
+
     int alerts(String where) { return count("SELECT count(*) FROM risk.alert WHERE rule_code = 'R-C02' AND " + where); }
 
     @Test

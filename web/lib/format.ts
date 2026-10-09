@@ -69,4 +69,5 @@ export const STATUS_LABEL: Record<string, string> = {
 
 export const CLOSE_REASON: Record<string, string> = {
   RESOLVED: "조건 해소", SUPERSEDED: "최신 시점으로 대체", RULE_CHANGED: "규칙 버전 변경", EXPIRED: "기간 경과",
+  RULE_DISABLED: "규칙 꺼짐", OUT_OF_SCOPE: "감시 대상에서 빠짐",
 };

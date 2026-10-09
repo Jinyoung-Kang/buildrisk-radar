@@ -119,4 +119,21 @@ public class AlertService {
         }
         return new Applied(opened, updated, closed, notified);
     }
+
+    /**
+     * 평가 대상에서 빠진 열린 경보를 닫음 — 꺼진 규칙은 RULE_DISABLED, 유니버스에서 빠진 기업 · 사라진 지역은 OUT_OF_SCOPE.
+     * 목록이 비면 그 조건은 쓰지 않음(빈 목록을 '모두 빠짐'으로 보면 적재 중에 모든 경보가 닫힘). 닫은 건수
+     */
+    public int closeOutOfScope(List<String> enabledRules, List<String> corps, List<String> regions) {
+        if (enabledRules.isEmpty()) return 0;
+        return jdbc.sql("""
+                        UPDATE risk.alert SET status = 'CLOSED', closed_at = now(),
+                               close_reason = CASE WHEN rule_code <> ALL(cast(:rules AS text[])) THEN 'RULE_DISABLED' ELSE 'OUT_OF_SCOPE' END
+                        WHERE status IN ('OPEN', 'ACK')
+                          AND (rule_code <> ALL(cast(:rules AS text[]))
+                               OR (target_type = 'COMPANY' AND cardinality(cast(:corps AS text[])) > 0 AND target_key <> ALL(cast(:corps AS text[])))
+                               OR (target_type = 'REGION' AND cardinality(cast(:regions AS text[])) > 0 AND target_key <> ALL(cast(:regions AS text[]))))""")
+                .param("rules", enabledRules.toArray(String[]::new)).param("corps", corps.toArray(String[]::new))
+                .param("regions", regions.toArray(String[]::new)).update();
+    }
 }
