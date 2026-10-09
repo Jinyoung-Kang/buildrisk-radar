@@ -75,7 +75,7 @@ test-app:
 	cd app && ./gradlew test
 
 test-web:
-	cd web && npm ci --no-audit --no-fund && npm run typecheck && npm run lint
+	cd web && npm ci --no-audit --no-fund && npm run typecheck && npm run lint && npm test
 
 # 관리자 로그인 시나리오는 .env 의 ADMIN_PASSWORD 를 환경변수로만 넘김 (화면·로그에 출력하지 않음)
 e2e:
