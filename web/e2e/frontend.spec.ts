@@ -200,3 +200,49 @@ test("다른 기업으로 옮기면 앞 기업에서 고른 연결/별도가 남
   await expect(page).toHaveURL(new RegExp(`/companies/${b}`));
   await expect(fs().getByRole("radio", { name: "자동(연결 우선)" })).toHaveAttribute("aria-checked", "true");
 });
+
+test("기업 검색 결과도 쪽을 넘길 수 있음 (VERIFICATION 149)", async ({ page }) => {
+  // 유니버스가 100곳보다 적어 실제로는 쪽이 하나 — 응답을 흉내 냄
+  const seen: string[] = [];
+  await page.route("**/api/v1/companies?*", (route) => {
+    const u = new URL(route.request().url());
+    seen.push(`${u.searchParams.get("q") ?? ""}:${u.searchParams.get("page")}`);
+    const items = Array.from({ length: 100 }, (_, i) => ({ corpCode: String(90000000 + i), corpName: `가상건설${i}`, openAlerts: 0 }));
+    return route.fulfill({ json: { items, total: 250, page: Number(u.searchParams.get("page")), size: 100 } });
+  });
+  await page.goto("/companies");
+  await page.getByLabel("기업 검색").fill("가상");
+  await expect.poll(() => seen.at(-1)).toBe("가상:0");
+  await page.getByRole("button", { name: "다음" }).click();
+  await expect.poll(() => seen.at(-1)).toBe("가상:1");
+});
+
+test("꺼진 웹훅으로 보내는 구독을 고칠 때 그 웹훅이 선택된 채 보임 (VERIFICATION 149)", async ({ page }) => {
+  test.skip(!ADMIN, "E2E_ADMIN_PASSWORD 미설정");
+  await login(page, "/notifications");
+  const hook = { webhookId: 990001, name: "꺼둔 웹훅", kind: "SLACK", urlHint: "https://hooks.slack.com/…", signed: false, enabled: false,
+    createdBy: "admin", createdAt: "2026-10-09T00:00:00+09:00", pending: 0, dead: 0, subscriptions: 1 };
+  await page.route("**/api/v1/admin/webhooks", (route) => route.fulfill({ json: { available: true, items: [hook] } }));
+  await page.route("**/api/v1/me/subscriptions", (route) => route.fulfill({ json: [{ subscriptionId: 990002, name: "웹훅 구독", minSeverity: "HIGH",
+    watchOnly: false, channel: "WEBHOOK", webhookId: hook.webhookId, webhookName: hook.name, enabled: true, createdAt: hook.createdAt }] }));
+  await page.reload();
+  await page.getByRole("listitem").filter({ hasText: "웹훅 구독" }).getByRole("button", { name: "바꾸기" }).click();
+  const select = page.getByRole("combobox", { name: "웹훅" });
+  await expect(select).toHaveValue(String(hook.webhookId));
+  await expect(select.locator("option:checked")).toContainText("꺼짐");
+});
+
+test("카카오 지도 SDK 를 못 받아도 다시 열 때 스크립트를 겹쳐 넣지 않음 (VERIFICATION 149)", async ({ page }) => {
+  await page.route("https://dapi.kakao.com/**", (route) => route.abort());
+  const scripts = () => page.locator("script[src*='dapi.kakao.com']").count();
+  await page.goto("/regions");
+  await page.waitForTimeout(1000);
+  expect(await scripts()).toBeLessThanOrEqual(1);
+  const nav = (p: string) => page.evaluate((u) => (window as unknown as { next: { router: { push: (x: string) => void } } }).next.router.push(u), p);
+  await nav("/companies");
+  await expect(page).toHaveURL(/\/companies/);
+  await nav("/regions");
+  await expect(page).toHaveURL(/\/regions/);
+  await page.waitForTimeout(1000);
+  expect(await scripts()).toBeLessThanOrEqual(1);                                   // 다시 시도해도 한 개를 넘지 않음
+});

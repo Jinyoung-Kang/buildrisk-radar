@@ -86,6 +86,8 @@ function SubscriptionForm({ initial, rules, webhooks, admin, onSaved, onCancel }
     return action.run(() => (initial ? commands.updateSubscription(initial.subscriptionId, body) : commands.createSubscription(body)), onSaved);
   };
   const toggleRule = (code: string) => set({ ruleCodes: toggleCode(f.ruleCodes, code) });
+  // 고를 수 있는 웹훅 = 켜진 것 + 지금 이 구독이 쓰는 것(꺼졌어도) — 없으면 선택 상자가 다른 웹훅을 보여 주며 꺼진 웹훅으로 저장됨 (VERIFICATION 149)
+  const usable = webhooks.filter((w) => w.enabled || w.webhookId === f.webhookId);
   return (
     <form onSubmit={submit} className="space-y-3 border border-line rounded-lg p-3" aria-label={initial ? "구독 바꾸기" : "새 구독"}>
       <label className="block text-xs text-ink2">이름
@@ -123,14 +125,14 @@ function SubscriptionForm({ initial, rules, webhooks, admin, onSaved, onCancel }
         <div className="mt-1 flex flex-wrap gap-4 text-xs">
           <label className="flex items-center gap-1.5"><input type="radio" name="channel" checked={f.channel === "IN_APP"} onChange={() => set({ channel: "IN_APP" })} />알림함</label>
           <label className={`flex items-center gap-1.5 ${admin ? "" : "text-muted"}`}>
-            <input type="radio" name="channel" disabled={!admin || webhooks.length === 0} checked={f.channel === "WEBHOOK"}
-              onChange={() => set({ channel: "WEBHOOK", webhookId: f.webhookId ?? webhooks[0]?.webhookId })} />
-            웹훅 {admin ? (webhooks.length === 0 ? "(먼저 아래에서 웹훅 등록)" : "") : "(관리자만)"}
+            <input type="radio" name="channel" disabled={!admin || usable.length === 0} checked={f.channel === "WEBHOOK"}
+              onChange={() => set({ channel: "WEBHOOK", webhookId: f.webhookId ?? webhooks.find((w) => w.enabled)?.webhookId })} />
+            웹훅 {admin ? (usable.length === 0 ? "(먼저 아래에서 웹훅 등록)" : "") : "(관리자만)"}
           </label>
         </div>
         {f.channel === "WEBHOOK" && (
           <select aria-label="웹훅" className={`${input} mt-2`} value={f.webhookId ?? ""} onChange={(e) => set({ webhookId: Number(e.target.value) })}>
-            {webhooks.map((w) => <option key={w.webhookId} value={w.webhookId}>{w.name} · {w.urlHint}</option>)}
+            {usable.map((w) => <option key={w.webhookId} value={w.webhookId}>{w.name} · {w.urlHint}{w.enabled ? "" : " (꺼짐)"}</option>)}
           </select>
         )}
       </fieldset>
@@ -159,7 +161,7 @@ function SubscriptionsCard({ admin }: { admin: boolean }) {
       {editing !== null && (
         <div className="mb-3">
           {/* key: 다른 구독을 고르면 폼 상태를 새로 — 없으면 앞서 고치던 구독의 값이 남은 채 이 구독으로 저장됨 (VERIFICATION 123) */}
-          <SubscriptionForm key={editing === "new" ? "new" : editing.subscriptionId} initial={editing === "new" ? null : editing} rules={ruleList} webhooks={hooks.data?.items.filter((w) => w.enabled) ?? []}
+          <SubscriptionForm key={editing === "new" ? "new" : editing.subscriptionId} initial={editing === "new" ? null : editing} rules={ruleList} webhooks={hooks.data?.items ?? []}
             admin={admin} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); subs.reload(); }} />
         </div>
       )}
