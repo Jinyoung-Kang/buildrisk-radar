@@ -6,6 +6,8 @@
 ## 구조 한눈에
 
 - `app/` Spring Boot 4.1 · Java 25 · Spring Batch 6 — 같은 이미지가 역할(`BUILDRISK_ROLE`)로 **api**(REST, 외부 API 키 없음)와 **worker**(DB 큐 소비 · 배치 · 외부 API 호출)로 나뉨
+  - 패키지는 기능 모듈 × 계층 `<기능>.api · app · domain · data` + 바깥 `adapters · batch · common` (ADR-029). 의존 방향 · domain 순수성 ·
+    쓰기 SQL 위치(data 에만)는 `ArchitectureTest` 가 검사 — 새 클래스를 어디 둘지 모르면 이 테스트를 먼저 본다
 - `web/` Next.js 16 (Pages Router, 운영 빌드 webpack — ADR-028) · TypeScript · Tailwind · Recharts
 - `ops/` nginx(edge) · prometheus · grafana · k6
 - 진입점은 **edge(nginx) 하나** `http://localhost:3400` — `/api/v1` 은 api 로, 나머지는 web 으로. api · web 은 포트를 열지 않음

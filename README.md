@@ -382,12 +382,12 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 buildrisk-radar/
 ├─ app/                      Spring Boot 4.1 (Gradle, Java 25 툴체인)
 │  └─ src/main/java/com/buildrisk/radar/
-│     ├─ api/                컨트롤러 · 조회 서비스(노출 · 백테스트 포함) · DTO
+│     ├─ company · metric · region · market · filing · alert · insight · notify · export · ops
+│     │                      기능 모듈 — 각각 api(컨트롤러) · app(흐름 · 검증 · 화면용 조회) · domain(규칙 · 계산, 프레임워크 무관) · data(저장소) (ADR-029)
 │     ├─ batch/              jobs/ (Job 14개) · queue/ (요청 큐 · worker · 등록부) · support/ (Launcher · QuotaGuard · CLI · 스케줄러)
-│     ├─ domain/             account · metric · rule(+rules/) · region(주소 해석) · disclosure · universe · filing(원문 파서 · PF) · market · backtest · notify(outbox · 웹훅 · 암호화)
-│     ├─ adapters/           dart · kosis · rone · sgis · vworld · datagokr(실거래 · 주식시세) · common(한도 · 재시도 · 간격 · 지표)
-│     └─ common/             설정 · 역할(api/worker) · security(세션 · CSRF · 토큰 · 레이트리밋 · 감사) · 오류 규약 · traceId · cache(Redis · 프로세스 안) · seed
-├─ app/src/main/resources/db/migration/   V1 … V20 · afterMigrate(런타임 계정 권한)
+│     ├─ adapters/           dart · kosis · rone · sgis · vworld · datagokr(실거래 · 주식시세) · seed(seed 파일 → domain) · common(한도 · 재시도 · 간격 · 지표)
+│     └─ common/             설정 · 역할(api/worker) · security(로그인 · 세션 · CSRF · 토큰 · 레이트리밋 · 감사) · 오류 규약 · web(traceId · 쪽 · 조회 조건 · CSV) · cache(Redis · 프로세스 안)
+├─ app/src/main/resources/db/migration/   V1 … V21 · afterMigrate(런타임 계정 권한)
 ├─ app/src/test/             단위 · Testcontainers 통합 · WireMock fixture (DART 재무 · 공시 원문 · 실거래 · 주가 실응답)
 ├─ web/                      Next.js 16 (pages · components · lib(auth · api) · e2e)
 ├─ ops/                      prometheus · grafana(프로비저닝 대시보드) · k6(부하 · 레이트리밋)
