@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Card, DartLink, Empty, ErrorBox, Loading, Phrases, Prose, Segmented } from "@/components/ui";
-import type { CompanyFilings as Filings, ContractRow } from "@/lib/api";
+import { queries, type ContractRow } from "@/lib/api";
 import { eok, num } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
@@ -15,7 +15,7 @@ function state(c: ContractRow) {
 
 /** 수주 계약 · 채무보증 — 공시 원문 구조화 결과 (ADR-016) */
 export default function CompanyFilings({ corp, riskTh = 5 }: { corp: string; riskTh?: number }) {
-  const { data, error } = useApi<Filings>(`/companies/${encodeURIComponent(corp)}/filings`);
+  const { data, error } = useApi(queries.companyFilings(corp));
   const [view, setView] = useState<"current" | "all">("current");
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;

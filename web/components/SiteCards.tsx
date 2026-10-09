@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Card, DartLink, Empty, ErrorBox, Loading, PhraseList, Prose, Segmented } from "@/components/ui";
-import type { SiteCard, SiteMatch, Sites } from "@/lib/api";
+import type { Query, SiteCard, SiteMatch, Sites } from "@/lib/api";
 import { eok, num } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
@@ -74,8 +74,8 @@ function Site({ s, riskTh, showCorp }: { s: SiteCard; riskTh: number; showCorp: 
 }
 
 /** 사업장 카드 — 현재 공급계약 위치를 법정동 · 지번까지 풀어 그 동의 아파트 시장과 잇기 (ADR-026) */
-export default function SiteCards({ path, showCorp = false, riskTh = 5, title = "사업장 카드" }: { path: string; showCorp?: boolean; riskTh?: number; title?: string }) {
-  const { data, error } = useApi<Sites>(path);
+export default function SiteCards({ query, showCorp = false, riskTh = 5, title = "사업장 카드" }: { query: Query<Sites>; showCorp?: boolean; riskTh?: number; title?: string }) {
+  const { data, error } = useApi(query);
   const [view, setView] = useState<"located" | "all">("located");
   const [more, setMore] = useState(false);
   if (error) return <ErrorBox error={error} />;

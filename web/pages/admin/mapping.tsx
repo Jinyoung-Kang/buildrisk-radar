@@ -2,7 +2,7 @@ import { useState } from "react";
 import RequireRole from "@/components/RequireRole";
 import Layout from "@/components/Layout";
 import { Card, Empty, ErrorBox, Loading, PageTitle, Prose } from "@/components/ui";
-import { mutate, type Row } from "@/lib/api";
+import { commands, queries, type Row } from "@/lib/api";
 import { eok, num } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/useApi";
@@ -13,7 +13,7 @@ function AddRule({ stdCode, sjDiv, suggest, onDone }: { stdCode: string; sjDiv: 
   const [err, setErr] = useState<Error | null>(null);
   const add = async () => {
     try {
-      const r = await mutate<Row>("/mapping/account-rules", "POST", { stdCode, sjDiv, matchType: type, pattern, priority: 30 });
+      const r = await commands.addAccountRule({ stdCode, sjDiv, matchType: type, pattern, priority: 30 });
       onDone(`규칙 #${r.mapId} 추가 — ${r.next}`);
     } catch (e) { setErr(e as Error); }
   };
@@ -35,7 +35,7 @@ function RegionFix({ r, onDone }: { r: Row; onDone: (m: string) => void }) {
   const [err, setErr] = useState<Error | null>(null);
   const save = async () => {
     try {
-      const res = await mutate<Row>("/mapping/region-codes", "PUT", { source: r.source, sourceCode: r.source_code, regionCd: cd.trim() || null, note: "화면에서 수동 매핑" });
+      const res = await commands.mapRegionCode({ source: r.source, sourceCode: r.source_code, regionCd: cd.trim() || null, note: "화면에서 수동 매핑" });
       onDone(`${r.source} ${r.source_name} → ${cd || "미매핑"} — 옛 지역에 남은 이 코드의 통계 ${res.removedStats ?? 0}건을 지웠습니다. 해당 출처 수집 Job 과 standardizeMetricJob 을 다시 실행하면 반영됩니다.${res.warning ? ` ${res.warning}` : ""}`);
     } catch (e) { setErr(e as Error); }
   };
@@ -53,11 +53,11 @@ function RegionFix({ r, onDone }: { r: Row; onDone: (m: string) => void }) {
 
 function UserRules({ onChanged }: { onChanged: (m: string) => void }) {
   const { has } = useAuth();
-  const { data, reload } = useApi<Row[]>("/mapping/account-rules");
+  const { data, reload } = useApi(queries.mappingAccountRules());
   const [err, setErr] = useState<Error | null>(null);
   const rules = (data ?? []).filter((r) => r.origin === "USER");
   const remove = async (id: number) => {
-    try { const r = await mutate<Row>(`/mapping/account-rules/${encodeURIComponent(id)}`, "DELETE"); onChanged(`규칙 #${id} 삭제 — ${r.next}`); reload(); }
+    try { const r = await commands.deleteAccountRule(id); onChanged(`규칙 #${id} 삭제 — ${r.next}`); reload(); }
     catch (e) { setErr(e as Error); }
   };
   return (
@@ -82,7 +82,7 @@ function UserRules({ onChanged }: { onChanged: (m: string) => void }) {
 }
 
 export default function Mapping() {
-  const { data, error, reload } = useApi<Row>("/mapping/unmapped");
+  const { data, error, reload } = useApi(queries.mappingUnmapped());
   const [msg, setMsg] = useState<string | null>(null);
   return (
     <Layout title="매핑">

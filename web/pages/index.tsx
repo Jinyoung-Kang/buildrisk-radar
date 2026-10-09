@@ -2,13 +2,13 @@ import Link from "next/link";
 import Layout from "@/components/Layout";
 import PersonaEntry from "@/components/PersonaEntry";
 import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle, SeverityBadge, Stat, StatusPill, TargetLink } from "@/components/ui";
-import type { Personas, Row } from "@/lib/api";
+import { queries, type Personas, type Row } from "@/lib/api";
 import { SEVERITY } from "@/lib/colors";
 import { dt, int, num, pk, ym } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
 export default function Dashboard() {
-  const { data, error, loading } = useApi<Row>("/dashboard");
+  const { data, error, loading } = useApi(queries.dashboard());
   const oa = data?.openAlerts ?? {};
   const f = data?.freshness ?? {};
   const maxUnsold = Math.max(1, ...((data?.topUnsold ?? []) as Row[]).map((r) => Number(r.per1kHh) || 0));

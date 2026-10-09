@@ -5,7 +5,7 @@ import Layout from "@/components/Layout";
 import RegionPanel from "@/components/RegionPanel";
 import SiteCards from "@/components/SiteCards";
 import { Card, Loading } from "@/components/ui";
-import type { RegionSeries } from "@/lib/api";
+import { queries } from "@/lib/api";
 import { num, ym } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
@@ -13,7 +13,7 @@ export default function RegionDetail() {
   const { query, isReady } = useRouter();
   const raw = isReady ? String(query.regionCd) : null;
   const cd = raw && /^\d{5}$/.test(raw) ? raw : null;         // 형식이 맞을 때만 API 경로에 씀
-  const { data } = useApi<RegionSeries>(cd ? `/regions/${encodeURIComponent(cd)}/series` : null);
+  const { data } = useApi(cd ? queries.regionSeries(cd) : null);
   const m = (code: string) => (data?.metrics.find((x) => x.code === code)?.points ?? []).slice(-24)
     .map((p) => ({ x: ym(p.period), v: p.value ?? null }));
   return (
@@ -32,7 +32,7 @@ export default function RegionDetail() {
             <Card title="매매가격지수 3개월 변화 (pt)" sub="R-R02: 3개월 연속 음수 + 미분양 증가">
               <TrendLine data={m("PRICE_IDX_3M_CHG")} series={[{ key: "v", name: "매매지수 변화" }]} threshold={0} thresholdLabel="0" fmt={(v) => num(v, 2)} />
             </Card>
-            <SiteCards path={`/regions/${encodeURIComponent(cd)}/sites`} showCorp title="이 지역의 사업장" />
+            <SiteCards query={queries.regionSites(cd)} showCorp title="이 지역의 사업장" />
             <Card title="출처 지역 코드 매핑" sub="각 출처의 지역 코드가 이 시군구로 연결된 방식 (FR-405)">
               <div className="table-wrap"><table className="data-table compact">
                 <thead><tr><th>출처</th><th>코드</th><th>출처 표기</th><th>방식</th></tr></thead>

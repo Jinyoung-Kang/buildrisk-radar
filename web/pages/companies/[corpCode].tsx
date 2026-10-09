@@ -10,7 +10,7 @@ import Layout from "@/components/Layout";
 import { PriceChart, SignedBars, TrendLine } from "@/components/LazyCharts";
 import Tabs, { TabPanel, useTab } from "@/components/Tabs";
 import { Card, DartLink, DownloadLink, Empty, ErrorBox, Loading, MetricStatus, PageTitle, Segmented, SeverityBadge, StatusPill } from "@/components/ui";
-import { qs, type AlertDetail, type CompanySummary, type Disclosure, type Financials, type Metrics } from "@/lib/api";
+import { downloads, queries } from "@/lib/api";
 import { eok, num, pk, withUnit } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
@@ -21,7 +21,7 @@ const EVENT_LABEL: Record<string, string> = {
 const RISK_EVENTS = new Set(["REHAB", "DEFAULT", "SUSPENSION", "AUDIT_OPINION"]);
 
 function AlertCard({ id }: { id: number }) {
-  const { data } = useApi<AlertDetail>(`/alerts/${encodeURIComponent(id)}`);
+  const { data } = useApi(queries.alert(id));
   if (!data) return <Loading />;
   return (
     <div className="border border-line rounded-lg p-3">
@@ -45,11 +45,11 @@ export default function CompanyDetail() {
   const [tab, setTab] = useTab<Tab>(TABS, "overview");
   const [fsDiv, setFsDiv] = useState<"AUTO" | "CFS" | "OFS">("AUTO");
   const [eventFilter, setEventFilter] = useState<"risk" | "all">("all");
-  const summary = useApi<CompanySummary>(corp ? `/companies/${encodeURIComponent(corp)}` : null);
+  const summary = useApi(corp ? queries.company(corp) : null);
   // 탭에 필요한 데이터만 그 탭을 열 때 불러옴
-  const metrics = useApi<Metrics>(corp && tab === "financials" ? `/companies/${encodeURIComponent(corp)}/metrics` : null);
-  const fin = useApi<Financials>(corp && tab === "financials" ? `/companies/${encodeURIComponent(corp)}/financials${qs({ fsDiv })}` : null);
-  const disc = useApi<Disclosure[]>(corp && tab === "disclosures" ? `/companies/${encodeURIComponent(corp)}/disclosures` : null);
+  const metrics = useApi(corp && tab === "financials" ? queries.companyMetrics(corp) : null);
+  const fin = useApi(corp && tab === "financials" ? queries.companyFinancials(corp, fsDiv) : null);
+  const disc = useApi(corp && tab === "disclosures" ? queries.companyDisclosures(corp) : null);
   const s = summary.data;
 
   const series = useMemo(() => {
@@ -100,7 +100,7 @@ export default function CompanyDetail() {
 
           {tab === "financials" && <TabPanel id="financials">
           {corp && <div className="flex justify-end mb-2">
-            <DownloadLink path={`/export/companies/${encodeURIComponent(corp)}/metrics.csv`}>지표 CSV (모든 기간 · 분자 · 분모)</DownloadLink>
+            <DownloadLink href={downloads.companyMetricsCsv(corp)}>지표 CSV (모든 기간 · 분자 · 분모)</DownloadLink>
           </div>}
           <div className="grid lg:grid-cols-2 gap-5 mb-5">
             <Card title="부채비율 (%)" sub="부채총계 ÷ 자본총계 × 100 · R-C01 임계 300%">
@@ -156,7 +156,7 @@ export default function CompanyDetail() {
 
           </TabPanel>}
 
-          {tab === "filings" && corp && <TabPanel id="filings"><div className="space-y-8"><CompanyPf corp={corp} /><SiteCards path={`/companies/${encodeURIComponent(corp)}/sites`} /><CompanyFilings corp={corp} /></div></TabPanel>}
+          {tab === "filings" && corp && <TabPanel id="filings"><div className="space-y-8"><CompanyPf corp={corp} /><SiteCards query={queries.companySites(corp)} /><CompanyFilings corp={corp} /></div></TabPanel>}
 
           {tab === "price" && corp && <TabPanel id="price">
             <Card title="주가와 경보" sub="일별 종가 3년 · 경보가 공개된 날 표시 — 규칙별 평균 효과는 '경보 검증' 화면">

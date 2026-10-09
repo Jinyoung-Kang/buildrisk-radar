@@ -1,19 +1,19 @@
 import { useState } from "react";
-import { mutate, type Watch } from "@/lib/api";
+import { commands, queries } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/useApi";
 
 /** 관심 목록 넣기 · 빼기 (로그인했을 때만). '관심 목록만' 구독이 이 목록으로 알림을 거름 (ADR-025) */
 export default function WatchButton({ type, keyCd }: { type: "COMPANY" | "REGION"; keyCd: string }) {
   const { me } = useAuth();
-  const { data, reload } = useApi<Watch[]>(me?.authenticated ? "/me/watch" : null);
+  const { data, reload } = useApi(me?.authenticated ? queries.watches() : null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   if (!me?.authenticated || !data) return null;
   const on = data.some((w) => w.targetType === type && w.targetKey === keyCd);
   const toggle = async () => {
     setBusy(true); setErr(null);
-    try { await mutate(`/me/watch/${type}/${encodeURIComponent(keyCd)}`, on ? "DELETE" : "PUT"); reload(); }
+    try { await (on ? commands.unwatch(type, keyCd) : commands.watch(type, keyCd)); reload(); }
     catch (e) { setErr(e instanceof Error ? e.message : "실패"); }
     finally { setBusy(false); }
   };

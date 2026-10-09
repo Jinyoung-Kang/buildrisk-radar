@@ -1,12 +1,12 @@
 import Layout from "@/components/Layout";
 import { Card, Loading, PageTitle, Prose } from "@/components/ui";
-import type { Meta } from "@/lib/api";
+import { queries, type Meta } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 
 const RISK_EVENTS = new Set(["REHAB", "DEFAULT", "SUSPENSION", "AUDIT_OPINION"]);
 
 export default function About() {
-  const { data } = useApi<Meta>("/meta");
+  const { data } = useApi(queries.meta());
   const company = data?.metrics.filter((m) => m.target === "COMPANY") ?? [];
   const region = data?.metrics.filter((m) => m.target === "REGION") ?? [];
   const metricTable = (rows: Meta["metrics"]) => (

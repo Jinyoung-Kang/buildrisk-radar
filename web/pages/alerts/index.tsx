@@ -5,17 +5,17 @@ import EvidenceView from "@/components/EvidenceView";
 import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
 import { Card, DownloadLink, Empty, ErrorBox, Loading, PageTitle, Prose, Segmented, SeverityBadge, StatusPill, TargetLink, Pager } from "@/components/ui";
-import { api, qs, type AlertDetail, type AlertRow, type Page } from "@/lib/api";
+import { commands, downloads, queries } from "@/lib/api";
 import { dt } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
 function Detail({ id, onChanged }: { id: string; onChanged: () => void }) {
-  const { data, error, reload } = useApi<AlertDetail>(`/alerts/${encodeURIComponent(id)}`);
+  const { data, error, reload } = useApi(queries.alert(id));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<Error | null>(null);
   const change = async (status: "ACK" | "OPEN") => {
     setBusy(true);
-    try { await api(`/alerts/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ status }) }); reload(); onChanged(); }
+    try { await commands.setAlertStatus(id, status); reload(); onChanged(); }
     catch (e) { setErr(e as Error); } finally { setBusy(false); }
   };
   if (error) return <ErrorBox error={error} />;
@@ -72,7 +72,7 @@ export default function Alerts() {
   useEffect(() => {
     if (q.id && window.innerWidth < 1024) detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [q.id]);
-  const list = useApi<Page<AlertRow>>(router.isReady ? `/alerts${qs({ status, severity: q.severity, targetType: q.targetType, page, size: PAGE })}` : null);
+  const list = useApi(router.isReady ? queries.alerts({ status, severity: q.severity, targetType: q.targetType, page, size: PAGE }) : null);
   return (
     <Layout title="경보">
       <PageTitle title="경보" sub="규칙 = 조건 + 파라미터 + 심각도(버전 관리). 경보마다 근거(값·임계·기간·원천)가 붙습니다."
@@ -83,7 +83,7 @@ export default function Alerts() {
             options={[{ value: "", label: "전체" }, { value: "COMPANY", label: "기업" }, { value: "REGION", label: "지역" }]} />
           <Segmented label="심각도" value={q.severity ?? ""} onChange={(v) => set({ severity: v || undefined, p: undefined })}
             options={[{ value: "", label: "전체" }, { value: "HIGH", label: "높음" }, { value: "MEDIUM", label: "중간" }, { value: "LOW", label: "낮음" }]} />
-          <DownloadLink path={`/export/alerts.csv${qs({ status, severity: q.severity, targetType: q.targetType })}`}>CSV</DownloadLink>
+          <DownloadLink href={downloads.alertsCsv({ status, severity: q.severity, targetType: q.targetType })}>CSV</DownloadLink>
         </div>} />
       <ErrorBox error={list.error} />
       <div className="grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-4 items-start">

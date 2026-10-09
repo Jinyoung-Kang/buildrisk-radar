@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, type Meta } from "./api";
+import { fetchQuery } from "./api/client";
+import { queries } from "./api/endpoints";
 
 export type EventNames = Record<string, string>;
 let shared: Promise<{ code: string; name: string }[]> | null = null;
@@ -9,7 +10,7 @@ export function useEventTypes(enabled = true): { code: string; name: string }[] 
   const [types, setTypes] = useState<{ code: string; name: string }[]>([]);
   useEffect(() => {
     if (!enabled) return;
-    shared ??= api<Meta>("/meta").then((m) => m.eventTypes.map(({ code, name }) => ({ code, name })))
+    shared ??= fetchQuery(queries.meta()).then((m) => m.eventTypes.map(({ code, name }) => ({ code, name })))
       .catch(() => { shared = null; return []; });
     let live = true;
     shared.then((t) => { if (live) setTypes(t); });

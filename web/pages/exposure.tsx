@@ -2,7 +2,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, DownloadLink, Empty, ErrorBox, Loading, PageTitle, Prose, Segmented } from "@/components/ui";
-import { qs, type Exposure, type ExposureRow } from "@/lib/api";
+import { downloads, queries, type ExposureRow } from "@/lib/api";
 import { eok, num, pk } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
@@ -25,7 +25,7 @@ export default function ExposurePage() {
   const [days, setDays] = useState<"180" | "365" | "730">("365");
   const [th, setTh] = useState<"3" | "5" | "10">("5");
   const [sort, setSort] = useState<SortKey>("risk");
-  const { data, error } = useApi<Exposure>(`/exposure${qs({ days, unsoldPer1kHh: th })}`);
+  const { data, error } = useApi(queries.exposure(days, th));
   const rows = useMemo(() => {
     const r = [...(data?.items ?? [])];
     const by: Record<SortKey, (a: ExposureRow, b: ExposureRow) => number> = {
@@ -46,7 +46,7 @@ export default function ExposurePage() {
         <Segmented label="기간" value={days} onChange={setDays} options={[{ value: "180", label: "6개월" }, { value: "365", label: "1년" }, { value: "730", label: "2년" }]} />
         <Segmented label="위험 지역 기준 (천 가구당 미분양)" value={th} onChange={setTh} options={[{ value: "3", label: "3호↑" }, { value: "5", label: "5호↑" }, { value: "10", label: "10호↑" }]} />
         <Segmented label="정렬" value={sort} onChange={setSort} options={[{ value: "risk", label: "위험 지역 비중" }, { value: "guarantee", label: "보증/자기자본" }, { value: "pf", label: "PF/자기자본" }, { value: "amount", label: "수주 금액" }, { value: "name", label: "이름" }]} />
-        <DownloadLink path={`/export/exposure.csv?days=${days}&unsoldPer1kHh=${th}`}>CSV</DownloadLink>
+        <DownloadLink href={downloads.exposureCsv(days, th)}>CSV</DownloadLink>
       </div>
       <ErrorBox error={error} />
       {!data ? <Loading /> : (

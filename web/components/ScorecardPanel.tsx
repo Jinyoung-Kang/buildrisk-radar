@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Card, DartLink, Empty, ErrorBox, Loading, Prose, Segmented } from "@/components/ui";
-import type { ScInterval, ScOutcome, ScRule, Scorecard } from "@/lib/api";
+import { queries, type ScInterval, type ScOutcome, type ScRule } from "@/lib/api";
 import { num } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 
@@ -47,7 +47,7 @@ function RuleRow({ r, name, base, h }: { r: ScRule; name: string; base?: number;
 export default function ScorecardPanel() {
   const [h, setH] = useState<"6" | "12" | "24">("12");
   const [outcome, setOutcome] = useState<"" | ScOutcome>("MISS");
-  const { data, error } = useApi<Scorecard>(`/scorecard?horizonMonths=${h}`);
+  const { data, error } = useApi(queries.scorecard(h));
   // 기간 이름은 지금 보이는 숫자의 기간으로 — 새 기간을 불러오는 동안 이전 숫자에 새 이름이 붙지 않게 (VERIFICATION 103)
   const shown = data ? data.horizonMonths : Number(h);
   const loadingNew = !!data && data.horizonMonths !== Number(h);

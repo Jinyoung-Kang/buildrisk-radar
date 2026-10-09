@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-import { qs, type SearchResult } from "@/lib/api";
+import { queries } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 
 type Kind = "company" | "region";
@@ -12,7 +12,7 @@ export default function EntitySearch({ id, label, placeholder, kinds }: { id: st
   const [q, setQ] = useState("");
   const [dq, setDq] = useState("");
   useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 200); return () => clearTimeout(t); }, [q]);
-  const { data } = useApi<SearchResult>(dq ? `/search${qs({ q: dq })}` : null);
+  const { data } = useApi(dq ? queries.search(dq) : null);
   const fresh = !!dq && data?.q === dq;
   const hits = !fresh || !data ? [] : kinds.flatMap((k) => k === "company"
     ? data.companies.map((c) => ({ href: `/companies/${c.key}`, name: c.name, kind: "기업" }))

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SignedBars, TrendLine } from "@/components/LazyCharts";
 import { DartLink, Empty, Loading, PhraseList, Phrases, SeverityBadge, StatusPill } from "@/components/ui";
-import type { RegionContracts, RegionSeries } from "@/lib/api";
+import { queries } from "@/lib/api";
 import { eok, int, num, ym, signed } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
 import WatchButton from "@/components/WatchButton";
@@ -9,8 +9,8 @@ import WatchButton from "@/components/WatchButton";
 /** 지역 카드 — 미분양 추이 · 가격지수 추이 · 경보 (지도 옆, 지역 상세 화면 공용) */
 /** headingAs: 지도 옆 패널은 h3, 지역 상세 페이지에서는 이 이름이 페이지 제목이라 h1 */
 export default function RegionPanel({ regionCd, compact, headingAs: H = "h3" }: { regionCd: string; compact?: boolean; headingAs?: "h1" | "h3" }) {
-  const { data } = useApi<RegionSeries>(`/regions/${encodeURIComponent(regionCd)}/series`);
-  const contracts = useApi<RegionContracts>(`/regions/${encodeURIComponent(regionCd)}/contracts`);
+  const { data } = useApi(queries.regionSeries(regionCd));
+  const contracts = useApi(queries.regionContracts(regionCd));
   if (!data) return <Loading />;
   const stat = (c: string) => data.stats.find((s) => s.code === c)?.points ?? [];
   const tail = compact ? -24 : -37;

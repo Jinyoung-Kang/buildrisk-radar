@@ -3,10 +3,7 @@ import { useRouter } from "next/router";
 import { Fragment, useState, type FormEvent } from "react";
 import Layout from "@/components/Layout";
 import { Card, Empty, ErrorBox, Loading, Pager, PageTitle, Prose, Segmented, SeverityBadge } from "@/components/ui";
-import {
-  mutate, qs, type Inbox, type RuleView, type Severity, type Subscription, type SubscriptionInput, type Watch, type Webhook,
-  type WebhookDelivery, type WebhookList,
-} from "@/lib/api";
+import { commands, queries, type RuleView, type Severity, type Subscription, type SubscriptionInput, type Watch, type Webhook } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { dt } from "@/lib/format";
 import { notifyChanged } from "@/lib/notify";
@@ -30,11 +27,11 @@ function InboxCard() {
   const router = useRouter();
   const [view, setView] = useState<"all" | "unread">("all");
   const [page, setPage] = useState(0);
-  const { data, error, reload } = useApi<Inbox>(`/me/notifications${qs({ unreadOnly: view === "unread", page, size: 30 })}`);
+  const { data, error, reload } = useApi(queries.inbox({ unreadOnly: view === "unread", page, size: 30 }));
   const [err, setErr] = useState<string | null>(null);
   const read = async (body: { ids?: number[]; all?: boolean }) => {
     setErr(null);
-    try { await mutate("/me/notifications/read", "POST", body); reload(); notifyChanged(); } catch (e) { setErr(msg(e)); }
+    try { await commands.markRead(body); reload(); notifyChanged(); } catch (e) { setErr(msg(e)); }
   };
   return (
     <Card title="받은 알림" pad={false}
@@ -96,8 +93,8 @@ function SubscriptionForm({ initial, rules, webhooks, admin, onSaved, onCancel }
     try {
       const body = { ...f, targetType: f.targetType || null, ruleCodes: f.ruleCodes?.length ? f.ruleCodes : null,
         webhookId: f.channel === "WEBHOOK" ? f.webhookId : null };
-      if (initial) await mutate(`/me/subscriptions/${initial.subscriptionId}`, "PUT", body);
-      else await mutate("/me/subscriptions", "POST", body);
+      if (initial) await commands.updateSubscription(initial.subscriptionId, body);
+      else await commands.createSubscription(body);
       onSaved();
     } catch (ex) { setErr(msg(ex)); } finally { setBusy(false); }
   };
@@ -167,9 +164,9 @@ function describe(s: Subscription, rules: RuleView[]) {
 }
 
 function SubscriptionsCard({ admin }: { admin: boolean }) {
-  const subs = useApi<Subscription[]>("/me/subscriptions");
-  const rules = useApi<RuleView[]>("/rules");
-  const hooks = useApi<WebhookList>(admin ? "/admin/webhooks" : null);
+  const subs = useApi(queries.subscriptions());
+  const rules = useApi(queries.rules());
+  const hooks = useApi(admin ? queries.webhooks() : null);
   const [editing, setEditing] = useState<Subscription | "new" | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const act = async (fn: () => Promise<unknown>) => { setErr(null); try { await fn(); subs.reload(); } catch (e) { setErr(msg(e)); } };
@@ -197,10 +194,10 @@ function SubscriptionsCard({ admin }: { admin: boolean }) {
                 </div>
                 <div className="flex gap-1.5">
                   <button type="button" className={btn} aria-pressed={s.enabled}
-                    onClick={() => act(() => mutate(`/me/subscriptions/${s.subscriptionId}`, "PUT", { ...s, enabled: !s.enabled }))}>{s.enabled ? "끄기" : "켜기"}</button>
+                    onClick={() => act(() => commands.updateSubscription(s.subscriptionId, { ...s, enabled: !s.enabled }))}>{s.enabled ? "끄기" : "켜기"}</button>
                   <button type="button" className={btn} onClick={() => setEditing(s)}>바꾸기</button>
                   <button type="button" className={btn}
-                    onClick={() => { if (window.confirm(`구독 '${s.name}'을 지울까요?`)) act(() => mutate(`/me/subscriptions/${s.subscriptionId}`, "DELETE")); }}>지우기</button>
+                    onClick={() => { if (window.confirm(`구독 '${s.name}'을 지울까요?`)) act(() => commands.deleteSubscription(s.subscriptionId)); }}>지우기</button>
                 </div>
               </div>
             </li>
@@ -212,11 +209,11 @@ function SubscriptionsCard({ admin }: { admin: boolean }) {
 }
 
 function WatchCard() {
-  const { data, error, reload } = useApi<Watch[]>("/me/watch");
+  const { data, error, reload } = useApi(queries.watches());
   const [err, setErr] = useState<string | null>(null);
   const remove = async (w: Watch) => {
     setErr(null);
-    try { await mutate(`/me/watch/${w.targetType}/${encodeURIComponent(w.targetKey)}`, "DELETE"); reload(); } catch (e) { setErr(msg(e)); }
+    try { await commands.unwatch(w.targetType, w.targetKey); reload(); } catch (e) { setErr(msg(e)); }
   };
   return (
     <Card title="관심 목록" sub="기업 · 지역 화면의 ☆ 버튼으로 넣습니다 — '관심 목록만' 구독이 이 목록으로 거릅니다">
@@ -238,7 +235,7 @@ function WatchCard() {
 }
 
 function Deliveries({ id }: { id: number }) {
-  const { data, error } = useApi<WebhookDelivery[]>(`/admin/webhooks/${id}/deliveries`);
+  const { data, error } = useApi(queries.webhookDeliveries(id));
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
   if (data.length === 0) return <p className="text-xs text-muted px-1 py-2">보낸 기록이 없습니다.</p>;
@@ -261,7 +258,7 @@ function Deliveries({ id }: { id: number }) {
 }
 
 function WebhooksCard() {
-  const { data, error, reload } = useApi<WebhookList>("/admin/webhooks");
+  const { data, error, reload } = useApi(queries.webhooks());
   const [form, setForm] = useState({ name: "", kind: "SLACK" as "SLACK" | "GENERIC", url: "", secret: "" });
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -275,8 +272,7 @@ function WebhooksCard() {
   const create = async (e: FormEvent) => {
     e.preventDefault(); setErr(null); setNote(null); setSecret(null); setBusy(true);
     try {
-      const r = await mutate<{ webhook: Webhook; secret?: string }>("/admin/webhooks", "POST",
-        { name: form.name, kind: form.kind, url: form.url, secret: form.kind === "GENERIC" && form.secret ? form.secret : null });
+      const r = await commands.createWebhook({ name: form.name, kind: form.kind, url: form.url, secret: form.kind === "GENERIC" && form.secret ? form.secret : null });
       setSecret(r.secret ?? null);
       setForm({ name: "", kind: form.kind, url: "", secret: "" });
       setNote(`'${r.webhook.name}' 등록 — 주소는 암호화해 저장했고 화면에는 호스트만 보입니다.`);
@@ -286,7 +282,7 @@ function WebhooksCard() {
   const test = async (w: Webhook) => {
     setErr(null); setNote(null);
     try {
-      const r = await mutate<{ ok: boolean; status: number; error?: string }>(`/admin/webhooks/${w.webhookId}/test`, "POST");
+      const r = await commands.testWebhook(w.webhookId);
       if (r.ok) setNote(`'${w.name}' 시험 메시지 보냄 (HTTP ${r.status})`); else setErr(`'${w.name}' 시험 실패 — ${r.error}`);
       reload();
     } catch (e) { setErr(msg(e)); }
@@ -325,9 +321,9 @@ function WebhooksCard() {
                   <td className="num">{w.subscriptions}</td>
                   <td><div className="flex flex-wrap gap-1.5">
                     <button type="button" className={btn} disabled={!data.available} onClick={() => test(w)}>시험</button>
-                    <button type="button" className={btn} aria-pressed={w.enabled} onClick={() => act(() => mutate(`/admin/webhooks/${w.webhookId}`, "PATCH", { enabled: !w.enabled }))}>{w.enabled ? "끄기" : "켜기"}</button>
+                    <button type="button" className={btn} aria-pressed={w.enabled} onClick={() => act(() => commands.setWebhookEnabled(w.webhookId, !w.enabled))}>{w.enabled ? "끄기" : "켜기"}</button>
                     <button type="button" className={btn} aria-expanded={open === w.webhookId} onClick={() => setOpen(open === w.webhookId ? null : w.webhookId)}>전송 내역</button>
-                    <button type="button" className={btn} onClick={() => { if (window.confirm(`웹훅 '${w.name}'과 이 웹훅으로 보내는 구독 ${w.subscriptions}개를 지울까요?`)) act(() => mutate(`/admin/webhooks/${w.webhookId}`, "DELETE"), "지웠습니다"); }}>지우기</button>
+                    <button type="button" className={btn} onClick={() => { if (window.confirm(`웹훅 '${w.name}'과 이 웹훅으로 보내는 구독 ${w.subscriptions}개를 지울까요?`)) act(() => commands.deleteWebhook(w.webhookId), "지웠습니다"); }}>지우기</button>
                   </div></td>
                 </tr>
                 {open === w.webhookId && <tr><td colSpan={7}><Deliveries id={w.webhookId} /></td></tr>}

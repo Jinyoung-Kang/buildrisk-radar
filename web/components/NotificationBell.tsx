@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { commands } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { NOTIFY_EVENT } from "@/lib/notify";
 
@@ -11,7 +11,7 @@ export default function NotificationBell() {
   const on = !!me?.authenticated;
   const load = useCallback(() => {
     if (!on || document.visibilityState !== "visible") return;
-    api<{ unread: number }>("/me/notifications/unread-count").then((r) => setUnread(r.unread)).catch(() => setUnread(null));
+    commands.unreadCount().then((r) => setUnread(r.unread)).catch(() => setUnread(null));
   }, [on]);
   useEffect(() => {
     if (!on) { setUnread(null); return; }

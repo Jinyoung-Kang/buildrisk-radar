@@ -2,7 +2,7 @@ import { Fragment, useState } from "react";
 import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
 import { ErrorBox, Loading, PageTitle, Prose, SeverityBadge } from "@/components/ui";
-import { mutate, type RuleView } from "@/lib/api";
+import { commands, queries, type RuleView } from "@/lib/api";
 import { dt } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
 import { paramLabel, paramValue } from "@/lib/ruleLabels";
@@ -27,7 +27,7 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
       return [k, Array.isArray(orig) ? v.split(",").map((s) => s.trim()).filter(Boolean) : Number.isNaN(Number(v)) ? v : Number(v)];
     }));
     try {
-      const r = await mutate<RuleView>(`/rules/${encodeURIComponent(rule.ruleCode)}`, "PUT", { params: body, severity, enabled, changeNote: note });
+      const r = await commands.updateRule(rule.ruleCode, { params: body, severity, enabled, changeNote: note });
       setMsg(r.version === rule.version ? "바뀐 값이 없어 버전을 올리지 않았습니다." : `v${r.version} 을 만들었습니다. ruleEvalJob 을 실행하면 새 버전으로 평가합니다.`);
       onSaved(); history.reload();
     } catch (e) { setErr(e as Error); }
@@ -97,12 +97,12 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
 }
 
 function useApiHistory(code: string) {
-  return useApi<{ ruleCode: string; versions: RuleView[] }>(`/rules/${encodeURIComponent(code)}`);
+  return useApi(queries.ruleHistory(code));
 }
 
 export default function Rules() {
   const { has } = useAuth();
-  const { data, error, reload } = useApi<RuleView[]>("/rules");
+  const { data, error, reload } = useApi(queries.rules());
   const [open, setOpen] = useState<string | null>(null);
   return (
     <Layout title="규칙">

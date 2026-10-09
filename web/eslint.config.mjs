@@ -13,6 +13,15 @@ const config = [
       "react-hooks/set-state-in-effect": "off",
     },
   },
+  {
+    // 화면은 경로 · fetch 를 직접 다루지 않고 @/lib/api 의 queries · commands · downloads 와 Hook 을 씀 (ADR-030)
+    files: ["pages/**/*.{ts,tsx}", "components/**/*.{ts,tsx}"],
+    ignores: ["pages/api/**"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [{ group: ["@/lib/api/*", "**/lib/api/*"], message: "화면은 @/lib/api 의 queries · commands 를 씁니다 (ADR-030)" }] }],
+      "no-restricted-globals": ["error", { name: "fetch", message: "API 호출은 @/lib/api 의 queries · commands 로 (ADR-030)" }],
+    },
+  },
 ];
 
 export default config;
