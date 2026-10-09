@@ -16,3 +16,12 @@ export function safeNext(next: unknown, origin: string): string {
 export function targetHref(type: "COMPANY" | "REGION", key: string): string {
   return type === "COMPANY" ? `/companies/${key}` : `/regions/${key}`;
 }
+
+/**
+ * 화면 상태의 기준 — 동적 경로의 값(/companies/[corpCode] 의 corpCode)이 바뀌면 다른 화면으로 보고 상태를 새로 시작.
+ * 탭 · 필터 같은 쿼리만 바뀌면 같은 화면 (VERIFICATION 148)
+ */
+export function pageKey(pathname: string, query: Record<string, string | string[] | undefined>): string {
+  const params = Array.from(pathname.matchAll(/\[(?:\.\.\.)?(\w+)\]/g), (m) => m[1]);
+  return [pathname, ...params.map((p) => String(query[p] ?? ""))].join("|");
+}

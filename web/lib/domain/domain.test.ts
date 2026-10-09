@@ -8,7 +8,7 @@ import { DIV_NEG, DIV_POS, makeScale, MISSING, NEUTRAL, SEQ } from "@/lib/domain
 import { filterDisclosures, metricSeries, recentPeriods } from "@/lib/domain/company";
 import { sortExposure } from "@/lib/domain/exposure";
 import { contractState, due12 } from "@/lib/domain/filings";
-import { safeNext, targetHref } from "@/lib/domain/nav";
+import { pageKey, safeNext, targetHref } from "@/lib/domain/nav";
 import { describeSubscription, subscriptionBody, toggleCode } from "@/lib/domain/notify";
 import { joinRegionValues, projectShapes, sidoOptions } from "@/lib/domain/regions";
 import { bestRule, episodesOf, ruleCodesOf } from "@/lib/domain/scorecard";
@@ -36,6 +36,12 @@ describe("nav", () => {
     for (const bad of ["//evil.example/x", "/\\evil.example", "https://evil.example/", "alerts", undefined, ["/a"]]) {
       assert.equal(safeNext(bad, O), "/", String(bad));
     }
+  });
+  it("화면 상태의 기준: 경로 값만, 쿼리는 무시 (VERIFICATION 148)", () => {
+    assert.equal(pageKey("/companies/[corpCode]", { corpCode: "00122694", tab: "financials" }), "/companies/[corpCode]|00122694");
+    assert.notEqual(pageKey("/companies/[corpCode]", { corpCode: "A" }), pageKey("/companies/[corpCode]", { corpCode: "B" }));
+    assert.equal(pageKey("/regions", { metric: "TRADE_YOY" }), "/regions");
+    assert.equal(pageKey("/docs/[...slug]", { slug: ["a", "b"] }), "/docs/[...slug]|a,b");
   });
   it("대상 화면", () => {
     assert.equal(targetHref("COMPANY", "00122694"), "/companies/00122694");

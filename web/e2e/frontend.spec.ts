@@ -187,3 +187,16 @@ test("접근성: 배치 실행은 키보드로 열고, 규칙 변경 사유 입�
   await page.getByRole("button", { name: "파라미터 수정" }).first().click();
   await expect(page.getByLabel("변경 사유")).toBeVisible();
 });
+
+test("다른 기업으로 옮기면 앞 기업에서 고른 연결/별도가 남지 않음 (VERIFICATION 148)", async ({ page, request }) => {
+  const items = (await (await request.get("/api/v1/companies?size=50")).json()).items;
+  const [a, b] = [items[0].corpCode as string, items[1].corpCode as string];
+  await page.goto(`/companies/${a}?tab=financials`);
+  const fs = () => page.getByRole("radiogroup", { name: "연결·별도" });
+  await fs().getByRole("radio", { name: "별도" }).click();
+  await expect(fs().getByRole("radio", { name: "별도" })).toHaveAttribute("aria-checked", "true");
+  // 같은 화면 안에서 이동 (검색 · 링크와 같은 클라이언트 이동)
+  await page.evaluate((p) => (window as unknown as { next: { router: { push: (u: string) => void } } }).next.router.push(p), `/companies/${b}?tab=financials`);
+  await expect(page).toHaveURL(new RegExp(`/companies/${b}`));
+  await expect(fs().getByRole("radio", { name: "자동(연결 우선)" })).toHaveAttribute("aria-checked", "true");
+});
