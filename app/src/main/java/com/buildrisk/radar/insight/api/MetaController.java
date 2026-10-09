@@ -1,9 +1,9 @@
 package com.buildrisk.radar.insight.api;
 
+import com.buildrisk.radar.adapters.seed.SeedCatalog;
 import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.common.role.ApiRole;
-import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.insight.app.DashboardService;
 import com.buildrisk.radar.insight.app.SearchService;
 import com.buildrisk.radar.metric.domain.MetricCatalog;

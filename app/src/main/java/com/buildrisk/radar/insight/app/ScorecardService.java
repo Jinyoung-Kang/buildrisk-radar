@@ -1,6 +1,7 @@
 package com.buildrisk.radar.insight.app;
 
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
+import com.buildrisk.radar.adapters.seed.SeedCatalog;
 import com.buildrisk.radar.alert.app.DbRuleData;
 import com.buildrisk.radar.alert.app.RuleRegistry;
 import com.buildrisk.radar.alert.data.RuleRepository;
@@ -11,7 +12,6 @@ import com.buildrisk.radar.alert.domain.RuleModels.RuleDefinition;
 import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
-import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.insight.domain.CreditEventRule;
 import com.buildrisk.radar.insight.domain.PointInTime;
 import com.buildrisk.radar.insight.domain.Scorecard.CreditEvent;

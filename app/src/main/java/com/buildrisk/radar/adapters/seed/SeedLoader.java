@@ -1,4 +1,4 @@
-package com.buildrisk.radar.common.seed;
+package com.buildrisk.radar.adapters.seed;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

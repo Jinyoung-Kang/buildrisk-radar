@@ -1,5 +1,6 @@
 package com.buildrisk.radar.alert.app;
 
+import com.buildrisk.radar.adapters.seed.SeedCatalog;
 import com.buildrisk.radar.alert.domain.RuleEvaluator;
 import com.buildrisk.radar.alert.domain.rules.RC01DebtRatioSurge;
 import com.buildrisk.radar.alert.domain.rules.RC02InterestCoverage;
@@ -11,7 +12,6 @@ import com.buildrisk.radar.alert.domain.rules.RR01UnsoldSurge;
 import com.buildrisk.radar.alert.domain.rules.RR02PriceDeclineUnsold;
 import com.buildrisk.radar.alert.domain.rules.RR03TradeCliffUnsold;
 import com.buildrisk.radar.alert.domain.rules.RX01RiskRegionContracts;
-import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.filing.domain.EventClassifier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

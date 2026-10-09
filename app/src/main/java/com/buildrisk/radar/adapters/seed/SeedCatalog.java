@@ -1,4 +1,4 @@
-package com.buildrisk.radar.common.seed;
+package com.buildrisk.radar.adapters.seed;
 
 import com.buildrisk.radar.common.AppProperties;
 import com.buildrisk.radar.filing.domain.EventClassifier;

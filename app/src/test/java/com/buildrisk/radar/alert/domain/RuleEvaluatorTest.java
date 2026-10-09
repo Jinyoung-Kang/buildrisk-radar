@@ -54,7 +54,7 @@ class RuleEvaluatorTest {
     @Test
     @SuppressWarnings("unchecked")
     void 규칙이_선언한_근거_지표는_실제로_읽는_지표() {
-        var seed = com.buildrisk.radar.common.seed.SeedCatalog.at(java.nio.file.Path.of("../seed"));
+        var seed = com.buildrisk.radar.adapters.seed.SeedCatalog.at(java.nio.file.Path.of("../seed"));
         List<Map<String, Object>> rules = (List<Map<String, Object>>) seed.yaml("rules.yml").get("rules");
         int declared = 0;
         for (Map<String, Object> r : rules) {
@@ -230,7 +230,7 @@ class RuleEvaluatorTest {
     @Test
     @SuppressWarnings("unchecked")
     void R_C04_조건과_문장에는_공시_유형_코드_대신_seed_의_이름() {
-        var seed = com.buildrisk.radar.common.seed.SeedCatalog.at(java.nio.file.Path.of("../seed"));
+        var seed = com.buildrisk.radar.adapters.seed.SeedCatalog.at(java.nio.file.Path.of("../seed"));
         var named = new RuleRegistry(seed);
         var d = new Mem();
         d.events.add(new DisclosureEvent("20260910000001", "기업구조개선(워크아웃)신청", LocalDate.of(2026, 9, 10), "REHAB", "워크아웃"));

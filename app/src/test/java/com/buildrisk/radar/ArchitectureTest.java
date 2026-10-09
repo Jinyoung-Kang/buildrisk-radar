@@ -33,10 +33,7 @@ class ArchitectureTest {
     static final Set<String> FRAMEWORK = Set.of("org.springframework.", "jakarta.", "java.sql.", "javax.sql.", "tools.jackson.", "io.micrometer.");
 
     /** 아직 옮기지 않은 위반 — '클래스 → 대상' (비면 규칙을 모두 지킴) */
-    static final Set<String> KNOWN = Set.of(
-            "common.seed.SeedCatalog → insight.domain.CreditEventRule",
-            "common.seed.SeedCatalog → filing.domain.EventClassifier",
-            "common.seed.SeedCatalog → region.domain.RegionAliases");
+    static final Set<String> KNOWN = Set.of();
 
     record Source(String pkg, String cls, List<String> imports) {}
 

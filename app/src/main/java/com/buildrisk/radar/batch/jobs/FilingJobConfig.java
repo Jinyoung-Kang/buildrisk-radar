@@ -2,11 +2,11 @@ package com.buildrisk.radar.batch.jobs;
 
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.adapters.dart.DartClient;
+import com.buildrisk.radar.adapters.seed.SeedCatalog;
 import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.AppProperties;
-import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.filing.data.FilingRepository.Target;
 import com.buildrisk.radar.filing.data.FilingRepository;
 import com.buildrisk.radar.filing.domain.FilingParser;
