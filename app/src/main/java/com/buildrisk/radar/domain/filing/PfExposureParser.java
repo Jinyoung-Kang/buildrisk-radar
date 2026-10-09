@@ -546,10 +546,14 @@ public final class PfExposureParser {
         if (row.get(i) == null) row.set(i, v);
     }
 
+    /**
+     * 병합 칸 수 — HTML 표준 상한(colspan 1000 · rowspan 65534)으로 자름. 회사가 쓴 원문의 COLSPAN="2147483647" 하나로
+     * 격자를 펼치다 메모리를 다 써 worker 가 죽었음(-XX:+ExitOnOutOfMemoryError, VERIFICATION 132)
+     */
     private static int span(Element cell, String attr) {
         String v = cell.attr(attr).isEmpty() ? cell.attr(attr.toLowerCase()) : cell.attr(attr);
         try {
-            return Math.max(1, Integer.parseInt(v.trim()));
+            return Math.clamp(Integer.parseInt(v.trim()), 1, "COLSPAN".equalsIgnoreCase(attr) ? 1000 : 65534);
         } catch (NumberFormatException e) {
             return 1;
         }
