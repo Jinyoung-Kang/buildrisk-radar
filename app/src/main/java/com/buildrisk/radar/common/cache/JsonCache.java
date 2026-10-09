@@ -35,6 +35,8 @@ public class JsonCache {
     private final Counter misses;
     private final Counter errors;
     private volatile long lastWarn;
+    /** 세대를 올리지 못한 무효화 — Redis 가 돌아온 뒤 첫 조회 전에 다시 올림 */
+    private volatile boolean invalidatePending;
 
     /** 적중률은 Prometheus 의 buildrisk_cache_requests_total{result} 로 — 캐시가 실제로 DB 부하를 덜어 주는지 확인 (ADR-022) */
     public JsonCache(StringRedisTemplate redis, ObjectMapper mapper, MeterRegistry registry) {
@@ -69,6 +71,7 @@ public class JsonCache {
     }
 
     private <T> T get(String key, Duration ttl, JavaType type, Supplier<T> loader, Predicate<? super T> storeIf) {
+        if (invalidatePending) invalidateAll();
         String full;
         try {
             String gen = redis.opsForValue().get(GEN_KEY);
@@ -104,8 +107,11 @@ public class JsonCache {
     public void invalidateAll() {
         try {
             Long gen = redis.opsForValue().increment(GEN_KEY);
+            invalidatePending = false;
             if (gen != null && gen > 1) Thread.ofVirtual().name("cache-purge").start(() -> purge(gen - 1));
         } catch (RuntimeException e) {
+            // Job 이 끝나는 순간 Redis 가 잠깐 끊기면 옛 값이 TTL 동안 나감 — 다음 조회 때 다시 올림 (VERIFICATION 138)
+            invalidatePending = true;
             warn(e);
         }
     }

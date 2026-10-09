@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.common.role.ApiRole;
 
 import java.util.List;
@@ -24,8 +25,12 @@ import java.util.Map;
 @Tag(name = "매핑", description = "미매핑 계정·지역 코드와 매핑 규칙 (FR-206, FR-405)")
 public class MappingController {
     private final MappingService svc;
+    private final JsonCache cache;
 
-    public MappingController(MappingService svc) { this.svc = svc; }
+    public MappingController(MappingService svc, JsonCache cache) {
+        this.svc = svc;
+        this.cache = cache;
+    }
 
     @GetMapping("/unmapped")
     @Operation(summary = "⑬ 미매핑 계정·지역 코드 목록 + 매핑률 + 유니버스 업종 분포")
@@ -56,6 +61,8 @@ public class MappingController {
     @Operation(summary = "지역 코드 수동 매핑 (ADMIN)",
             description = "출처 코드에 '/' 같은 문자가 있어(KOSIS 'C1/C2') 경로가 아닌 본문으로 받습니다. regionCd 가 null 이면 미매핑으로 되돌림")
     public Map<String, Object> mapRegion(@RequestBody MappingService.RegionMapRequest body) {
-        return svc.mapRegion(body);
+        Map<String, Object> out = svc.mapRegion(body);
+        cache.invalidateAll();                 // 지역 상세의 출처 코드 매핑 · 통계가 바뀜 — 최대 10분 옛 값이 나가지 않게 (VERIFICATION 138)
+        return out;
     }
 }

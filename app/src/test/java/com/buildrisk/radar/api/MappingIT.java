@@ -24,6 +24,8 @@ class MappingIT extends IntegrationTest {
     MockMvc mvc;
     @Autowired
     ObjectMapper mapper;
+    @Autowired
+    org.springframework.data.redis.core.StringRedisTemplate redis;
 
     private void raw(String corp, String sj, int line, String id, String name, long amount) {
         jdbc.update("""
@@ -86,8 +88,10 @@ class MappingIT extends IntegrationTest {
         try {
             jdbc.update("INSERT INTO ref.region_code_map (source, source_code, source_name, region_cd, match_method) VALUES ('KOSIS', 'T-X', '시험 > 나구', '95101', 'NAME'), ('KOSIS', 'T-Y', '시험 > 가구', '95101', 'NAME')");
             jdbc.update("INSERT INTO mkt.region_stat (series_id, region_cd, period, value, source_code) VALUES ('KOSIS_UNSOLD', '95101', '202606', 100, 'T-X'), ('KOSIS_UNSOLD', '95101', '202605', 90, 'T-Y')");
+            String gen = redis.opsForValue().get("br:gen");
             mvc.perform(put("/api/v1/mapping/region-codes").header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON)
                     .content("{\"source\":\"KOSIS\",\"sourceCode\":\"T-X\",\"regionCd\":\"95102\"}")).andExpect(status().isOk());
+            assertThat(redis.opsForValue().get("br:gen")).isNotEqualTo(gen);          // 지역 상세 캐시가 옛 매핑을 보여 주지 않게 (138)
             assertThat(count("SELECT count(*) FROM mkt.region_stat WHERE region_cd = '95101' AND source_code = 'T-X'")).isZero();
             assertThat(count("SELECT count(*) FROM mkt.region_stat WHERE region_cd = '95101' AND source_code = 'T-Y'")).isEqualTo(1);   // 다른 코드의 값은 그대로
         } finally {
