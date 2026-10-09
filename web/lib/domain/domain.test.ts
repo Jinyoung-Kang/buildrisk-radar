@@ -169,10 +169,13 @@ describe("rule params", () => {
     const orig = { threshold: 1, consecutive: 2, eventTypes: ["REHAB", "DEFAULT"] };
     assert.deepEqual(ruleParamsForm(orig), { threshold: "1", consecutive: "2", eventTypes: "REHAB,DEFAULT" });
     assert.deepEqual(ruleParamsBody(orig, { threshold: "0.8", consecutive: "3", eventTypes: "REHAB, ,SUSPENSION" }),
-      { threshold: 0.8, consecutive: 3, eventTypes: ["REHAB", "SUSPENSION"] });
+      { body: { threshold: 0.8, consecutive: 3, eventTypes: ["REHAB", "SUSPENSION"] } });
   });
-  it("지금 동작: 빈 칸은 0 으로 읽힘", () => {
-    assert.deepEqual(ruleParamsBody({ threshold: 1 }, { threshold: "" }), { threshold: 0 });
+  it("숫자 파라미터의 빈 칸 · 숫자 아닌 값은 0 이 아니라 입력 오류 (VERIFICATION 145)", () => {
+    assert.deepEqual(ruleParamsBody({ threshold: 1 }, { threshold: "" }), { key: "threshold", error: "값을 넣으세요" });
+    assert.deepEqual(ruleParamsBody({ threshold: 1 }, { threshold: "  " }), { key: "threshold", error: "값을 넣으세요" });
+    assert.deepEqual(ruleParamsBody({ threshold: 1 }, { threshold: "1,5" }), { key: "threshold", error: "숫자를 넣으세요" });
+    assert.deepEqual(ruleParamsBody({ basis: "CFS" }, { basis: "OFS" }), { body: { basis: "OFS" } });   // 글자 파라미터는 그대로
   });
 });
 

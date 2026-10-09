@@ -22,8 +22,12 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
   const names = Object.fromEntries(eventTypes.map((t) => [t.code, t.name]));
   const save = () => {
     setMsg(null);
-    const body = ruleParamsBody(rule.params, params);
-    return action.run(() => commands.updateRule(rule.ruleCode, { params: body, severity, enabled, changeNote: note }), (r) => {
+    const parsed = ruleParamsBody(rule.params, params);
+    if ("error" in parsed) {
+      action.setError(new Error(`${paramLabel(rule.ruleCode, parsed.key)}: ${parsed.error}`));
+      return;
+    }
+    return action.run(() => commands.updateRule(rule.ruleCode, { params: parsed.body, severity, enabled, changeNote: note }), (r) => {
       setMsg(r.version === rule.version ? "바뀐 값이 없어 버전을 올리지 않았습니다." : `v${r.version} 을 만들었습니다. ruleEvalJob 을 실행하면 새 버전으로 평가합니다.`);
       onSaved(); history.reload();
     });

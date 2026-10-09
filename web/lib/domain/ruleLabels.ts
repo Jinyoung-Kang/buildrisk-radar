@@ -34,10 +34,21 @@ export function ruleParamsForm(params: Record<string, unknown>): Record<string, 
   return Object.fromEntries(Object.entries(params).map(([k, v]) => [k, Array.isArray(v) ? v.join(",") : String(v)]));
 }
 
-/** 편집 폼 → 저장 본문: 원래 값이 목록이면 쉼표로 나누고, 그 밖은 숫자로 읽히면 숫자 */
-export function ruleParamsBody(orig: Record<string, unknown>, form: Record<string, string>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(form).map(([k, v]) => {
+/**
+ * 편집 폼 → 저장 본문: 원래 값이 목록이면 쉼표로 나누고, 숫자면 숫자로 — 빈 칸 · 숫자 아닌 값은 입력 오류
+ * (전에는 Number("") 가 0 이라 빈 칸이 0 으로 저장됨 — VERIFICATION 145). 글자 파라미터는 그대로
+ */
+export function ruleParamsBody(orig: Record<string, unknown>, form: Record<string, string>):
+    { body: Record<string, unknown> } | { key: string; error: string } {
+  const body: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(form)) {
     const o = orig[k];
-    return [k, Array.isArray(o) ? v.split(",").map((s) => s.trim()).filter(Boolean) : Number.isNaN(Number(v)) ? v : Number(v)];
-  }));
+    if (Array.isArray(o)) { body[k] = v.split(",").map((s) => s.trim()).filter(Boolean); continue; }
+    if (typeof o !== "number") { body[k] = v; continue; }
+    if (v.trim() === "") return { key: k, error: "값을 넣으세요" };
+    const n = Number(v);
+    if (!Number.isFinite(n)) return { key: k, error: "숫자를 넣으세요" };
+    body[k] = n;
+  }
+  return { body };
 }
