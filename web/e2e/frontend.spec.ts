@@ -246,3 +246,11 @@ test("카카오 지도 SDK 를 못 받아도 다시 열 때 스크립트를 겹�
   await page.waitForTimeout(1000);
   expect(await scripts()).toBeLessThanOrEqual(1);                                   // 다시 시도해도 한 개를 넘지 않음
 });
+
+test("탭 주소로 바로 열면 다른 탭을 잠깐 그리며 그 탭의 요청을 보내지 않음 (VERIFICATION 151)", async ({ page }) => {
+  const scorecard: string[] = [];
+  page.on("request", (r) => { if (r.url().includes("/api/v1/scorecard")) scorecard.push(r.url()); });
+  await page.goto("/backtest?tab=price");
+  await expect(page.getByText(/비교 기준 — 신호 없는 모든 창/)).toBeVisible({ timeout: 15_000 });
+  expect(scorecard).toEqual([]);
+});
