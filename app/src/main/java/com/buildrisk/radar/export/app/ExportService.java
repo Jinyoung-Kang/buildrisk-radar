@@ -1,4 +1,4 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.export.app;
 
 import com.buildrisk.radar.alert.app.AlertQueryService;
 import com.buildrisk.radar.common.Text;
