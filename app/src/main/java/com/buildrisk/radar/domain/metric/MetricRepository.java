@@ -27,8 +27,16 @@ public class MetricRepository {
         this.mapper = mapper;
     }
 
+    /** PF 지표 — 기업 지표와 따로 pfMetricStep 이 한 트랜잭션으로 바꿈 */
+    static final List<String> PF_CODES = List.of("PF_GUARANTEE_TO_EQUITY", "PF_DUE_12M_TO_EQUITY", "PF_BRIDGE_SHARE");
+
+    /**
+     * 기업 하나의 재무 지표를 바꿈 — PF 지표는 건드리지 않음. 전에는 PF 까지 지우고 다음 Step 에서야 다시 넣어, 그 사이(또는 다음 Step 이
+     * 실패 · 멈추면 다음 실행까지) 화면과 규칙 평가에서 PF 지표가 비었음 (VERIFICATION 126)
+     */
     public void replaceCompanyMetrics(String corpCode, List<MetricValue> values, UUID calcRunId) {
-        jdbc.sql("DELETE FROM risk.company_metric WHERE corp_code = :c").param("c", corpCode).update();
+        jdbc.sql("DELETE FROM risk.company_metric WHERE corp_code = :c AND metric_code NOT IN (:pf)")
+                .param("c", corpCode).param("pf", PF_CODES).update();
         jdbcTemplate.batchUpdate("""
                 INSERT INTO risk.company_metric (corp_code, period_key, metric_code, fs_div, value, status, components, calc_run_id)
                 VALUES (?, ?, ?, ?, ?, ?, cast(? AS jsonb), ?)""", values, 500, (ps, v) -> {
@@ -50,7 +58,7 @@ public class MetricRepository {
      */
     public int insertPfMetrics(UUID calcRunId) {
         // 기업 지표를 다시 계산하지 않은 회사의 옛 PF 값이 남지 않도록 PF 지표는 통째로 지우고 다시 씀 (같은 트랜잭션)
-        jdbc.sql("DELETE FROM risk.company_metric WHERE metric_code IN ('PF_GUARANTEE_TO_EQUITY', 'PF_DUE_12M_TO_EQUITY', 'PF_BRIDGE_SHARE')").update();
+        jdbc.sql("DELETE FROM risk.company_metric WHERE metric_code IN (:pf)").param("pf", PF_CODES).update();
         return jdbc.sql("""
                 INSERT INTO risk.company_metric (corp_code, period_key, metric_code, fs_div, value, status, components, calc_run_id)
                 WITH r AS (

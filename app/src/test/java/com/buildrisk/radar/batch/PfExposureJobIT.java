@@ -118,6 +118,10 @@ class PfExposureJobIT extends IntegrationTest {
         assertThat(metrics.insertPfMetrics(run)).isEqualTo(3);
         assertThat(metric("PF_GUARANTEE_TO_EQUITY")).isEqualByComparingTo("235.4379");
         assertThat(count("SELECT count(*) FROM risk.company_metric WHERE corp_code = ? AND metric_code LIKE 'PF\\_%'", CORP)).isEqualTo(3);
+        // 기업 지표를 다시 계산해도(앞 Step) PF 지표는 남음 — 전에는 기업 단위 DELETE 가 PF 까지 지우고 다음 Step 에서야 다시 넣어,
+        // 그 사이(또는 다음 Step 실패 · 멈춤) 화면 · 규칙 평가에서 PF 지표가 비었음 (VERIFICATION 126)
+        metrics.replaceCompanyMetrics(CORP, java.util.List.of(), run);
+        assertThat(count("SELECT count(*) FROM risk.company_metric WHERE corp_code = ? AND metric_code LIKE 'PF\\_%'", CORP)).isEqualTo(3);
 
         assertThat(launcher.runAndWait("ruleEvalJob", Map.of()).getStatus()).isEqualTo(BatchStatus.COMPLETED);
         assertThat(jdbc.queryForObject("SELECT title FROM risk.alert WHERE rule_code = 'R-C06' AND target_key = ? AND as_of = '2026Q2'",

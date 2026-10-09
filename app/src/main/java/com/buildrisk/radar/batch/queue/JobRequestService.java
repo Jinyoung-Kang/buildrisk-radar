@@ -4,6 +4,8 @@ import com.buildrisk.radar.batch.support.BatchLauncher;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,7 @@ import java.util.Optional;
  */
 @Service
 public class JobRequestService {
+    private static final Logger log = LoggerFactory.getLogger(JobRequestService.class);
     public static final String NEXT = "_next";
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {};
 
@@ -89,7 +92,8 @@ public class JobRequestService {
             try {
                 enqueue(String.valueOf(next.get(0)), rest, "chain:#" + r.requestId());
             } catch (ApiException e) {
-                // 이미 대기 중이면 건너뜀
+                // 이미 대기 · 실행 중이면 건너뜀 — 실행 중이었다면 그 실행은 이번 결과 전의 값을 봤을 수 있어 남겨 둠 (VERIFICATION 126)
+                log.warn("요청 #{} 다음 Job {} 을 이어 넣지 못함: {}", r.requestId(), next.get(0), e.getMessage());
             }
         }
     }
