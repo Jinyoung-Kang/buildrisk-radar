@@ -1,16 +1,15 @@
 package com.buildrisk.radar.batch.jobs;
 
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
-import com.buildrisk.radar.adapters.datagokr.StockPriceClient.Daily;
 import com.buildrisk.radar.adapters.datagokr.StockPriceClient;
 import com.buildrisk.radar.batch.support.BatchKeys;
 import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.AppProperties;
-import com.buildrisk.radar.domain.market.StockRepository.Target;
-import com.buildrisk.radar.domain.market.StockRepository;
-
+import com.buildrisk.radar.market.data.StockRepository.Target;
+import com.buildrisk.radar.market.data.StockRepository;
+import com.buildrisk.radar.market.domain.MarketModels.Daily;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;

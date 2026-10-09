@@ -3,11 +3,12 @@ package com.buildrisk.radar.api;
 import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
-import com.buildrisk.radar.domain.backtest.EventStudy;
 import com.buildrisk.radar.domain.backtest.EventStudy.Event;
 import com.buildrisk.radar.domain.backtest.EventStudy.Outcome;
+import com.buildrisk.radar.domain.backtest.EventStudy;
 import com.buildrisk.radar.domain.backtest.PointInTime;
-import com.buildrisk.radar.domain.market.StockRepository;
+import com.buildrisk.radar.market.data.StockRepository;
+import com.buildrisk.radar.market.domain.MarketModels.Bar;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
@@ -67,11 +68,11 @@ public class BacktestService {
                     o.entryDate() == null ? null : o.entryDate().toString(), o.exitDate() == null ? null : o.exitDate().toString(),
                     o.ret(), o.bench(), o.excess(), o.benchSize(), o.excluded() == null ? null : o.excluded().name());
         }).sorted(Comparator.comparing(EventRow::eventDate).reversed()).toList();
-        LocalDate min = bars.stream().map(StockRepository.Bar::basDt).min(LocalDate::compareTo).orElse(null);
-        LocalDate max = bars.stream().map(StockRepository.Bar::basDt).max(LocalDate::compareTo).orElse(null);
+        LocalDate min = bars.stream().map(Bar::basDt).min(LocalDate::compareTo).orElse(null);
+        LocalDate max = bars.stream().map(Bar::basDt).max(LocalDate::compareTo).orElse(null);
         return new Result(horizon, rules, EventStudy.summarize(base.size(), base, null, Map.of()), rows,
                 min == null ? null : min.toString(), max == null ? null : max.toString(),
-                (int) bars.stream().map(StockRepository.Bar::stockCode).distinct().count(),
+                (int) bars.stream().map(Bar::stockCode).distinct().count(),
                 List.of("사건일 = 경보 근거 공시 중 가장 늦은 접수일 (그날 전에는 조건을 알 수 없음 — point-in-time)",
                         "진입 = 사건일 다음 거래일 종가, 청산 = 진입 뒤 " + horizon + " 거래일 종가",
                         "초과수익률 = 종목 수익률 − 같은 기간 나머지 유니버스(건설사) 동일가중 평균",

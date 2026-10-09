@@ -1,12 +1,9 @@
 package com.buildrisk.radar.adapters.datagokr;
 
 import com.buildrisk.radar.adapters.common.UpstreamException;
+import com.buildrisk.radar.market.domain.MarketModels.Trade;
 import org.springframework.stereotype.Component;
 
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamConstants;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
 import java.io.StringReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -17,6 +14,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamReader;
 
 /**
  * 국토교통부 아파트 매매 실거래가 (RTMSDataSvcAptTrade). 한 요청 = 시군구(LAWD_CD, 법정동 5자리 = V-World 시군구 코드) × 계약월.
@@ -31,10 +32,6 @@ public class RtmsClient {
     private static final DateTimeFormatter YM = DateTimeFormatter.ofPattern("yyyyMM");
     private static final DateTimeFormatter CDEAL = DateTimeFormatter.ofPattern("yy.MM.dd");
     private static final XMLInputFactory XML = secureFactory();
-
-    public record Trade(LocalDate dealDate, String umdNm, String aptNm, String jibun, BigDecimal excluUseAr, Integer floor,
-                        Integer buildYear, long dealAmount, String dealingGbn, boolean cancelled, LocalDate cancelDate,
-                        String buyerGbn, String sellerGbn) {}
 
     record Page(int totalCount, List<Trade> items) {}
 

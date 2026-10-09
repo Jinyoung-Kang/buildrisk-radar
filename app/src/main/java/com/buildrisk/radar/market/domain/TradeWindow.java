@@ -1,4 +1,4 @@
-package com.buildrisk.radar.domain.market;
+package com.buildrisk.radar.market.domain;
 
 import java.time.YearMonth;
 

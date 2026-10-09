@@ -1,11 +1,11 @@
-package com.buildrisk.radar.domain.market;
+package com.buildrisk.radar.market.data;
 
-import com.buildrisk.radar.adapters.datagokr.StockPriceClient.Daily;
+import com.buildrisk.radar.market.domain.MarketModels.Bar;
+import com.buildrisk.radar.market.domain.MarketModels.Daily;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal;
 import java.sql.Date;
 import java.time.LocalDate;
 import java.util.List;
@@ -23,8 +23,6 @@ public class StockRepository {
     }
 
     public record Target(String stockCode, LocalDate from) {}
-
-    public record Bar(String stockCode, LocalDate basDt, BigDecimal clpr, Long lstgStCnt, BigDecimal mrktTotAmt) {}
 
     /** 유니버스 상장사별 다음 수집 시작일 = 저장된 마지막 날 + 1 (없으면 start) — 재시작 지점을 DB 에서 도출 */
     public List<Target> targets(LocalDate start) {

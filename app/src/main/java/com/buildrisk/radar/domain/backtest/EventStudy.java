@@ -1,6 +1,6 @@
 package com.buildrisk.radar.domain.backtest;
 
-import com.buildrisk.radar.domain.market.StockRepository.Bar;
+import com.buildrisk.radar.market.domain.MarketModels.Bar;
 
 import java.math.BigDecimal;
 import java.math.MathContext;

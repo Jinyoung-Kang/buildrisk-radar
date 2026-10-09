@@ -1,9 +1,9 @@
 package com.buildrisk.radar.domain;
 
-import com.buildrisk.radar.domain.backtest.EventStudy;
 import com.buildrisk.radar.domain.backtest.EventStudy.Event;
 import com.buildrisk.radar.domain.backtest.EventStudy.Excluded;
-import com.buildrisk.radar.domain.market.StockRepository.Bar;
+import com.buildrisk.radar.domain.backtest.EventStudy;
+import com.buildrisk.radar.market.domain.MarketModels.Bar;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

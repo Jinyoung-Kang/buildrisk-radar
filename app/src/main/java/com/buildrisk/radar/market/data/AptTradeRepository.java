@@ -1,6 +1,6 @@
-package com.buildrisk.radar.domain.market;
+package com.buildrisk.radar.market.data;
 
-import com.buildrisk.radar.adapters.datagokr.RtmsClient.Trade;
+import com.buildrisk.radar.market.domain.MarketModels.Trade;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;

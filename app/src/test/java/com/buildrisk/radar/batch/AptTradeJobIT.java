@@ -2,7 +2,7 @@ package com.buildrisk.radar.batch;
 
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.batch.support.BatchLauncher;
-import com.buildrisk.radar.domain.market.TradeWindow;
+import com.buildrisk.radar.market.domain.TradeWindow;
 import com.buildrisk.radar.support.IntegrationTest;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import org.junit.jupiter.api.AfterEach;

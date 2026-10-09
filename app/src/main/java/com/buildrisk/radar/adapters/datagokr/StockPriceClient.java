@@ -2,7 +2,7 @@ package com.buildrisk.radar.adapters.datagokr;
 
 import com.buildrisk.radar.adapters.common.Json;
 import com.buildrisk.radar.adapters.common.UpstreamException;
-
+import com.buildrisk.radar.market.domain.MarketModels.Daily;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -27,9 +27,6 @@ public class StockPriceClient {
     private static final String PATH = "/1160100/GetStockSecuritiesInfoService_V2/getStockPriceInfo_V2";
     private static final DateTimeFormatter YMD = DateTimeFormatter.BASIC_ISO_DATE;
     private static final int PAGE = 1000;
-
-    public record Daily(LocalDate basDt, String srtnCd, BigDecimal clpr, BigDecimal mkp, BigDecimal hipr, BigDecimal lopr,
-                        Long trqu, BigDecimal fltRt, Long lstgStCnt, BigDecimal mrktTotAmt) {}
 
     record Page(int totalCount, List<Daily> items) {}
 

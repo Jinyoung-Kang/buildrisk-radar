@@ -5,8 +5,7 @@ import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.domain.filing.ExposureRepository;
-import com.buildrisk.radar.domain.market.StockRepository;
-
+import com.buildrisk.radar.market.data.StockRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
