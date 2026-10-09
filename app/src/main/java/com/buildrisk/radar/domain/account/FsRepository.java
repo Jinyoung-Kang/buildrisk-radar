@@ -46,7 +46,17 @@ public class FsRepository {
                             SELECT 1 FROM dart.fs_fetch f
                             WHERE f.corp_code = c.corp_code AND f.bsns_year = y.yr::text AND f.reprt_code = r.reprt
                               AND (f.status = 'OK' OR f.fetched_at > now() - interval '30 days'
-                                   OR make_date(y.yr, 12, 31) < current_date - interval '2 years'))""")
+                                   OR make_date(y.yr, 12, 31) < current_date - interval '2 years')
+                              -- 받은 날 뒤에 같은 기간 정기보고서가 다시(정정) 제출됐으면 다시 받음 — ADR-003 '정정은 새 접수번호로 쌓고
+                              -- 최신을 씀'. 한 번 OK 면 영구히 빠져 정정이 반영되지 않았음 (VERIFICATION 122). 기간은 보고서명의
+                              -- '(2025.12)' 로(12월 결산 기준 — PF 와 같은 한계). 다시 받으면 받은 시각이 늦어져 또 받지 않음
+                              AND NOT EXISTS (
+                                SELECT 1 FROM dart.disclosure d
+                                WHERE d.corp_code = f.corp_code AND d.event_type = 'PERIODIC'
+                                  AND d.rcept_dt > cast(f.fetched_at AT TIME ZONE 'Asia/Seoul' AS date)
+                                  AND substring(d.report_nm from '\\((\\d{4})\\.\\d{2}\\)') = y.yr::text
+                                  AND substring(d.report_nm from '\\(\\d{4}\\.(\\d{2})\\)')
+                                      = CASE r.reprt WHEN '11013' THEN '03' WHEN '11012' THEN '06' WHEN '11014' THEN '09' ELSE '12' END))""")
                 .param("from", fromYear).param("to", toYear).param("reprts", reprtCodes.toArray(String[]::new))
                 .query((rs, i) -> new FsTarget(rs.getString(1), rs.getString(2), rs.getString(3))).list()
                 .stream()

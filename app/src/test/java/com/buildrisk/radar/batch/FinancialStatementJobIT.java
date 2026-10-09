@@ -56,6 +56,32 @@ class FinancialStatementJobIT extends IntegrationTest {
     }
 
     @Test
+    void 받은_뒤에_정정_정기보고서가_나오면_그_기간만_다시_받는다() throws Exception {
+        // 한 번 OK 가 된 (기업, 연도, 보고서)는 영구히 제외돼, 첫 수집 뒤 제출된 기재정정 반기보고서 3건이 반영되지 않았음 (VERIFICATION 122)
+        assertThat(launcher.runAndWait("financialStatementJob", RUN).getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        jdbc.update("UPDATE dart.fs_fetch SET fetched_at = now() - interval '3 days'");
+        jdbc.update("""
+                INSERT INTO dart.disclosure (rcept_no, corp_code, corp_name, report_nm, rcept_dt, event_type)
+                VALUES ('20261001000001', '00000001', '가상건설', '[기재정정]사업보고서 (2025.12)', current_date - 1, 'PERIODIC')""");
+        String ok = new String(getClass().getResourceAsStream("/fixtures/dart/fnltt_ok.json").readAllBytes(), StandardCharsets.UTF_8);
+        WM.stubFor(get(urlPathEqualTo(FS)).atPriority(1).withQueryParam("corp_code", equalTo("00000001"))
+                .withQueryParam("bsns_year", equalTo("2025")).withQueryParam("reprt_code", equalTo("11011"))
+                .willReturn(aResponse().withHeader("Content-Type", "application/json")
+                        .withBody(ok.replace("20260814000001", "20261001000001").replace("\"600000\"", "\"650000\""))));
+        WM.resetRequests();
+
+        assertThat(launcher.runAndWait("financialStatementJob", RUN).getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        WM.verify(1, getRequestedFor(urlPathEqualTo(FS)));             // 그 기간 하나만
+        assertThat(jdbc.queryForObject("SELECT rcept_no FROM dart.fs_fetch WHERE corp_code = '00000001' AND bsns_year = '2025' AND reprt_code = '11011'",
+                String.class)).isEqualTo("20261001000001");
+        assertThat(count("SELECT count(*) FROM dart.fs_raw WHERE rcept_no = '20261001000001'")).isEqualTo(ROWS_PER_REPORT);
+
+        WM.resetRequests();                                             // 다시 실행해도 또 받지 않음 (받은 시각이 정정 공시보다 늦음)
+        launcher.runAndWait("financialStatementJob", RUN);
+        WM.verify(0, getRequestedFor(urlPathEqualTo(FS)));
+    }
+
+    @Test
     void 청크_도중_실패하면_마지막_커밋까지_남고_restart_로_나머지만_받는다() {
         status("00000003", "2024", "11013", "CFS", "100");   // 24번째(마지막) 조합에서 복구 불가 오류
 
