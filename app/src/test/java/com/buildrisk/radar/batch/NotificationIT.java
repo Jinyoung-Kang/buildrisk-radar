@@ -1,8 +1,9 @@
 package com.buildrisk.radar.batch;
 
 import com.buildrisk.radar.batch.support.BatchLauncher;
-import com.buildrisk.radar.domain.notify.NotificationService;
-import com.buildrisk.radar.domain.notify.WebhookSender;
+import com.buildrisk.radar.notify.app.NotificationService;
+import com.buildrisk.radar.notify.data.NotificationRepository;
+import com.buildrisk.radar.notify.app.WebhookSender;
 import com.buildrisk.radar.support.IntegrationTest;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +49,7 @@ class NotificationIT extends IntegrationTest {
     @Autowired
     NotificationService notifications;
     @Autowired
-    com.buildrisk.radar.domain.notify.NotificationRepository repo;
+    NotificationRepository repo;
     @Autowired
     MockMvc mvc;
     @Autowired

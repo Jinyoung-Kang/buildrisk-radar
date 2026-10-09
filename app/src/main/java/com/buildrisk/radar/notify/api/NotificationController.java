@@ -1,15 +1,16 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.notify.api;
 
-import com.buildrisk.radar.api.NotificationQueryService.Delivery;
-import com.buildrisk.radar.api.NotificationQueryService.Inbox;
-import com.buildrisk.radar.api.NotificationQueryService.ReadRequest;
-import com.buildrisk.radar.api.NotificationQueryService.Subscription;
-import com.buildrisk.radar.api.NotificationQueryService.SubscriptionRequest;
-import com.buildrisk.radar.api.NotificationQueryService.TestResult;
-import com.buildrisk.radar.api.NotificationQueryService.Watch;
-import com.buildrisk.radar.api.NotificationQueryService.WebhookCreated;
-import com.buildrisk.radar.api.NotificationQueryService.WebhookRequest;
 import com.buildrisk.radar.common.role.ApiRole;
+import com.buildrisk.radar.notify.app.NotificationQueryService.Delivery;
+import com.buildrisk.radar.notify.app.NotificationQueryService.Inbox;
+import com.buildrisk.radar.notify.app.NotificationQueryService.ReadRequest;
+import com.buildrisk.radar.notify.app.NotificationQueryService.Subscription;
+import com.buildrisk.radar.notify.app.NotificationQueryService.SubscriptionRequest;
+import com.buildrisk.radar.notify.app.NotificationQueryService.TestResult;
+import com.buildrisk.radar.notify.app.NotificationQueryService.Watch;
+import com.buildrisk.radar.notify.app.NotificationQueryService.WebhookCreated;
+import com.buildrisk.radar.notify.app.NotificationQueryService.WebhookRequest;
+import com.buildrisk.radar.notify.app.NotificationQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;

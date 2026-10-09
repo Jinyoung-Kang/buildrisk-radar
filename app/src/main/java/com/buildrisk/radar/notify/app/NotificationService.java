@@ -1,10 +1,11 @@
-package com.buildrisk.radar.domain.notify;
+package com.buildrisk.radar.notify.app;
 
-import com.buildrisk.radar.domain.notify.NotificationRepository.Claimed;
-import com.buildrisk.radar.domain.notify.NotificationRepository.WebhookRow;
-import com.buildrisk.radar.domain.notify.WebhookSender.AlertItem;
-import com.buildrisk.radar.domain.notify.WebhookSender.Result;
-import com.buildrisk.radar.domain.notify.WebhookSender.Target;
+import com.buildrisk.radar.notify.app.WebhookSender.Result;
+import com.buildrisk.radar.notify.app.WebhookSender.Target;
+import com.buildrisk.radar.notify.data.NotificationRepository.Claimed;
+import com.buildrisk.radar.notify.data.NotificationRepository.WebhookRow;
+import com.buildrisk.radar.notify.data.NotificationRepository;
+import com.buildrisk.radar.notify.domain.AlertItem;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;

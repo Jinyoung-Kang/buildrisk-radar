@@ -1,4 +1,4 @@
-package com.buildrisk.radar.domain.notify;
+package com.buildrisk.radar.notify.app;
 
 import com.buildrisk.radar.common.role.WorkerRole;
 import org.slf4j.Logger;

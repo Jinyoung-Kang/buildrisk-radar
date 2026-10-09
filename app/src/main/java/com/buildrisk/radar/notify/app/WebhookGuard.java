@@ -1,4 +1,4 @@
-package com.buildrisk.radar.domain.notify;
+package com.buildrisk.radar.notify.app;
 
 import java.io.Serial;
 import java.net.Inet4Address;

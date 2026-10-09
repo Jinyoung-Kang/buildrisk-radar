@@ -1,6 +1,6 @@
-package com.buildrisk.radar.domain.notify;
+package com.buildrisk.radar.notify.data;
 
-import com.buildrisk.radar.domain.notify.WebhookSender.AlertItem;
+import com.buildrisk.radar.notify.domain.AlertItem;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;

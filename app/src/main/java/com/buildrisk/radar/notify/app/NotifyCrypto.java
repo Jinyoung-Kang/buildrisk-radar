@@ -1,20 +1,20 @@
-package com.buildrisk.radar.domain.notify;
+package com.buildrisk.radar.notify.app;
 
 import com.buildrisk.radar.common.AppProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.Cipher;
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import javax.crypto.Cipher;
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * 웹훅 주소 · 서명 비밀의 저장 암호화 (ADR-025) — AES-256-GCM, 키는 NOTIFY_SECRET_KEY 에서 HMAC-SHA256 으로 유도.

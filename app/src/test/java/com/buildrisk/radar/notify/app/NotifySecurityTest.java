@@ -1,6 +1,7 @@
-package com.buildrisk.radar.domain.notify;
+package com.buildrisk.radar.notify.app;
 
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.notify.domain.AlertItem;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -79,7 +80,7 @@ class NotifySecurityTest {
         assertThat(WebhookSender.sign("key", "The quick brown fox jumps over the lazy dog"))
                 .isEqualTo("f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8");
         var s = new WebhookSender(JsonMapper.builder().build(), props("0123456789abcdef0123456789abcdef"));
-        String text = s.slack(List.of(new WebhookSender.AlertItem(7, "NEW", "R-C06", "HIGH", "<!channel> 보증 & 만기", "COMPANY",
+        String text = s.slack(List.of(new AlertItem(7, "NEW", "R-C06", "HIGH", "<!channel> 보증 & 만기", "COMPANY",
                 "00000001", "가상<건설>", "2026Q2")), false);
         assertThat(text).contains("&lt;!channel&gt; 보증 &amp; 만기").contains("가상&lt;건설&gt;")
                 .contains("<https://radar.example/alerts?id=7|보기>").doesNotContain("<!channel>");

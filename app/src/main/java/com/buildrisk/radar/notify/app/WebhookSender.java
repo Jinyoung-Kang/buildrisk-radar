@@ -1,11 +1,10 @@
-package com.buildrisk.radar.domain.notify;
+package com.buildrisk.radar.notify.app;
 
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.notify.domain.AlertItem;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -21,6 +20,8 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * 웹훅 전송 (ADR-025) — JDK HttpClient(의존성 추가 없음), 리다이렉트 안 따라감 · 연결 3초 · 응답 5초 · 응답 본문은 읽지 않음.
@@ -47,9 +48,6 @@ public class WebhookSender {
     public enum Kind { SLACK, GENERIC }
 
     public record Target(String url, Kind kind, String secret) {}
-
-    public record AlertItem(long alertId, String kind, String ruleCode, String severity, String title, String targetType,
-                            String targetKey, String targetName, String asOf) {}
 
     /** retryable: 429 · 5xx · 시간 초과 · 연결 실패. 그 밖의 4xx · 주소 거부는 다시 보내도 같으므로 바로 포기 */
     public record Result(boolean ok, int status, String error, boolean retryable) {}
