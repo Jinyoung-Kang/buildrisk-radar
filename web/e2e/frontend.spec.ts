@@ -92,10 +92,14 @@ test("불러오는 동안은 '데이터 없음'이 아닌 불러오는 중 (VERI
   const corp = (await (await request.get("/api/v1/companies?size=50")).json()).items[0].corpCode as string;
   const release = await hold(page, `**/api/v1/companies/${corp}/disclosures`);
   await page.goto(`/companies/${corp}?tab=disclosures`);
+  // 요약(머리말)이 먼저 그려진 뒤 공시 칸만 본다 — 페이지 전체의 '불러오는 중'과 섞이지 않게
+  const panel = page.locator("#panel-disclosures");
+  await expect(panel).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(500);
-  await expect(page.getByText("표시할 공시가 없습니다.")).toHaveCount(0);
-  await expect(page.getByText("불러오는 중…").first()).toBeVisible();
+  await expect(panel.getByText("표시할 공시가 없습니다.")).toHaveCount(0);
+  await expect(panel.getByText("불러오는 중…")).toBeVisible();
   release();
+  await expect(panel.getByText("불러오는 중…")).toHaveCount(0);
 });
 
 const ADMIN = process.env.E2E_ADMIN_PASSWORD;
@@ -266,17 +270,22 @@ test("꺼진 웹훅으로 보내는 구독을 고칠 때 그 웹훅이 선택된
 });
 
 test("카카오 지도 SDK 를 못 받아도 다시 열 때 스크립트를 겹쳐 넣지 않음 (VERIFICATION 149)", async ({ page }) => {
-  await page.route("https://dapi.kakao.com/**", (route) => route.abort());
+  // 키가 없는 환경에서는 스크립트를 넣기 전에 멈춰 아무것도 시험하지 않고 통과했음 — 시험용 키로 SDK 요청까지 가게 함
+  await page.route("**/api/config", (route) => route.fulfill({ json: { kakaoJsKey: "e2e-fake" } }));
+  let attempts = 0;
+  await page.route("https://dapi.kakao.com/**", (route) => { attempts++; return route.abort(); });
   const scripts = () => page.locator("script[src*='dapi.kakao.com']").count();
   await page.goto("/regions");
-  await page.waitForTimeout(1000);
+  await expect.poll(() => attempts).toBe(1);
+  await page.waitForTimeout(500);
   expect(await scripts()).toBeLessThanOrEqual(1);
   const nav = (p: string) => page.evaluate((u) => (window as unknown as { next: { router: { push: (x: string) => void } } }).next.router.push(u), p);
   await nav("/companies");
   await expect(page).toHaveURL(/\/companies/);
   await nav("/regions");
   await expect(page).toHaveURL(/\/regions/);
-  await page.waitForTimeout(1000);
+  await expect.poll(() => attempts).toBe(2);                                          // 다시 열면 다시 시도하고
+  await page.waitForTimeout(500);
   expect(await scripts()).toBeLessThanOrEqual(1);                                   // 다시 시도해도 한 개를 넘지 않음
 });
 
