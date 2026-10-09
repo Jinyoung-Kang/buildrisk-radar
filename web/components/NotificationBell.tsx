@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { commands } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { NOTIFY_EVENT } from "@/lib/notify";
@@ -9,9 +9,14 @@ export default function NotificationBell() {
   const { me } = useAuth();
   const [unread, setUnread] = useState<number | null>(null);
   const on = !!me?.authenticated;
+  // 마지막으로 보낸 요청의 응답만 — 먼저 보낸 요청의 늦은 응답이 새 숫자를 덮지 않게 (VERIFICATION 142)
+  const seq = useRef(0);
   const load = useCallback(() => {
     if (!on || document.visibilityState !== "visible") return;
-    commands.unreadCount().then((r) => setUnread(r.unread)).catch(() => setUnread(null));
+    const my = ++seq.current;
+    commands.unreadCount()
+      .then((r) => { if (my === seq.current) setUnread(r.unread); })
+      .catch(() => { if (my === seq.current) setUnread(null); });
   }, [on]);
   useEffect(() => {
     if (!on) { setUnread(null); return; }

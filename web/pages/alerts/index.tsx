@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import AlertLineage from "@/components/AlertLineage";
 import EvidenceView from "@/components/EvidenceView";
 import Layout from "@/components/Layout";
@@ -7,18 +7,15 @@ import RequireRole from "@/components/RequireRole";
 import { Card, DownloadLink, Empty, ErrorBox, Loading, PageTitle, Prose, Segmented, SeverityBadge, StatusPill, TargetLink, Pager } from "@/components/ui";
 import { commands, downloads, queries } from "@/lib/api";
 import { dt } from "@/lib/domain/format";
+import { useAction } from "@/lib/hooks/useAction";
 import { useApi } from "@/lib/hooks/useApi";
 import { asOfLabel } from "@/lib/domain/alerts";
 
 function Detail({ id, onChanged }: { id: string; onChanged: () => void }) {
   const { data, error, reload } = useApi(queries.alert(id));
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<Error | null>(null);
-  const change = async (status: "ACK" | "OPEN") => {
-    setBusy(true);
-    try { await commands.setAlertStatus(id, status); reload(); onChanged(); }
-    catch (e) { setErr(e as Error); } finally { setBusy(false); }
-  };
+  const action = useAction();
+  const change = (status: "ACK" | "OPEN") => action.run(() => commands.setAlertStatus(id, status), () => { reload(); onChanged(); });
+  const busy = action.busy;
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
   return (
@@ -31,7 +28,7 @@ function Detail({ id, onChanged }: { id: string; onChanged: () => void }) {
       <div className="text-sm text-ink2 mb-3">
         <TargetLink type={data.targetType} keyCd={data.targetKey} name={data.targetName} /> · 기준 {data.asOf} · 처음 {dt(data.firstSeenAt)} · 최근 평가 {dt(data.lastEvaluatedAt)}
       </div>
-      <ErrorBox error={err} />
+      <ErrorBox error={action.error} />
       <EvidenceView ev={data.evidence} run={{ jobExecutionId: data.calcJobExecutionId, at: data.calcRunAt }} />
       <div className="mt-4"><AlertLineage id={data.alertId} /></div>
       <div className="flex gap-2 mt-4 items-center">

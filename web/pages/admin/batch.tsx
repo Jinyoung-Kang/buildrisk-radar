@@ -5,6 +5,7 @@ import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle, Prose } from "@/c
 import { commands, queries, type Row } from "@/lib/api";
 import { dt, int } from "@/lib/domain/format";
 import { useAuth } from "@/lib/auth";
+import { useAction } from "@/lib/hooks/useAction";
 import { useApi } from "@/lib/hooks/useApi";
 
 function ExecutionDetail({ id }: { id: number }) {
@@ -102,7 +103,7 @@ export default function Batch() {
   const [filter, setFilter] = useState("");
   const execs = useApi(queries.batchExecutions(filter));
   const [sel, setSel] = useState<number | null>(null);
-  const [err, setErr] = useState<Error | null>(null);
+  const action = useAction();
   const [msg, setMsg] = useState<string | null>(null);
   const anyRunning = (jobs.data?.jobs as Row[] | undefined)?.some((j) => j.running || j.queued);
   useEffect(() => {
@@ -110,28 +111,26 @@ export default function Batch() {
     const t = setInterval(() => { jobs.reload(); execs.reload(); requests.reload(); }, 3000);
     return () => clearInterval(t);
   }, [anyRunning, jobs, execs, requests]);
-  const launch = async (name: string, fresh = false) => {
-    setErr(null); setMsg(null);
-    try {
-      const r = await commands.launchJob(name, fresh);
+  const launch = (name: string, fresh = false) => {
+    setMsg(null);
+    return action.run(() => commands.launchJob(name, fresh), (r) => {
       setMsg(`${name} 실행 요청 #${r.requestId} 을 큐에 넣었습니다 — worker 가 곧 시작합니다${r.plannedCalls != null ? ` · 예상 호출 ${int(r.plannedCalls)}건` : ""}${r.warning ? ` · ${r.warning}` : ""}`);
       jobs.reload(); execs.reload(); requests.reload();
-    } catch (e) { setErr(e as Error); }
+    });
   };
-  const recover = async (execId: number) => {
-    setErr(null); setMsg(null);
-    try {
-      await commands.recoverExecution(execId);
+  const recover = (execId: number) => {
+    setMsg(null);
+    return action.run(() => commands.recoverExecution(execId), () => {
       setMsg(`실행 #${execId} 을 FAILED 로 정리했습니다. 다시 실행하면 마지막 커밋 이후부터 이어갑니다.`);
       jobs.reload(); execs.reload();
-    } catch (e) { setErr(e as Error); }
+    });
   };
   const quota = Object.fromEntries(((jobs.data?.quota as Row[]) ?? []).map((q) => [q.provider, q.calls]));
   return (
     <Layout title="배치 모니터">
       <PageTitle title="배치 모니터" sub="실행 요청은 DB 큐(ops.job_request)에 들어가고 worker 가 가져가 실행합니다. STOPPED·FAILED 인 Job 을 다시 요청하면 같은 JobInstance 를 restart 해 마지막 커밋 이후부터 이어갑니다."
         right={<RequireRole role="ADMIN"><span className="text-xs text-good">✓ 관리자 — 실행·정리 가능</span></RequireRole>} />
-      <ErrorBox error={err ?? jobs.error} />
+      <ErrorBox error={action.error ?? jobs.error} />
       {msg && <div className="text-sm text-good mb-3"><Prose text={msg} /></div>}
       <Workers workers={jobs.data?.workers as Row[] | undefined} />
       <div className="text-xs text-ink2 mb-3">오늘 호출 — DART {int(quota.DART ?? 0)} / 상한 {int(jobs.data?.dartDailyLimit)} · 실거래 {int(quota.RTMS ?? 0)} · 주가 {int(quota.FSC_STOCK ?? 0)}
@@ -153,14 +152,14 @@ export default function Batch() {
               {!admin ? (j.queued ? <span className="text-[11px] text-muted">대기 #{j.queued}</span> : null)
               : j.queued ? <span className="text-[11px] text-muted" title="worker 가 가져가기를 기다리는 중">대기 중 #{j.queued}</span>
               : j.running && j.last ? (
-                <button onClick={() => recover(j.last.jobExecutionId)} title="프로세스가 죽어 STARTED 로 남은 실행을 FAILED 로 정리"
+                <button disabled={action.busy} onClick={() => recover(j.last.jobExecutionId)} title="프로세스가 죽어 STARTED 로 남은 실행을 FAILED 로 정리"
                   className={`text-[11px] px-2 py-1 rounded border focus-ring ${j.stale ? "border-crit text-crit" : "border-line text-muted"}`}>
                   멈춘 실행 정리</button>
               ) : !j.keyConfigured ? <span className="text-[11px] text-serious" title={`.env 에 ${j.envKey} 필요`}>키 없음</span> : (
                 <span className="flex gap-1">
                   {(j.last?.status === "STOPPED" || j.last?.status === "FAILED") && (
-                    <button disabled={j.running} onClick={() => launch(j.name, true)} className="text-[11px] px-2 py-1 rounded border border-line focus-ring disabled:opacity-40">새로</button>)}
-                  <button disabled={j.running} onClick={() => launch(j.name)}
+                    <button disabled={j.running || action.busy} onClick={() => launch(j.name, true)} className="text-[11px] px-2 py-1 rounded border border-line focus-ring disabled:opacity-40">새로</button>)}
+                  <button disabled={j.running || action.busy} onClick={() => launch(j.name)}
                     className="text-[11px] px-2 py-1 rounded bg-accent text-white focus-ring disabled:opacity-40">
                     {j.last?.status === "STOPPED" || j.last?.status === "FAILED" ? "이어서 실행" : "실행"}</button>
                 </span>

@@ -64,3 +64,86 @@ test("불러오는 동안은 '데이터 없음'이 아닌 불러오는 중 (VERI
   await expect(page.getByText("불러오는 중…").first()).toBeVisible();
   release();
 });
+
+const ADMIN = process.env.E2E_ADMIN_PASSWORD;
+
+async function login(page: Page, next = "/") {
+  await page.goto(`/login?next=${encodeURIComponent(next)}`);
+  await page.getByLabel("아이디").fill("admin");
+  await page.getByLabel("비밀번호").fill(ADMIN!);
+  await page.getByRole("button", { name: "로그인" }).click();
+  await expect(page.getByRole("button", { name: "로그아웃" })).toBeVisible();
+}
+
+test("로그인 전에 보낸 로그인 확인이 늦게 와도 로그인 상태를 덮어쓰지 않음 (VERIFICATION 142)", async ({ page }) => {
+  test.skip(!ADMIN, "E2E_ADMIN_PASSWORD 미설정");
+  let first = true;
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  await page.route("**/api/v1/auth/me", (route) => {
+    // 화면을 열 때 보낸 첫 확인(익명)을 붙잡음 — 처리기 안에서 기다리지 않음(다음 요청이 막히지 않게)
+    if (first) { first = false; void gate.then(() => route.continue()); return; }
+    return route.continue();
+  });
+  await page.goto("/login?next=/companies");
+  await page.getByLabel("아이디").fill("admin");
+  await page.getByLabel("비밀번호").fill(ADMIN!);
+  await page.getByRole("button", { name: "로그인" }).click();
+  await expect(page).toHaveURL(/\/companies/);
+  await expect(page.getByRole("button", { name: "로그아웃" })).toBeVisible();
+  release();                                                       // 익명 응답이 이제 도착
+  await page.waitForTimeout(800);
+  await expect(page.getByRole("button", { name: "로그아웃" })).toBeVisible();
+});
+
+test("읽지 않은 알림 수: 먼저 보낸 요청의 늦은 응답이 새 숫자를 덮지 않음 (VERIFICATION 142)", async ({ page }) => {
+  test.skip(!ADMIN, "E2E_ADMIN_PASSWORD 미설정");
+  await login(page, "/");
+  let n = 0;
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  await page.route("**/api/v1/me/notifications/unread-count", (route) => {
+    // 처리기 안에서 기다리면 같은 경로의 다음 요청도 막히므로, 첫 요청은 나중에 응답만 함
+    if (++n === 1) { void gate.then(() => route.fulfill({ json: { unread: 5 } })); return; }   // 먼저 보낸 요청 — 늦게, 옛 숫자
+    return route.fulfill({ json: { unread: 2 } });
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event("br:notify-changed")));
+  await page.evaluate(() => window.dispatchEvent(new Event("br:notify-changed")));
+  await expect(page.getByRole("link", { name: "알림 — 읽지 않음 2건" })).toBeVisible();
+  release();
+  await page.waitForTimeout(800);
+  await expect(page.getByRole("link", { name: "알림 — 읽지 않음 2건" })).toBeVisible();
+});
+
+test("로그아웃 요청이 실패해도 처리되지 않은 오류 없이 실제 로그인 상태를 다시 확인 (VERIFICATION 142)", async ({ page }) => {
+  test.skip(!ADMIN, "E2E_ADMIN_PASSWORD 미설정");
+  await login(page, "/");
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.route("**/api/v1/auth/logout", (route) => route.fulfill({ status: 500, json: { code: "INTERNAL_ERROR", message: "x" } }));
+  await page.getByRole("button", { name: "로그아웃" }).click();
+  await page.waitForTimeout(800);
+  expect(errors).toEqual([]);
+  await expect(page.getByRole("button", { name: "로그아웃" })).toBeVisible();   // 서버 세션이 남았으니 로그인 상태로 보여야 함
+});
+
+test("변경 요청: 실패 뒤 다시 해서 성공하면 이전 오류가 사라짐 (VERIFICATION 142)", async ({ page, request }) => {
+  test.skip(!ADMIN, "E2E_ADMIN_PASSWORD 미설정");
+  const open = (await (await request.get("/api/v1/alerts?status=OPEN&size=50")).json()).items[0];
+  test.skip(!open, "열린 경보 없음");
+  await login(page, `/alerts?id=${open.alertId}`);
+  let n = 0;
+  await page.route(`**/api/v1/alerts/${open.alertId}`, async (route) => {
+    if (route.request().method() === "PATCH" && ++n === 1) {
+      return route.fulfill({ status: 409, json: { code: "CONFLICT", message: "시험용 충돌" } });
+    }
+    if (route.request().method() === "PATCH") {
+      return route.fulfill({ json: { ...open, status: "ACK" } });                  // 실제 데이터는 바꾸지 않음
+    }
+    return route.continue();
+  });
+  await page.getByRole("button", { name: "확인(ACK)" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "시험용 충돌" })).toBeVisible();
+  await page.getByRole("button", { name: "확인(ACK)" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "시험용 충돌" })).toHaveCount(0);
+});

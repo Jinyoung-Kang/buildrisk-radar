@@ -7,6 +7,7 @@ import { dt } from "@/lib/domain/format";
 import { useAuth } from "@/lib/auth";
 import { paramLabel, paramValue } from "@/lib/domain/ruleLabels";
 import { useEventTypes } from "@/lib/hooks/useEventNames";
+import { useAction } from "@/lib/hooks/useAction";
 import { useApi } from "@/lib/hooks/useApi";
 
 function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) {
@@ -15,22 +16,21 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
   const [severity, setSeverity] = useState(rule.severity);
   const [enabled, setEnabled] = useState(rule.enabled);
   const [note, setNote] = useState("");
-  const [err, setErr] = useState<Error | null>(null);
+  const action = useAction();
   const [msg, setMsg] = useState<string | null>(null);
   const history = useApi(queries.ruleHistory(rule.ruleCode));
   const eventTypes = useEventTypes("eventTypes" in rule.params);
   const names = Object.fromEntries(eventTypes.map((t) => [t.code, t.name]));
-  const save = async () => {
-    setErr(null); setMsg(null);
+  const save = () => {
+    setMsg(null);
     const body = Object.fromEntries(Object.entries(params).map(([k, v]) => {
       const orig = rule.params[k];
       return [k, Array.isArray(orig) ? v.split(",").map((s) => s.trim()).filter(Boolean) : Number.isNaN(Number(v)) ? v : Number(v)];
     }));
-    try {
-      const r = await commands.updateRule(rule.ruleCode, { params: body, severity, enabled, changeNote: note });
+    return action.run(() => commands.updateRule(rule.ruleCode, { params: body, severity, enabled, changeNote: note }), (r) => {
       setMsg(r.version === rule.version ? "바뀐 값이 없어 버전을 올리지 않았습니다." : `v${r.version} 을 만들었습니다. ruleEvalJob 을 실행하면 새 버전으로 평가합니다.`);
       onSaved(); history.reload();
-    } catch (e) { setErr(e as Error); }
+    });
   };
   return (
     <div className="space-y-3">
@@ -71,10 +71,10 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
       <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="변경 사유 (버전 이력에 남음)"
         className="w-full bg-raised border border-line rounded-md px-2 py-1.5 text-sm focus-ring" />
       <div className="flex items-center gap-3">
-        <button onClick={save} className="px-3 py-1.5 rounded-lg bg-accent text-white text-sm focus-ring">새 버전으로 저장</button>
+        <button onClick={save} disabled={action.busy} className="px-3 py-1.5 rounded-lg bg-accent text-white text-sm focus-ring disabled:opacity-50">새 버전으로 저장</button>
         {msg && <span className="text-xs text-good"><Prose text={msg} /></span>}
       </div>
-      <ErrorBox error={err ?? history.error} />
+      <ErrorBox error={action.error ?? history.error} />
       <div>
         <div className="section-label">버전 이력</div>
         <div className="table-wrap">

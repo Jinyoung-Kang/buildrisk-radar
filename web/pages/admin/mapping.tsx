@@ -5,26 +5,23 @@ import { Card, Empty, ErrorBox, Loading, PageTitle, Prose } from "@/components/u
 import { commands, queries, type Row } from "@/lib/api";
 import { eok, num } from "@/lib/domain/format";
 import { useAuth } from "@/lib/auth";
+import { useAction } from "@/lib/hooks/useAction";
 import { useApi } from "@/lib/hooks/useApi";
 
 function AddRule({ stdCode, sjDiv, suggest, onDone }: { stdCode: string; sjDiv: string; suggest?: string; onDone: (m: string) => void }) {
   const [pattern, setPattern] = useState(suggest ?? "");
   const [type, setType] = useState("NAME_EXACT");
-  const [err, setErr] = useState<Error | null>(null);
-  const add = async () => {
-    try {
-      const r = await commands.addAccountRule({ stdCode, sjDiv, matchType: type, pattern, priority: 30 });
-      onDone(`규칙 #${r.mapId} 추가 — ${r.next}`);
-    } catch (e) { setErr(e as Error); }
-  };
+  const action = useAction();
+  const add = () => action.run(() => commands.addAccountRule({ stdCode, sjDiv, matchType: type, pattern, priority: 30 }),
+    (r) => onDone(`규칙 #${r.mapId} 추가 — ${r.next}`));
   return (
     <RequireRole role="ADMIN" inline>
     <div className="flex flex-col gap-1.5 w-56">
       <select value={type} onChange={(e) => setType(e.target.value)} className="text-xs bg-raised border border-line rounded px-1 py-0.5">
         <option>NAME_EXACT</option><option>NAME_REGEX</option><option>ACCOUNT_ID</option></select>
       <input value={pattern} onChange={(e) => setPattern(e.target.value)} placeholder="계정명·패턴" className="text-xs bg-raised border border-line rounded px-1.5 py-1" />
-      <button onClick={add} className="text-xs px-2 py-1 rounded bg-accent text-white">매핑 규칙 추가</button>
-      <ErrorBox error={err} />
+      <button onClick={add} disabled={action.busy} className="text-xs px-2 py-1 rounded bg-accent text-white disabled:opacity-50">매핑 규칙 추가</button>
+      <ErrorBox error={action.error} />
     </div>
     </RequireRole>
   );
@@ -32,21 +29,17 @@ function AddRule({ stdCode, sjDiv, suggest, onDone }: { stdCode: string; sjDiv: 
 
 function RegionFix({ r, onDone }: { r: Row; onDone: (m: string) => void }) {
   const [cd, setCd] = useState("");
-  const [err, setErr] = useState<Error | null>(null);
-  const save = async () => {
-    try {
-      const res = await commands.mapRegionCode({ source: r.source, sourceCode: r.source_code, regionCd: cd.trim() || null, note: "화면에서 수동 매핑" });
-      onDone(`${r.source} ${r.source_name} → ${cd || "미매핑"} — 옛 지역에 남은 이 코드의 통계 ${res.removedStats ?? 0}건을 지웠습니다. 해당 출처 수집 Job 과 standardizeMetricJob 을 다시 실행하면 반영됩니다.${res.warning ? ` ${res.warning}` : ""}`);
-    } catch (e) { setErr(e as Error); }
-  };
+  const action = useAction();
+  const save = () => action.run(() => commands.mapRegionCode({ source: r.source, sourceCode: r.source_code, regionCd: cd.trim() || null, note: "화면에서 수동 매핑" }),
+    (res) => onDone(`${r.source} ${r.source_name} → ${cd || "미매핑"} — 옛 지역에 남은 이 코드의 통계 ${res.removedStats ?? 0}건을 지웠습니다. 해당 출처 수집 Job 과 standardizeMetricJob 을 다시 실행하면 반영됩니다.${res.warning ? ` ${res.warning}` : ""}`));
   const { has } = useAuth();
   if (!has("ADMIN")) return <span className="text-xs text-muted">-</span>;
   return (
     <span className="inline-flex items-center gap-1.5">
       <input value={cd} onChange={(e) => setCd(e.target.value)} placeholder="기준 region_cd" aria-label="기준 지역 코드"
         className="w-24 text-xs bg-raised border border-line rounded px-1.5 py-0.5 tabular" />
-      <button onClick={save} className="text-xs px-2 py-0.5 rounded border border-line">수동 매핑</button>
-      {err && <span className="text-crit">{err.message}</span>}
+      <button onClick={save} disabled={action.busy} className="text-xs px-2 py-0.5 rounded border border-line disabled:opacity-50">수동 매핑</button>
+      {action.error && <span className="text-crit" role="alert">{action.error.message}</span>}
     </span>
   );
 }
@@ -54,15 +47,12 @@ function RegionFix({ r, onDone }: { r: Row; onDone: (m: string) => void }) {
 function UserRules({ onChanged }: { onChanged: (m: string) => void }) {
   const { has } = useAuth();
   const { data, error, reload } = useApi(queries.mappingAccountRules());
-  const [err, setErr] = useState<Error | null>(null);
+  const action = useAction();
   const rules = (data ?? []).filter((r) => r.origin === "USER");
-  const remove = async (id: number) => {
-    try { const r = await commands.deleteAccountRule(id); onChanged(`규칙 #${id} 삭제 — ${r.next}`); reload(); }
-    catch (e) { setErr(e as Error); }
-  };
+  const remove = (id: number) => action.run(() => commands.deleteAccountRule(id), (r) => { onChanged(`규칙 #${id} 삭제 — ${r.next}`); reload(); });
   return (
     <Card title={`화면에서 추가한 매핑 규칙 (${rules.length})`} sub="seed 규칙은 seed/account_map.csv 에서 관리합니다">
-      <ErrorBox error={err ?? error} />
+      <ErrorBox error={action.error ?? error} />
       {!data ? (error ? null : <Loading />) : rules.length === 0 ? <div className="text-xs text-muted">없음</div> : (
         <div className="table-wrap">
           <table className="data-table compact">
@@ -72,7 +62,7 @@ function UserRules({ onChanged }: { onChanged: (m: string) => void }) {
                 <td className="num text-muted">{r.map_id}</td><td className="font-medium">{r.std_code}</td>
                 <td>{r.sj_div ?? "-"}{r.section ? ` · ${r.section}` : ""}</td><td>{r.match_type}</td>
                 <td><code className="text-xs">{r.pattern}</code></td><td className="num">{r.priority}</td>
-                <td className="text-right">{has("ADMIN") && <button onClick={() => remove(r.map_id)} className="text-xs text-crit hover:underline">삭제</button>}</td>
+                <td className="text-right">{has("ADMIN") && <button onClick={() => remove(r.map_id)} disabled={action.busy} className="text-xs text-crit hover:underline disabled:opacity-50">삭제</button>}</td>
               </tr>))}</tbody>
           </table>
         </div>

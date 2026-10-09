@@ -9,6 +9,7 @@ import { dt } from "@/lib/domain/format";
 import { targetHref } from "@/lib/domain/nav";
 import { describeSubscription, EMPTY_SUBSCRIPTION, subscriptionBody, toggleCode } from "@/lib/domain/notify";
 import { notifyChanged } from "@/lib/notify";
+import { useAction } from "@/lib/hooks/useAction";
 import { useApi } from "@/lib/hooks/useApi";
 
 const input = "w-full bg-raised border border-line rounded-md px-2 py-1.5 text-sm focus-ring";
@@ -18,7 +19,6 @@ const SEV_OPTIONS: { value: Severity; label: string }[] = [
   { value: "LOW", label: "낮음 이상 (전부)" }, { value: "MEDIUM", label: "중간 이상" }, { value: "HIGH", label: "높음만" },
 ];
 const DELIVERY_STATUS: Record<string, string> = { SENT: "보냄", PENDING: "대기", SENDING: "보내는 중", DEAD: "포기" };
-const msg = (e: unknown) => (e instanceof Error ? e.message : "요청이 실패했습니다");
 
 /** 받은 알림함 */
 function InboxCard() {
@@ -26,11 +26,8 @@ function InboxCard() {
   const [view, setView] = useState<"all" | "unread">("all");
   const [page, setPage] = useState(0);
   const { data, error, reload } = useApi(queries.inbox({ unreadOnly: view === "unread", page, size: 30 }));
-  const [err, setErr] = useState<string | null>(null);
-  const read = async (body: { ids?: number[]; all?: boolean }) => {
-    setErr(null);
-    try { await commands.markRead(body); reload(); notifyChanged(); } catch (e) { setErr(msg(e)); }
-  };
+  const action = useAction();
+  const read = (body: { ids?: number[]; all?: boolean }) => action.run(() => commands.markRead(body), () => { reload(); notifyChanged(); });
   return (
     <Card title="받은 알림" pad={false}
       sub={data ? `읽지 않음 ${data.unread}건 · 새 경보는 규칙 평가(매일 지표 계산 뒤)마다 구독과 맞춰 30초 안에 쌓입니다` : undefined}
@@ -40,7 +37,7 @@ function InboxCard() {
         <button type="button" className={btn} disabled={!data?.unread} onClick={() => read({ all: true })}>모두 읽음</button>
       </div>}>
       <ErrorBox error={error} />
-      {err && <p role="alert" className="text-xs text-crit px-4 py-2">{err}</p>}
+      {action.error && <p role="alert" className="text-xs text-crit px-4 py-2">{action.error.message}</p>}
       {!data ? <Loading /> : data.items.length === 0 ? (
         <Empty>{view === "unread" ? "읽지 않은 알림이 없습니다." : "알림이 없습니다. 구독을 만들면 새 경보가 여기에 쌓입니다."}</Empty>
       ) : (
@@ -81,17 +78,12 @@ function SubscriptionForm({ initial, rules, webhooks, admin, onSaved, onCancel }
   initial: Subscription | null; rules: RuleView[]; webhooks: Webhook[]; admin: boolean; onSaved: () => void; onCancel: () => void;
 }) {
   const [f, setF] = useState<SubscriptionInput>(initial ? { ...initial, ruleCodes: initial.ruleCodes ?? [] } : EMPTY_SUBSCRIPTION);
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const action = useAction();
   const set = (p: Partial<SubscriptionInput>) => setF((x) => ({ ...x, ...p }));
-  const submit = async (e: FormEvent) => {
-    e.preventDefault(); setErr(null); setBusy(true);
-    try {
-      const body = subscriptionBody(f);
-      if (initial) await commands.updateSubscription(initial.subscriptionId, body);
-      else await commands.createSubscription(body);
-      onSaved();
-    } catch (ex) { setErr(msg(ex)); } finally { setBusy(false); }
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const body = subscriptionBody(f);
+    return action.run(() => (initial ? commands.updateSubscription(initial.subscriptionId, body) : commands.createSubscription(body)), onSaved);
   };
   const toggleRule = (code: string) => set({ ruleCodes: toggleCode(f.ruleCodes, code) });
   return (
@@ -142,9 +134,9 @@ function SubscriptionForm({ initial, rules, webhooks, admin, onSaved, onCancel }
           </select>
         )}
       </fieldset>
-      {err && <p role="alert" className="text-xs text-crit">{err}</p>}
+      {action.error && <p role="alert" className="text-xs text-crit">{action.error.message}</p>}
       <div className="flex gap-2">
-        <button type="submit" className={primary} disabled={busy}>{initial ? "저장" : "구독 만들기"}</button>
+        <button type="submit" className={primary} disabled={action.busy}>{initial ? "저장" : "구독 만들기"}</button>
         <button type="button" className={btn} onClick={onCancel}>취소</button>
       </div>
     </form>
@@ -156,14 +148,14 @@ function SubscriptionsCard({ admin }: { admin: boolean }) {
   const rules = useApi(queries.rules());
   const hooks = useApi(admin ? queries.webhooks() : null);
   const [editing, setEditing] = useState<Subscription | "new" | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const act = async (fn: () => Promise<unknown>) => { setErr(null); try { await fn(); subs.reload(); } catch (e) { setErr(msg(e)); } };
+  const action = useAction();
+  const act = (fn: () => Promise<unknown>) => action.run(fn, () => subs.reload());
   const ruleList = rules.data ?? [];
   return (
     <Card title="구독" sub="어떤 경보를 어디로 받을지 — 규칙 평가 뒤 새로 생기거나 다시 열린 경보만 (다음 분기로 이어지기만 한 경보는 알리지 않음)"
       right={editing === null && <button type="button" className={btn} onClick={() => setEditing("new")}>+ 새 구독</button>}>
       <ErrorBox error={subs.error ?? rules.error ?? hooks.error} />
-      {err && <p role="alert" className="text-xs text-crit mb-2">{err}</p>}
+      {action.error && <p role="alert" className="text-xs text-crit mb-2">{action.error.message}</p>}
       {editing !== null && (
         <div className="mb-3">
           {/* key: 다른 구독을 고르면 폼 상태를 새로 — 없으면 앞서 고치던 구독의 값이 남은 채 이 구독으로 저장됨 (VERIFICATION 123) */}
@@ -198,15 +190,12 @@ function SubscriptionsCard({ admin }: { admin: boolean }) {
 
 function WatchCard() {
   const { data, error, reload } = useApi(queries.watches());
-  const [err, setErr] = useState<string | null>(null);
-  const remove = async (w: Watch) => {
-    setErr(null);
-    try { await commands.unwatch(w.targetType, w.targetKey); reload(); } catch (e) { setErr(msg(e)); }
-  };
+  const action = useAction();
+  const remove = (w: Watch) => action.run(() => commands.unwatch(w.targetType, w.targetKey), reload);
   return (
     <Card title="관심 목록" sub="기업 · 지역 화면의 ☆ 버튼으로 넣습니다 — '관심 목록만' 구독이 이 목록으로 거릅니다">
       <ErrorBox error={error} />
-      {err && <p role="alert" className="text-xs text-crit mb-2">{err}</p>}
+      {action.error && <p role="alert" className="text-xs text-crit mb-2">{action.error.message}</p>}
       {!data ? <Loading /> : data.length === 0 ? <Empty>비어 있습니다.</Empty> : (
         <ul className="flex flex-wrap gap-2">
           {data.map((w) => (
@@ -248,32 +237,29 @@ function Deliveries({ id }: { id: number }) {
 function WebhooksCard() {
   const { data, error, reload } = useApi(queries.webhooks());
   const [form, setForm] = useState({ name: "", kind: "SLACK" as "SLACK" | "GENERIC", url: "", secret: "" });
-  const [err, setErr] = useState<string | null>(null);
+  const action = useAction();
   const [note, setNote] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const [open, setOpen] = useState<number | null>(null);
-  const [busy, setBusy] = useState(false);
-  const act = async (fn: () => Promise<unknown>, ok?: string) => {
-    setErr(null); setNote(null);
-    try { await fn(); if (ok) setNote(ok); reload(); } catch (e) { setErr(msg(e)); }
+  const act = (fn: () => Promise<unknown>, ok?: string) => {
+    setNote(null);
+    return action.run(fn, () => { if (ok) setNote(ok); reload(); });
   };
-  const create = async (e: FormEvent) => {
-    e.preventDefault(); setErr(null); setNote(null); setSecret(null); setBusy(true);
-    try {
-      const r = await commands.createWebhook({ name: form.name, kind: form.kind, url: form.url, secret: form.kind === "GENERIC" && form.secret ? form.secret : null });
+  const create = (e: FormEvent) => {
+    e.preventDefault(); setNote(null); setSecret(null);
+    return action.run(() => commands.createWebhook({ name: form.name, kind: form.kind, url: form.url, secret: form.kind === "GENERIC" && form.secret ? form.secret : null }), (r) => {
       setSecret(r.secret ?? null);
       setForm({ name: "", kind: form.kind, url: "", secret: "" });
       setNote(`'${r.webhook.name}' 등록 — 주소는 암호화해 저장했고 화면에는 호스트만 보입니다.`);
       reload();
-    } catch (ex) { setErr(msg(ex)); } finally { setBusy(false); }
+    });
   };
-  const test = async (w: Webhook) => {
-    setErr(null); setNote(null);
-    try {
-      const r = await commands.testWebhook(w.webhookId);
-      if (r.ok) setNote(`'${w.name}' 시험 메시지 보냄 (HTTP ${r.status})`); else setErr(`'${w.name}' 시험 실패 — ${r.error}`);
+  const test = (w: Webhook) => {
+    setNote(null);
+    return action.run(() => commands.testWebhook(w.webhookId), (r) => {
+      if (r.ok) setNote(`'${w.name}' 시험 메시지 보냄 (HTTP ${r.status})`); else action.setError(new Error(`'${w.name}' 시험 실패 — ${r.error}`));
       reload();
-    } catch (e) { setErr(msg(e)); }
+    });
   };
   return (
     <Card title="웹훅 (관리자)" className="mt-5"
@@ -283,7 +269,7 @@ function WebhooksCard() {
         <p role="alert" className="text-sm text-warn mb-3"><span className="block">NOTIFY_SECRET_KEY 가 설정되지 않아 웹훅을 쓸 수 없습니다 — <code>make env</code> 로 만든 뒤 api · worker 를 다시 시작하세요.</span><span className="block">알림함은 그대로 동작합니다.</span></p>
       )}
       {note && <p role="status" className="text-xs text-good mb-2">{note}</p>}
-      {err && <p role="alert" className="text-xs text-crit mb-2">{err}</p>}
+      {action.error && <p role="alert" className="text-xs text-crit mb-2">{action.error.message}</p>}
       {secret && (
         <div role="status" className="mb-3 border border-warn rounded-lg p-3 text-xs space-y-1">
           <p className="font-medium"><Prose text="서명 비밀 — 지금 한 번만 보여 줍니다. 받는 서버에 저장하세요." /></p>
@@ -338,7 +324,7 @@ function WebhooksCard() {
             <input className={`${input} mt-1`} type="password" autoComplete="new-password" value={form.secret} onChange={(e) => setForm({ ...form, secret: e.target.value })} />
           </label>
         )}
-        <div className="sm:col-span-3"><button type="submit" className={primary} disabled={busy || !data?.available}>웹훅 등록</button></div>
+        <div className="sm:col-span-3"><button type="submit" className={primary} disabled={action.busy || !data?.available}>웹훅 등록</button></div>
       </form>
     </Card>
   );
