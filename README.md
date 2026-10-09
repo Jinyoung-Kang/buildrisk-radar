@@ -196,7 +196,7 @@ sequenceDiagram
 | 2 | `companyProfileJob` | 매주 월 02:30 | 상장사(키셋 페이징) → company.json → 업종코드 → **유니버스 판정 + 변경 이력** | 50 / 013 skip / 미처리분을 DB 에서 다시 계산 | FR-102~103 |
 | 3 | `financialStatementJob` | 매일 03:00 | 미수집 조합 → fnlttSinglAcntAll(CFS→OFS) → `fs_raw` | 20 / 013 NO_DATA / 020 → STOPPED | FR-201~203 |
 | 4 | `disclosureSyncJob` | 매일 03:30 | 유니버스 × 최근 N일 list.json(처음 수집하는 기업은 `FS_FROM_YEAR` 부터, `from` 으로 백필) → 키워드 분류 → `disclosure` + 전체 재분류 | 20 | FR-301~302 |
-| 5 | `boundaryLoadJob` | 최초 1회 | V-World(없으면 SGIS) 경계 → `ref.region` → 일반구 → 시 합성 · 단순화 | 50 | FR-404 |
+| 5 | `boundaryLoadJob` | 최초 1회 | V-World(처음 적재 때 키가 없으면 SGIS — 이후엔 지금 출처를 유지, 바꾸려면 `source` + `confirmPurge=true`) 경계 → `ref.region` → 일반구 → 시 합성 · 단순화 | 50 | FR-404 |
 | 6 | `sgisHouseholdJob` | 매년 1월 | SGIS 총가구 → 지역 매핑 → `region_stat` | 200 | FR-403 |
 | 7 | `kosisUnsoldJob` | 매월 20일 | KOSIS 미분양 36개월(6개월씩 — 4만 셀 제한) → 매핑 → `region_stat` | 200 | FR-401 |
 | 8 | `roneIndexJob` | 매주 금 | R-ONE 매매·전세지수 (시리즈 × 월 × 페이지) → 매핑 → `region_stat` | 200 | FR-402 |

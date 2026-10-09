@@ -288,6 +288,10 @@ public class BatchLauncher {
                         if (!List.of("VWORLD", "SGIS").contains(src)) throw new ApiException(ErrorCode.VALIDATION_ERROR, "source 는 VWORLD · SGIS");
                         pb.addString("source", src);
                     }
+                    // 출처를 바꾸면 지역 경보 · 통계 · 지표 · 수동 매핑을 지움 — 이 값을 준 요청만 (VERIFICATION 129)
+                    if (Boolean.TRUE.equals(b.get("confirmPurge")) || "true".equals(String.valueOf(b.get("confirmPurge")))) {
+                        pb.addString("confirmPurge", "true");
+                    }
                     if (b.get("year") != null) pb.addLong("year", Long.parseLong(String.valueOf(b.get("year"))));
                 }
                 default -> { }

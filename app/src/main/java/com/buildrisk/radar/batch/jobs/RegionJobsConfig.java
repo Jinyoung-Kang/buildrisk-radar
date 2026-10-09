@@ -9,6 +9,7 @@ import com.buildrisk.radar.batch.support.BatchKeys;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.common.AppProperties;
 import com.buildrisk.radar.common.seed.SeedCatalog;
+import com.buildrisk.radar.domain.region.BoundarySource;
 import com.buildrisk.radar.domain.region.RegionAliases;
 import com.buildrisk.radar.domain.region.RegionRepository.BoundaryRow;
 import com.buildrisk.radar.domain.region.RegionRepository.SeriesDef;
@@ -64,10 +65,29 @@ public class RegionJobsConfig {
     // ---------------------------------------------------------------- boundaryLoadJob
 
     @Bean
-    Job boundaryLoadJob(JobRepository repo, Step boundaryFetchStep, Step boundaryDeriveStep, RunRecorder runs) {
+    Job boundaryLoadJob(JobRepository repo, Step boundarySourceStep, Step boundaryFetchStep, Step boundaryDeriveStep, RunRecorder runs) {
         return new JobBuilder("boundaryLoadJob", repo).listener(runs.collect("BOUNDARY"))
-                .start(boundaryFetchStep).next(boundaryDeriveStep).build();
+                .start(boundarySourceStep).next(boundaryFetchStep).next(boundaryDeriveStep).build();
     }
+
+    /**
+     * 출처를 먼저 정하고, 바꾸는 경우(confirmPurge 확인 뒤)에만 지역 파생 데이터를 이 Step 의 한 트랜잭션에서 비움 (VERIFICATION 129).
+     * 전에는 Reader 를 만들 때 키가 없다는 이유로 출처를 바꾸며 첫 청크 안에서 지웠음
+     */
+    @Bean
+    Step boundarySourceStep(JobRepository repo, PlatformTransactionManager tm, VworldClient vworld, SgisClient sgis, RegionRepository regions) {
+        return new StepBuilder("boundarySourceStep", repo).tasklet((contribution, chunk) -> {
+            Map<String, Object> params = chunk.getStepContext().getJobParameters();
+            Object requested = params.get("source");
+            var d = BoundarySource.decide(requested == null ? null : String.valueOf(requested), "true".equals(String.valueOf(params.get("confirmPurge"))),
+                    regions.sources(), vworld.configured(), sgis.configured());
+            if (d.purge()) regions.purgeForSourceChange(d.source());
+            chunk.getStepContext().getStepExecution().getJobExecution().getExecutionContext().putString(BOUNDARY_SOURCE, d.source());
+            return RepeatStatus.FINISHED;
+        }, tm).build();
+    }
+
+    private static final String BOUNDARY_SOURCE = "boundarySource";
 
     /**
      * 경계 출처: 기본은 V-World(법정 시군구 코드). V-World 키가 없거나 source=SGIS 면 SGIS 행정구역 경계(UTM-K → 4326)로
@@ -75,12 +95,10 @@ public class RegionJobsConfig {
      */
     @Bean
     @StepScope
-    ItemReader<BoundaryRow> boundaryReader(VworldClient vworld, SgisClient sgis, SeedCatalog seed, RegionRepository regions,
-                                           @Value("#{jobParameters['source']}") String sourceParam,
+    ItemReader<BoundaryRow> boundaryReader(VworldClient vworld, SgisClient sgis, SeedCatalog seed,
+                                           @Value("#{jobExecutionContext['" + BOUNDARY_SOURCE + "']}") String source,
                                            @Value("#{jobParameters['year']}") Long yearParam) {
-        String source = sourceParam != null ? sourceParam : vworld.configured() ? "VWORLD" : "SGIS";
-        regions.purgeIfSourceChanged(source);
-        if ("SGIS".equals(source)) {
+        if (BoundarySource.SGIS.equals(source)) {
             int year = yearParam == null ? 2025 : yearParam.intValue();
             Map<String, String> sidoCodes = seed.regionAliases().sgisSido();
             return lazyList(() -> {

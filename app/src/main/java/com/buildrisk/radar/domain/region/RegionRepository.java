@@ -46,18 +46,24 @@ public class RegionRepository {
         });
     }
 
-    /** 경계 출처가 바뀌면(예: SGIS → V-World) 기준 코드 체계가 달라지므로 지역 파생 데이터를 비우고 다시 적재합니다. */
-    public boolean purgeIfSourceChanged(String source) {
-        List<String> existing = jdbc.sql("SELECT DISTINCT source FROM ref.region").query(String.class).list();
-        if (existing.isEmpty() || (existing.size() == 1 && existing.get(0).equals(source))) return false;
-        log.warn("경계 출처 변경 {} → {}: 지역 통계·지표·매핑·지역 경보를 비우고 다시 적재합니다.", existing, source);
+    public List<String> sources() {
+        return jdbc.sql("SELECT DISTINCT source FROM ref.region ORDER BY source").query(String.class).list();
+    }
+
+    /**
+     * 경계 출처를 바꿀 때(BoundarySource 가 확인한 뒤) 기준 코드 체계가 달라지므로 지역 파생 데이터를 비움 — 호출하는 쪽의 한 트랜잭션 안에서.
+     * 계약의 지역 연결은 끊고(다음 공시 원문 Job 이 다시 연결) 지역을 지움. 전에는 계약이 지역을 가리키면 FK 로 실패했음
+     */
+    public void purgeForSourceChange(String source) {
+        int manual = jdbc.sql("SELECT count(*) FROM ref.region_code_map WHERE match_method = 'MANUAL'").query(Integer.class).single();
+        log.warn("경계 출처를 {} 로 바꿉니다: 지역 경보 · 통계 · 지표 · 매핑(수동 {}건 포함)을 비우고 다시 적재합니다.", source, manual);
         jdbc.sql("DELETE FROM risk.alert WHERE target_type = 'REGION'").update();
+        jdbc.sql("UPDATE dart.contract SET region_cd = NULL WHERE region_cd IS NOT NULL").update();
         jdbc.sql("DELETE FROM mkt.region_metric").update();
         jdbc.sql("DELETE FROM mkt.region_stat").update();
         jdbc.sql("DELETE FROM ref.region_code_map").update();
         jdbc.sql("UPDATE ref.region SET parent_cd = NULL").update();
         jdbc.sql("DELETE FROM ref.region").update();
-        return true;
     }
 
     /**

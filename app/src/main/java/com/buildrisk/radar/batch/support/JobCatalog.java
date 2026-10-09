@@ -14,7 +14,7 @@ public final class JobCatalog {
             new Def("disclosureSyncJob", "공시 수집 · 이벤트 분류", "DART", "매일 03:30", "FR-301~302", "DART_API_KEY"),
             new Def("filingParseJob", "수주·보증 공시 원문 구조화", "DART", "매일 03:45", "FR-303", "DART_API_KEY"),
             new Def("pfExposureJob", "PF 우발채무 (정기보고서 우발부채)", "DART", "매일 04:00", "FR-304", "DART_API_KEY"),
-            new Def("boundaryLoadJob", "시군구 경계 적재", "V-World (없으면 SGIS)", "최초 1회", "FR-404", null),
+            new Def("boundaryLoadJob", "시군구 경계 적재", "V-World (처음 적재 때 키가 없으면 SGIS)", "최초 1회", "FR-404", null),
             new Def("sgisHouseholdJob", "시군구 총가구", "SGIS", "매년 1월 15일", "FR-403", "SGIS_CONSUMER_KEY"),
             new Def("kosisUnsoldJob", "시군구 미분양 (월)", "KOSIS", "매월 20일 04:00", "FR-401", "KOSIS_API_KEY"),
             new Def("roneIndexJob", "아파트 매매·전세 가격지수 (월)", "R-ONE", "매주 금 04:10", "FR-402", "REB_API_KEY"),
