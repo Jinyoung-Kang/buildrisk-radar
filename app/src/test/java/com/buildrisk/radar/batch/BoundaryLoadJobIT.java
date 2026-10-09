@@ -59,4 +59,26 @@ class BoundaryLoadJobIT extends IntegrationTest {
         assertThat(je.getExitStatus().getExitDescription()).contains("confirmPurge");
         assertKept();
     }
+
+    @Test
+    void 확인을_붙여_다시_요청하면_옛_요청을_이어_하지_않고_새로_실행한다() {
+        // 실패한 실행을 이어 하면(restart) 옛 파라미터를 쓰므로, 안내대로 confirmPurge 를 붙여도 같은 오류가 반복됐음 (VERIFICATION 152)
+        launcher.runAndWait("boundaryLoadJob", Map.of("source", "SGIS", "restart", false));
+        var again = launcher.runAndWait("boundaryLoadJob", Map.of("source", "SGIS", "confirmPurge", true));
+        assertThat(again.getJobParameters().getString("confirmPurge")).isEqualTo("true");
+        assertThat(again.getExitStatus().getExitDescription()).doesNotContain("confirmPurge");   // 확인은 통과(이 환경엔 SGIS 키가 없어 그다음에서 멈춤)
+        assertKept();
+    }
+
+    @Test
+    void 지우기_확인은_그_요청에만_쓰이고_나중_실행이_이어받지_않는다() {
+        // 확인을 준 실행이 키가 없어 실패한 뒤, 파라미터 없는 요청이 그 실행을 이어 하면 확인 없이 지우게 됨 (VERIFICATION 152)
+        var failed = launcher.runAndWait("boundaryLoadJob", Map.of("source", "SGIS", "confirmPurge", true, "restart", false));
+        assertThat(failed.getStatus()).isEqualTo(BatchStatus.FAILED);
+        var later = launcher.runAndWait("boundaryLoadJob", Map.of());
+        assertThat(later.getJobParameters().getString("confirmPurge")).isNull();
+        assertThat(later.getJobParameters().getString("source")).isNull();
+        assertKept();
+    }
 }
+

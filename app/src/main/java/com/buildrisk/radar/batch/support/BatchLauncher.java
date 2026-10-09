@@ -23,6 +23,7 @@ import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.JobInstance;
+import org.springframework.batch.core.job.parameters.JobParameter;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException;
@@ -43,6 +44,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.sql.DataSource;
 
@@ -319,7 +321,8 @@ public class BatchLauncher {
                 recover(jobName, false);
                 if (running(jobName)) throw new ApiException(ErrorCode.JOB_ALREADY_RUNNING, jobName + " 이(가) 이미 실행 중입니다.");
                 JobExecution last = lastExecution(jobName);
-                if (last != null && plan.allowRestart() && (last.getStatus() == BatchStatus.STOPPED || last.getStatus() == BatchStatus.FAILED)) {
+                if (last != null && plan.allowRestart() && (last.getStatus() == BatchStatus.STOPPED || last.getStatus() == BatchStatus.FAILED)
+                        && restartable(last.getJobParameters(), plan.params(), body)) {
                     JobExecution je = withConflictRetry(() -> operator.restart(last));
                     log.info("{} 재시작: 이전 실행 {} ({}) → {}", jobName, last.getId(), last.getStatus(), je.getId());
                     return new Launch(je.getId(), je.getStatus().name(), true, null, null, null, null);
@@ -402,6 +405,22 @@ public class BatchLauncher {
                 WHERE job_execution_id = :id""")
                 .param("m", "원인: 프로세스 비정상 종료로 STARTED 에 남은 실행을 정리함 · " + why + ". 다음 실행이 같은 JobInstance 를 restart 합니다.")
                 .param("id", executionId).update();
+    }
+
+    /**
+     * 멈춘 · 실패한 실행을 이어 해도 되는지 — 이어 하면 그 실행의 옛 파라미터를 씀 (VERIFICATION 152).
+     * 요청에 적은 값이 이전 실행과 다르면 새로 시작(안내대로 값을 바꿔 다시 요청해도 옛 값으로 반복되지 않게)하고,
+     * 지우기 확인(confirmPurge)을 담은 실행은 이어 하지 않음 — 확인은 그 요청에만 쓰여야 함
+     */
+    static boolean restartable(JobParameters last, JobParameters requested, Map<String, Object> body) {
+        if (last.getParameter("confirmPurge") != null) return false;
+        for (String key : body == null ? Set.<String>of() : body.keySet()) {
+            JobParameter<?> want = requested.getParameter(key);
+            if (key.equals("restart") || want == null) continue;          // 이 Job 이 쓰지 않는 값
+            JobParameter<?> had = last.getParameter(key);
+            if (had == null || !String.valueOf(want.value()).equals(String.valueOf(had.value()))) return false;
+        }
+        return true;
     }
 
     public JobExecution lastExecution(String jobName) {
