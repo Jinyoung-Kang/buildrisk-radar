@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { commands } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { usePolling } from "@/lib/hooks/usePolling";
 import { NOTIFY_EVENT } from "@/lib/notify";
 
 /** 머리말 종 — 로그인했을 때만, 읽지 않은 알림 수를 1분마다(화면이 보일 때만) 다시 봄 (ADR-025) */
@@ -21,11 +22,10 @@ export default function NotificationBell() {
   useEffect(() => {
     if (!on) { setUnread(null); return; }
     load();
-    const t = window.setInterval(load, 60_000);
     window.addEventListener(NOTIFY_EVENT, load);
-    document.addEventListener("visibilitychange", load);
-    return () => { window.clearInterval(t); window.removeEventListener(NOTIFY_EVENT, load); document.removeEventListener("visibilitychange", load); };
+    return () => window.removeEventListener(NOTIFY_EVENT, load);
   }, [on, load]);
+  usePolling(load, 60_000, on);   // 1분마다, 탭이 보일 때만 — 다시 보이면 곧바로
   if (!on) return null;
   const n = unread ?? 0;
   return (

@@ -147,3 +147,31 @@ test("변경 요청: 실패 뒤 다시 해서 성공하면 이전 오류가 사�
   await page.getByRole("button", { name: "확인(ACK)" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "시험용 충돌" })).toHaveCount(0);
 });
+
+test("실행 중인 Job 이 있을 때의 배치 화면 갱신은 탭이 보일 때만 (VERIFICATION 146)", async ({ page }) => {
+  // 실행 중인 Job 하나가 있는 것처럼 — 실제 Job 은 돌리지 않음
+  let calls = 0;
+  await page.route("**/api/v1/batch/jobs", async (route) => {
+    calls++;
+    const res = await route.fetch();
+    const body = await res.json();
+    body.jobs[0] = { ...body.jobs[0], running: true };
+    await route.fulfill({ response: res, json: body });
+  });
+  await page.goto("/admin/batch");
+  await expect.poll(() => calls, { timeout: 10_000 }).toBeGreaterThanOrEqual(2);   // 보이는 동안은 3초마다
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.waitForTimeout(500);
+  const hidden = calls;
+  await page.waitForTimeout(7_000);
+  expect(calls - hidden).toBe(0);
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect.poll(() => calls, { timeout: 5_000 }).toBeGreaterThan(hidden);       // 다시 보이면 곧바로 갱신
+  await page.unrouteAll({ behavior: "ignoreErrors" });                            // 끝난 뒤 도착하는 폴링 요청은 무시
+});

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
 import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle, Prose } from "@/components/ui";
@@ -7,6 +7,7 @@ import { dt, int } from "@/lib/domain/format";
 import { useAuth } from "@/lib/auth";
 import { useAction } from "@/lib/hooks/useAction";
 import { useApi } from "@/lib/hooks/useApi";
+import { usePolling } from "@/lib/hooks/usePolling";
 
 function ExecutionDetail({ id }: { id: number }) {
   const { data, error } = useApi(queries.batchExecution(id));
@@ -106,11 +107,8 @@ export default function Batch() {
   const action = useAction();
   const [msg, setMsg] = useState<string | null>(null);
   const anyRunning = (jobs.data?.jobs as Row[] | undefined)?.some((j) => j.running || j.queued);
-  useEffect(() => {
-    if (!anyRunning) return;
-    const t = setInterval(() => { jobs.reload(); execs.reload(); requests.reload(); }, 3000);
-    return () => clearInterval(t);
-  }, [anyRunning, jobs, execs, requests]);
+  // 실행 중이거나 대기 중인 Job 이 있으면 3초마다, 탭이 보일 때만
+  usePolling(() => { jobs.reload(); execs.reload(); requests.reload(); }, 3000, !!anyRunning);
   const launch = (name: string, fresh = false) => {
     setMsg(null);
     return action.run(() => commands.launchJob(name, fresh), (r) => {
