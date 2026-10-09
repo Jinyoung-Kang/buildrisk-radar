@@ -82,6 +82,28 @@ class FinancialStatementJobIT extends IntegrationTest {
     }
 
     @Test
+    void 받은_날_같은_날에_제출된_정정도_다시_받고_한_번만_받는다() throws Exception {
+        // 날짜로만 비교(제출일 > 받은 날)해 새벽에 받은 뒤 같은 날 오후 제출된 정정은 영구히 놓쳤음 (VERIFICATION 157)
+        assertThat(launcher.runAndWait("financialStatementJob", RUN).getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        String today = jdbc.queryForObject("SELECT to_char(current_date, 'YYYYMMDD')", String.class);
+        String corrected = today + "000009";
+        jdbc.update("""
+                INSERT INTO dart.disclosure (rcept_no, corp_code, corp_name, report_nm, rcept_dt, event_type)
+                VALUES (?, '00000001', '가상건설', '[기재정정]사업보고서 (2025.12)', current_date, 'PERIODIC')""", corrected);
+        String ok = new String(getClass().getResourceAsStream("/fixtures/dart/fnltt_ok.json").readAllBytes(), StandardCharsets.UTF_8);
+        WM.stubFor(get(urlPathEqualTo(FS)).atPriority(1).withQueryParam("corp_code", equalTo("00000001"))
+                .withQueryParam("bsns_year", equalTo("2025")).withQueryParam("reprt_code", equalTo("11011"))
+                .willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(ok.replace("20260814000001", corrected))));
+        WM.resetRequests();
+
+        launcher.runAndWait("financialStatementJob", RUN);
+        WM.verify(1, getRequestedFor(urlPathEqualTo(FS)));             // 같은 날 제출된 정정도
+        WM.resetRequests();
+        launcher.runAndWait("financialStatementJob", RUN);
+        WM.verify(0, getRequestedFor(urlPathEqualTo(FS)));             // 이미 그 접수번호를 받았으면 같은 날 다시 실행해도 받지 않음
+    }
+
+    @Test
     void 청크_도중_실패하면_마지막_커밋까지_남고_restart_로_나머지만_받는다() {
         status("00000003", "2024", "11013", "CFS", "100");   // 24번째(마지막) 조합에서 복구 불가 오류
 
