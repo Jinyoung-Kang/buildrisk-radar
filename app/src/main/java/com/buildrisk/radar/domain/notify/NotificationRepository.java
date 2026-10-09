@@ -5,6 +5,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -20,7 +21,8 @@ public class NotificationRepository {
 
     public record FanOut(int events, int inbox, int deliveries) {}
 
-    public record Claimed(long deliveryId, long webhookId, long alertId, String kind, int attempts) {}
+    /** leaseUntil: 이 worker 의 임대 — 결과를 적을 때 아직 이 임대인지 확인 (임대가 끝나 다른 worker 가 가져갔으면 덮어쓰지 않음) */
+    public record Claimed(long deliveryId, long webhookId, long alertId, String kind, int attempts, OffsetDateTime leaseUntil) {}
 
     public record WebhookRow(long webhookId, String kind, String urlEnc, String secretEnc, boolean enabled) {}
 
@@ -80,9 +82,10 @@ public class NotificationRepository {
                      ORDER BY next_at LIMIT :n FOR UPDATE SKIP LOCKED)
                 UPDATE notify.delivery d SET status = 'SENDING', lease_until = now() + interval '2 minutes', attempts = d.attempts + 1
                   FROM due WHERE d.delivery_id = due.delivery_id
-                RETURNING d.delivery_id, d.webhook_id, d.alert_id, d.kind, d.attempts""")
+                RETURNING d.delivery_id, d.webhook_id, d.alert_id, d.kind, d.attempts, d.lease_until""")
                 .param("n", limit)
-                .query((rs, i) -> new Claimed(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getString(4), rs.getInt(5))).list();
+                .query((rs, i) -> new Claimed(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getString(4), rs.getInt(5),
+                        rs.getObject(6, OffsetDateTime.class))).list();
     }
 
     public Optional<WebhookRow> webhook(long id) {
@@ -106,20 +109,32 @@ public class NotificationRepository {
                         rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8))).list();
     }
 
-    public void markSent(Collection<Long> deliveryIds) {
-        jdbc.sql("UPDATE notify.delivery SET status = 'SENT', sent_at = now(), lease_until = NULL, last_error = NULL WHERE delivery_id IN (:ids)")
-                .param("ids", deliveryIds).update();
+    /** 아직 내 임대인 행만 — 임대가 끝나 다른 worker 가 다시 가져간 행의 결과를 늦게 끝난 쪽이 덮어쓰지 않게 (VERIFICATION 131) */
+    public int markSent(Collection<Long> deliveryIds, OffsetDateTime lease) {
+        return jdbc.sql("""
+                        UPDATE notify.delivery SET status = 'SENT', sent_at = now(), lease_until = NULL, last_error = NULL
+                         WHERE delivery_id IN (:ids) AND status = 'SENDING' AND lease_until = :lease""")
+                .param("ids", deliveryIds).param("lease", lease).update();
+    }
+
+    /** 임대 안에 보내지 못한 행을 돌려놓음 — 시도 횟수도 되돌림(보내지 않았으므로) */
+    public int release(Collection<Long> deliveryIds, OffsetDateTime lease) {
+        return jdbc.sql("""
+                        UPDATE notify.delivery SET status = 'PENDING', lease_until = NULL, attempts = greatest(attempts - 1, 0)
+                         WHERE delivery_id IN (:ids) AND status = 'SENDING' AND lease_until = :lease""")
+                .param("ids", deliveryIds).param("lease", lease).update();
     }
 
     /** 실패: 다시 보낼 수 있고 횟수가 남았으면 백오프 뒤 PENDING, 아니면 DEAD */
-    public void markFailed(Collection<Long> deliveryIds, String error, boolean retryable, int maxAttempts) {
+    public void markFailed(Collection<Long> deliveryIds, OffsetDateTime lease, String error, boolean retryable, int maxAttempts) {
         jdbc.sql("""
                 UPDATE notify.delivery SET lease_until = NULL, last_error = left(:err, 300),
                        status = CASE WHEN :retry AND attempts < :max THEN 'PENDING' ELSE 'DEAD' END,
                        next_at = now() + (CASE least(attempts, 5) WHEN 1 THEN interval '1 minute' WHEN 2 THEN interval '5 minutes'
                                           WHEN 3 THEN interval '30 minutes' WHEN 4 THEN interval '2 hours' ELSE interval '12 hours' END)
-                 WHERE delivery_id IN (:ids)""")
-                .param("err", error).param("retry", retryable).param("max", maxAttempts).param("ids", deliveryIds).update();
+                 WHERE delivery_id IN (:ids) AND status = 'SENDING' AND lease_until = :lease""")
+                .param("err", error).param("retry", retryable).param("max", maxAttempts).param("ids", deliveryIds)
+                .param("lease", lease).update();
     }
 
     public void webhookStatus(long webhookId, String status, boolean sent) {

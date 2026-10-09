@@ -295,7 +295,7 @@ public class NotificationQueryService {
                 .orElseThrow(() -> ApiException.notFound(ErrorCode.WEBHOOK_NOT_FOUND, "웹훅 " + id));
         var t = new WebhookSender.Target(crypto.decrypt(row[1]), WebhookSender.Kind.valueOf(row[0]), row[2] == null ? null : crypto.decrypt(row[2]));
         var sample = new WebhookSender.AlertItem(0, "NEW", "TEST", "LOW", "웹훅 연결 확인 메시지", "COMPANY", "-", "시험", "-");
-        var r = sender.send(t, List.of(sample), true);
+        var r = sender.send(t, List.of(sample), true, "test-" + java.util.UUID.randomUUID());
         jdbc.sql("UPDATE notify.webhook SET last_status = left(:s, 80), last_sent_at = CASE WHEN :ok THEN now() ELSE last_sent_at END WHERE webhook_id = :id")
                 .param("s", r.ok() ? "시험 HTTP " + r.status() : "시험 " + r.error()).param("ok", r.ok()).param("id", id).update();
         return new TestResult(r.ok(), r.status(), r.error());

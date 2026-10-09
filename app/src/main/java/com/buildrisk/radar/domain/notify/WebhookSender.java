@@ -21,7 +21,6 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * 웹훅 전송 (ADR-025) — JDK HttpClient(의존성 추가 없음), 리다이렉트 안 따라감 · 연결 3초 · 응답 5초 · 응답 본문은 읽지 않음.
@@ -55,7 +54,8 @@ public class WebhookSender {
     /** retryable: 429 · 5xx · 시간 초과 · 연결 실패. 그 밖의 4xx · 주소 거부는 다시 보내도 같으므로 바로 포기 */
     public record Result(boolean ok, int status, String error, boolean retryable) {}
 
-    public Result send(Target t, List<AlertItem> alerts, boolean test) {
+    /** deliveryId: 받는 쪽 중복 제거용 — 같은 전송을 다시 보내면 같은 값 (NotificationService.deliveryId) */
+    public Result send(Target t, List<AlertItem> alerts, boolean test, String deliveryId) {
         URI uri;
         try {
             uri = WebhookGuard.validate(t.url(), allowInsecure);
@@ -71,7 +71,7 @@ public class WebhookSender {
         if (t.kind() == Kind.GENERIC) {
             String ts = String.valueOf(Instant.now().getEpochSecond());
             req.header("X-BuildRisk-Timestamp", ts)
-                    .header("X-BuildRisk-Delivery", UUID.randomUUID().toString())
+                    .header("X-BuildRisk-Delivery", deliveryId)
                     .header("X-BuildRisk-Signature", "sha256=" + sign(t.secret(), ts + "." + body));
         }
         try {

@@ -12,10 +12,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -27,6 +30,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class NotificationService {
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
     public static final int MAX_ATTEMPTS = 6;
+    /** 한 번 가져간 전송을 보내는 시간 — 임대(2분)보다 짧게, 한 번 보내기는 최대 8초(연결 3 + 응답 5) */
+    private static final Duration SEND_WINDOW = Duration.ofSeconds(90);
+
+    /**
+     * 받는 쪽 중복 제거용 X-BuildRisk-Delivery — 같은 전송 묶음을 다시 보내면 같은 값(전에는 매번 새 UUID 라 '시간 초과'로
+     * 다시 보낸 것을 받는 쪽이 걸러낼 수 없었음, VERIFICATION 131)
+     */
+    static String deliveryId(List<Long> deliveryIds) {
+        String key = deliveryIds.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        return UUID.nameUUIDFromBytes(("buildrisk-delivery:" + key).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+    }
     private final NotificationRepository repo;
     private final WebhookSender sender;
     private final NotifyCrypto crypto;
@@ -71,6 +85,10 @@ public class NotificationService {
     /** @return {성공 경보 수, 실패 경보 수} */
     int[] deliver(int limit) {
         List<Claimed> claimed = repo.claimDue(limit);
+        if (claimed.isEmpty()) return new int[]{0, 0};
+        OffsetDateTime lease = claimed.getFirst().leaseUntil();               // 한 번에 가져간 행은 같은 임대
+        // 임대(2분) 안에 끝내지 못할 만큼 남았으면 돌려놓음 — 임대를 넘기면 다른 worker 가 같은 행을 다시 보냄 (VERIFICATION 131)
+        long deadline = System.nanoTime() + SEND_WINDOW.toNanos();
         Map<Long, List<Claimed>> byWebhook = new LinkedHashMap<>();
         claimed.forEach(c -> byWebhook.computeIfAbsent(c.webhookId(), k -> new ArrayList<>()).add(c));
         int ok = 0, bad = 0;
@@ -79,7 +97,7 @@ public class NotificationService {
             List<Long> ids = list.stream().map(Claimed::deliveryId).toList();
             WebhookRow w = repo.webhook(e.getKey()).orElse(null);
             if (w == null || !w.enabled()) {
-                repo.markFailed(ids, "웹훅이 꺼져 있거나 지워짐", false, MAX_ATTEMPTS);
+                repo.markFailed(ids, lease, "웹훅이 꺼져 있거나 지워짐", false, MAX_ATTEMPTS);
                 dead.increment(ids.size());
                 bad += ids.size();
                 continue;
@@ -88,7 +106,7 @@ public class NotificationService {
             try {
                 t = new Target(crypto.decrypt(w.urlEnc()), WebhookSender.Kind.valueOf(w.kind()), w.secretEnc() == null ? null : crypto.decrypt(w.secretEnc()));
             } catch (RuntimeException ex) {
-                repo.markFailed(ids, ex.getMessage(), false, MAX_ATTEMPTS);
+                repo.markFailed(ids, lease, ex.getMessage(), false, MAX_ATTEMPTS);
                 repo.webhookStatus(w.webhookId(), "복호화 실패", false);
                 dead.increment(ids.size());
                 bad += ids.size();
@@ -102,13 +120,17 @@ public class NotificationService {
             for (int i = 0; i < items.size(); i += WebhookSender.MAX_ALERTS_PER_MESSAGE) {
                 List<AlertItem> chunk = items.subList(i, Math.min(items.size(), i + WebhookSender.MAX_ALERTS_PER_MESSAGE));
                 List<Long> chunkIds = chunk.stream().map(a -> deliveryOf.get(a.alertId())).toList();
-                Result r = sender.send(t, chunk, false);
+                if (System.nanoTime() > deadline) {
+                    repo.release(chunkIds, lease);
+                    continue;
+                }
+                Result r = sender.send(t, chunk, false, deliveryId(chunkIds));
                 if (r.ok()) {
-                    repo.markSent(chunkIds);
+                    repo.markSent(chunkIds, lease);
                     sent.increment(chunkIds.size());
                     ok += chunkIds.size();
                 } else {
-                    repo.markFailed(chunkIds, r.error(), r.retryable(), MAX_ATTEMPTS);
+                    repo.markFailed(chunkIds, lease, r.error(), r.retryable(), MAX_ATTEMPTS);
                     (r.retryable() && list.getFirst().attempts() < MAX_ATTEMPTS ? retried : dead).increment(chunkIds.size());
                     bad += chunkIds.size();
                 }

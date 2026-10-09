@@ -48,6 +48,8 @@ class NotificationIT extends IntegrationTest {
     @Autowired
     NotificationService notifications;
     @Autowired
+    com.buildrisk.radar.domain.notify.NotificationRepository repo;
+    @Autowired
     MockMvc mvc;
     @Autowired
     ObjectMapper mapper;
@@ -207,4 +209,37 @@ class NotificationIT extends IntegrationTest {
         mvc.perform(get("/api/v1/admin/webhooks").with(ADMIN_USER)).andExpect(jsonPath("$.items[0].dead").value(2))
                 .andExpect(jsonPath("$.items[0].lastStatus").value("HTTP 404"));
     }
+
+    @Test
+    void 다시_보내도_같은_전송은_같은_Delivery_ID() throws Exception {
+        // 재시도마다 새 UUID 라 받는 쪽이 중복을 걸러낼 수 없었음 — 응답 시간 초과는 상대가 이미 처리했을 수 있는데도 (VERIFICATION 131)
+        WM.stubFor(post(urlPathEqualTo("/dedupe")).inScenario("d").whenScenarioStateIs(com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED)
+                .willReturn(aResponse().withStatus(503)).willSetStateTo("ok"));
+        WM.stubFor(post(urlPathEqualTo("/dedupe")).inScenario("d").whenScenarioStateIs("ok").willReturn(aResponse().withStatus(200)));
+        JsonNode created = call(mvcPost("/api/v1/admin/webhooks"), ADMIN_USER,
+                Map.of("name", "중복 제거", "kind", "GENERIC", "url", WM.baseUrl() + "/dedupe"), 201);
+        call(mvcPost("/api/v1/me/subscriptions"), ADMIN_USER,
+                Map.of("name", "웹훅", "minSeverity", "LOW", "channel", "WEBHOOK", "webhookId", created.get("webhook").get("webhookId").asLong()), 201);
+        evaluate();
+        notifications.runOnce();                                              // 503
+        jdbc.update("UPDATE notify.delivery SET next_at = now() - interval '1 second'");
+        notifications.runOnce();                                              // 200
+        List<String> ids = WM.findAll(postRequestedFor(urlPathEqualTo("/dedupe"))).stream()
+                .map(r -> r.getHeader("X-BuildRisk-Delivery")).toList();
+        assertThat(ids).hasSize(2);
+        assertThat(ids.get(1)).isEqualTo(ids.get(0));
+        assertThat(jdbc.queryForList("SELECT DISTINCT status FROM notify.delivery", String.class)).containsExactly("SENT");
+
+        // 임대(2분)가 끝나 다른 worker 가 다시 가져간 행은, 늦게 끝난 첫 worker 가 결과를 덮어쓰지 않음
+        jdbc.update("UPDATE notify.delivery SET status = 'PENDING', next_at = now() - interval '1 second', sent_at = NULL");
+        var first = repo.claimDue(10);
+        jdbc.update("UPDATE notify.delivery SET lease_until = now() - interval '1 second'");
+        var second = repo.claimDue(10);
+        assertThat(second).hasSameSizeAs(first).isNotEmpty();
+        List<Long> claimedIds = first.stream().map(c -> c.deliveryId()).toList();
+        assertThat(repo.markSent(claimedIds, first.getFirst().leaseUntil())).isZero();
+        assertThat(jdbc.queryForList("SELECT DISTINCT status FROM notify.delivery", String.class)).containsExactly("SENDING");
+        assertThat(repo.markSent(claimedIds, second.getFirst().leaseUntil())).isEqualTo(claimedIds.size());
+    }
 }
+
