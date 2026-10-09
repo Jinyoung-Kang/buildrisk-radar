@@ -30,12 +30,16 @@ public class RuleService {
         this.alerts = alerts;
     }
 
-    public List<RuleView> list() { return rules.latest().stream().map(this::view).toList(); }
+    public List<RuleView> list() {
+        Map<String, Long> open = alerts.openCountsByRuleVersion();
+        return rules.latest().stream().map(v -> view(v, open)).toList();
+    }
 
     public RuleHistory history(String code) {
         List<RuleRepository.Version> vs = rules.history(code);
         if (vs.isEmpty()) throw ApiException.notFound(ErrorCode.RULE_NOT_FOUND, "규칙 " + code);
-        return new RuleHistory(code, vs.stream().map(this::view).toList());
+        Map<String, Long> open = alerts.openCountsByRuleVersion();
+        return new RuleHistory(code, vs.stream().map(v -> view(v, open)).toList());
     }
 
     /** 파라미터·심각도·사용 여부를 바꾸면 새 버전 (FR-502). 값이 같으면 버전을 올리지 않습니다. */
@@ -62,14 +66,14 @@ public class RuleService {
             throw new ApiException(ErrorCode.RULE_PARAM_INVALID, e.getMessage());
         }
         if (Objects.equals(params, cur.def().params()) && severity.equals(cur.def().severity()) && enabled == cur.def().enabled()) {
-            return view(cur);
+            return view(cur, alerts.openCountsByRuleVersion());
         }
         rules.insertVersion(cur.def(), params, severity, enabled,
                 req.changeNote() == null || req.changeNote().isBlank() ? "API 로 변경" : req.changeNote(), actor);
-        return view(rules.latest(code).orElseThrow());
+        return view(rules.latest(code).orElseThrow(), alerts.openCountsByRuleVersion());
     }
 
-    private RuleView view(RuleRepository.Version v) {
+    private RuleView view(RuleRepository.Version v, Map<String, Long> openByRuleVersion) {
         var d = v.def();
         String cond;
         try {
@@ -77,7 +81,7 @@ public class RuleService {
         } catch (RuntimeException e) {
             cond = "(파라미터 오류) " + e.getMessage();
         }
-        long open = alerts.openCount(d.code(), d.version());
+        long open = openByRuleVersion.getOrDefault(d.code() + ":" + d.version(), 0L);
         return new RuleView(d.code(), d.version(), d.targetType().name(), d.nameKo(), d.description(), d.params(),
                 d.severity(), d.enabled(), cond, v.changeNote(), v.createdBy(), v.createdAt(), open);
     }

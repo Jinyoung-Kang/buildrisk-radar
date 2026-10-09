@@ -3,6 +3,7 @@ package com.buildrisk.radar.alert.data;
 import com.buildrisk.radar.alert.domain.AlertLifecycle.Active;
 import com.buildrisk.radar.alert.domain.AlertLifecycle.Upsert;
 import com.buildrisk.radar.alert.domain.RuleModels.RuleDefinition;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.ObjectMapper;
@@ -55,10 +56,12 @@ public class AlertRepository {
                 .query((rs, i) -> new Active(rs.getLong(1), rs.getInt(2), rs.getString(3))).list();
     }
 
-    /** 그 규칙 버전의 열린(OPEN · ACK) 경보 수 */
-    public long openCount(String ruleCode, int version) {
-        return jdbc.sql("SELECT count(*) FROM risk.alert WHERE rule_code = :c AND rule_version = :v AND status IN ('OPEN','ACK')")
-                .param("c", ruleCode).param("v", version).query(Long.class).single();
+    /** 규칙 · 버전별 열린(OPEN · ACK) 경보 수 — 키 '규칙코드:버전'. 규칙 목록을 그릴 때 규칙마다 따로 세지 않게 한 번에 */
+    public Map<String, Long> openCountsByRuleVersion() {
+        Map<String, Long> out = new HashMap<>();
+        jdbc.sql("SELECT rule_code, rule_version, count(*) FROM risk.alert WHERE status IN ('OPEN', 'ACK') GROUP BY rule_code, rule_version")
+                .query((RowCallbackHandler) rs -> out.put(rs.getString(1) + ":" + rs.getInt(2), rs.getLong(3)));
+        return out;
     }
 
     public void close(long alertId, String reason) {
