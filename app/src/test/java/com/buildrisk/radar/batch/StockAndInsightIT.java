@@ -59,6 +59,26 @@ class StockAndInsightIT extends IntegrationTest {
     }
 
     @Test
+    void 쪽을_다_못_받으면_저장하지_않아_마지막_날_다음부터에_빈칸이_생기지_않는다() throws IOException {
+        // 다음 실행은 '마지막 저장일 다음 날'부터 받으므로, 중간 쪽이 빠진 채 저장하면 그 공백이 영구히 남음 (VERIFICATION 128)
+        company("00000722", "공백건설");
+        String body;
+        try (var in = getClass().getResourceAsStream("/fixtures/stock/hyundai_000720.json")) {
+            body = new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("000720", "000722");
+        }
+        String page1 = body.replaceFirst("\"totalCount\"\\s*:\\s*\\d+", "\"totalCount\":1500");
+        WM.stubFor(get(urlPathEqualTo(PATH)).withQueryParam("pageNo", equalTo("1"))
+                .willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(page1)));
+        WM.stubFor(get(urlPathEqualTo(PATH)).withQueryParam("pageNo", equalTo("2"))
+                .willReturn(aResponse().withHeader("Content-Type", "application/json")
+                        .withBody("{\"response\":{\"header\":{\"resultCode\":\"00\",\"resultMsg\":\"NORMAL SERVICE.\"},"
+                                + "\"body\":{\"numOfRows\":1000,\"pageNo\":2,\"totalCount\":1500,\"items\":{\"item\":[]}}}}")));
+        launcher.runAndWait("stockPriceJob", Map.of("years", 1, "restart", false));
+        assertThat(count("SELECT count(*) FROM mkt.stock_daily WHERE stock_code = '000722'")).isZero();
+        assertThat(count("SELECT count(*) FROM ops.skip_log WHERE reason_code = 'UPSTREAM'")).isPositive();
+    }
+
+    @Test
     void 노출과_백테스트_API() throws Exception {
         company("00000721", "노출건설");
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/exposure"))

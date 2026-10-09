@@ -1,7 +1,9 @@
 package com.buildrisk.radar.batch.jobs;
 
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
+import com.buildrisk.radar.adapters.common.UpstreamException;
 import com.buildrisk.radar.adapters.datagokr.RtmsClient;
+import com.buildrisk.radar.adapters.datagokr.RtmsClient.Trade;
 import com.buildrisk.radar.batch.support.BatchKeys;
 import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
@@ -72,8 +74,15 @@ public class MarketJobsConfig {
                                                      @Value("#{stepExecution}") StepExecution se,
                                                      @Value("#{jobParameters['maxCalls']}") Long maxCalls) {
         QuotaGuard guard = new QuotaGuard(se, skips, maxCalls == null ? Long.MAX_VALUE : maxCalls);
-        return t -> guard.call(t.lawdCd() + ":" + t.dealYm(),
-                () -> new Fetched(t.lawdCd(), t.dealYm(), rtms.trades(t.lawdCd(), TradeWindow.parse(t.dealYm()))));
+        return t -> guard.call(t.lawdCd() + ":" + t.dealYm(), () -> {
+            List<Trade> got = rtms.trades(t.lawdCd(), TradeWindow.parse(t.dealYm()));
+            // 신고된 거래는 사라지지 않음(해제도 표시만) — 받았던 달이 다시 받으니 0건이면 원천 이상으로 보고 그대로 둠 (VERIFICATION 128)
+            if (got.isEmpty() && t.previousTrades() != null && t.previousTrades() > 0) {
+                throw new UpstreamException(RtmsClient.PROVIDER, t.lawdCd() + " " + t.dealYm() + ": 전에 " + t.previousTrades()
+                        + "건이던 달이 0건 — 원천 이상으로 보고 바꾸지 않음");
+            }
+            return new Fetched(t.lawdCd(), t.dealYm(), got);
+        });
     }
 
     @Bean

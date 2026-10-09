@@ -74,6 +74,32 @@ class AptTradeJobIT extends IntegrationTest {
                 + "</totalCount></body></response>";
     }
 
+    private static String xmlTotal(int total, String... items) {
+        return xml(items).replace("<totalCount>" + items.length + "</totalCount>", "<totalCount>" + total + "</totalCount>");
+    }
+
+    private int trades(String lawd) { return count("SELECT count(*) FROM mkt.apt_trade WHERE lawd_cd = ?", lawd); }
+
+    @Test
+    void 받다_만_달과_갑자기_0건이_된_달은_바꾸지_않고_건너뛴다() {
+        // 중간 쪽이 빈 정상 응답이면 1쪽만으로 그 달을 통째 교체해 영구히 적게 집계 · 다시 받은 달이 0건이면 그대로 0건 (VERIFICATION 128)
+        assertThat(launcher.runAndWait("aptTradeJob", Map.of("months", 13, "restart", false)).getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        int before = trades("99101");
+        jdbc.update("UPDATE mkt.apt_trade_fetch SET fetched_at = now() - interval '2 days'");     // 최근 달은 다시 받는 대상
+        WM.stubFor(get(urlPathEqualTo(PATH)).atPriority(1).withQueryParam("LAWD_CD", equalTo("99101")).withQueryParam("pageNo", equalTo("1"))
+                .willReturn(aResponse().withHeader("Content-Type", "application/xml")
+                        .withBody(xmlTotal(1500, item(50_000, "84.00", false), item(60_000, "84.00", false)))));
+        WM.stubFor(get(urlPathEqualTo(PATH)).atPriority(1).withQueryParam("LAWD_CD", equalTo("99101")).withQueryParam("pageNo", equalTo("2"))
+                .willReturn(aResponse().withHeader("Content-Type", "application/xml").withBody(xmlTotal(1500))));
+        stub("99201", xml());                                                // 1건이던 갑구가 0건으로
+
+        assertThat(launcher.runAndWait("aptTradeJob", Map.of("months", 13, "restart", false)).getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        assertThat(trades("99101")).isEqualTo(before);
+        assertThat(trades("99201")).isEqualTo(13);
+        assertThat(count("SELECT count(*) FROM ops.skip_log WHERE reason_code = 'UPSTREAM' AND item_key LIKE '99101:%'")).isPositive();
+        assertThat(count("SELECT count(*) FROM ops.skip_log WHERE reason_code = 'UPSTREAM' AND item_key LIKE '99201:%'")).isPositive();
+    }
+
     private static void stub(String lawd, String body) {
         WM.stubFor(get(urlPathEqualTo(PATH)).withQueryParam("LAWD_CD", equalTo(lawd))
                 .willReturn(aResponse().withHeader("Content-Type", "application/xml").withBody(body)));

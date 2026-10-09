@@ -24,7 +24,8 @@ public class AptTradeRepository {
         this.tpl = tpl;
     }
 
-    public record Target(String lawdCd, int dealYm) {}
+    /** previousTrades: 이미 받은 달이면 그때 건수(다시 받는 최근 달), 처음이면 null */
+    public record Target(String lawdCd, int dealYm, Integer previousTrades) {}
 
     public record Fetched(String lawdCd, int dealYm, List<Trade> trades) {}
 
@@ -38,7 +39,7 @@ public class AptTradeRepository {
                     SELECT to_char(d, 'YYYYMM')::int AS ym
                       FROM generate_series(to_date(cast(:from AS text), 'YYYYMM'), to_date(cast(:to AS text), 'YYYYMM'),
                                            interval '1 month') d)
-                SELECT r.region_cd, m.ym
+                SELECT r.region_cd, m.ym, f.trades
                   FROM ref.region r CROSS JOIN months m
                   LEFT JOIN mkt.apt_trade_fetch f ON f.lawd_cd = r.region_cd AND f.deal_ym = m.ym
                  WHERE NOT r.synthetic
@@ -46,7 +47,7 @@ public class AptTradeRepository {
                         OR (m.ym >= :refresh AND (f.fetched_at AT TIME ZONE 'Asia/Seoul')::date < :today))
                  ORDER BY m.ym DESC, r.region_cd""")
                 .param("from", fromYm).param("to", toYm).param("refresh", refreshFromYm).param("today", today)
-                .query((rs, i) -> new Target(rs.getString(1), rs.getInt(2))).list();
+                .query((rs, i) -> new Target(rs.getString(1), rs.getInt(2), (Integer) rs.getObject(3))).list();
     }
 
     /** (시군구, 달) 단위로 통째 교체 — 파티션 하나만 건드림 */

@@ -59,6 +59,10 @@ public class StockPriceClient {
             p.items().stream().filter(d -> stockCode.equals(d.srtnCd())).forEach(out::add);
             page++;
         } while (!p.items().isEmpty() && seen < p.totalCount());
+        // 다음 실행은 마지막 저장일 다음 날부터 받으므로, 쪽이 빠진 채 저장하면 그 공백이 영구히 남음 (VERIFICATION 128)
+        if (seen < p.totalCount()) {
+            throw new UpstreamException(PROVIDER, stockCode + ": " + p.totalCount() + "건 중 " + seen + "건만 받음 — 다음 실행에서 다시");
+        }
         out.sort(Comparator.comparing(Daily::basDt));
         return out;
     }

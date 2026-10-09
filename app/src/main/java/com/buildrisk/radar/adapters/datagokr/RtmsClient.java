@@ -57,6 +57,10 @@ public class RtmsClient {
             out.addAll(p.items());
             page++;
         } while (!p.items().isEmpty() && out.size() < p.totalCount());
+        // 중간 쪽이 빈 정상 응답이면 일부만 받은 것 — 저장하면 그 달을 일부로 통째 교체해 영구히 적게 집계 (VERIFICATION 128)
+        if (out.size() < p.totalCount()) {
+            throw new UpstreamException(PROVIDER, lawdCd + " " + ym + ": " + p.totalCount() + "건 중 " + out.size() + "건만 받음 — 다음 실행에서 다시");
+        }
         return out;
     }
 
