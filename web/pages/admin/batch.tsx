@@ -179,7 +179,11 @@ export default function Batch() {
                 <tbody>{execs.data.map((e) => (
                   <tr key={e.jobExecutionId} onClick={() => setSel(e.jobExecutionId)}
                     className={`clickable ${sel === e.jobExecutionId ? "selected" : ""}`}>
-                    <td className="num text-muted">{e.jobExecutionId}</td><td className="font-medium">{e.jobName}</td><td><JobStatus s={e.status} resolvedBy={e.resolvedBy} /></td>
+                    {/* 행 클릭은 마우스용, 키보드 · 화면 읽기 프로그램은 번호 버튼으로 (VERIFICATION 147) */}
+                    <td className="num"><button type="button" className="text-muted hover:underline focus-ring rounded tabular"
+                      aria-label={`실행 #${e.jobExecutionId} 상세`} aria-pressed={sel === e.jobExecutionId}
+                      onClick={(ev) => { ev.stopPropagation(); setSel(e.jobExecutionId); }}>{e.jobExecutionId}</button></td>
+                    <td className="font-medium">{e.jobName}</td><td><JobStatus s={e.status} resolvedBy={e.resolvedBy} /></td>
                     <td className="num">{int(e.readCount)}</td><td className="num">{int(e.writeCount)}</td><td className="num">{int(e.skipLogCount)}</td>
                     <td className="whitespace-nowrap text-ink2">{dt(e.startTime)}</td><td className="num">{e.durationSec}</td>
                   </tr>))}</tbody>

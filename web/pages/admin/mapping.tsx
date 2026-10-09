@@ -17,9 +17,9 @@ function AddRule({ stdCode, sjDiv, suggest, onDone }: { stdCode: string; sjDiv: 
   return (
     <RequireRole role="ADMIN" inline>
     <div className="flex flex-col gap-1.5 w-56">
-      <select value={type} onChange={(e) => setType(e.target.value)} className="text-xs bg-raised border border-line rounded px-1 py-0.5">
+      <select value={type} onChange={(e) => setType(e.target.value)} aria-label="매핑 방식" className="text-xs bg-raised border border-line rounded px-1 py-0.5">
         <option>NAME_EXACT</option><option>NAME_REGEX</option><option>ACCOUNT_ID</option></select>
-      <input value={pattern} onChange={(e) => setPattern(e.target.value)} placeholder="계정명·패턴" className="text-xs bg-raised border border-line rounded px-1.5 py-1" />
+      <input value={pattern} onChange={(e) => setPattern(e.target.value)} placeholder="계정명·패턴" aria-label="계정명 · 패턴" className="text-xs bg-raised border border-line rounded px-1.5 py-1" />
       <button onClick={add} disabled={action.busy} className="text-xs px-2 py-1 rounded bg-accent text-white disabled:opacity-50">매핑 규칙 추가</button>
       <ErrorBox error={action.error} />
     </div>

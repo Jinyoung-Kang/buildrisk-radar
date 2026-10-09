@@ -68,7 +68,7 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} /> 사용
         </label>
       </div>
-      <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="변경 사유 (버전 이력에 남음)"
+      <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="변경 사유 (버전 이력에 남음)" aria-label="변경 사유"
         className="w-full bg-raised border border-line rounded-md px-2 py-1.5 text-sm focus-ring" />
       <div className="flex items-center gap-3">
         <button onClick={save} disabled={action.busy} className="px-3 py-1.5 rounded-lg bg-accent text-white text-sm focus-ring disabled:opacity-50">새 버전으로 저장</button>

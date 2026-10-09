@@ -175,3 +175,15 @@ test("실행 중인 Job 이 있을 때의 배치 화면 갱신은 탭이 보일 
   await expect.poll(() => calls, { timeout: 5_000 }).toBeGreaterThan(hidden);       // 다시 보이면 곧바로 갱신
   await page.unrouteAll({ behavior: "ignoreErrors" });                            // 끝난 뒤 도착하는 폴링 요청은 무시
 });
+
+test("접근성: 배치 실행은 키보드로 열고, 규칙 변경 사유 입력에 이름이 있음 (VERIFICATION 147)", async ({ page }) => {
+  await page.goto("/admin/batch");
+  const open = page.getByRole("button", { name: /^실행 #\d+ 상세$/ }).first();
+  await open.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Step 실행")).toBeVisible();
+  test.skip(!ADMIN, "E2E_ADMIN_PASSWORD 미설정");
+  await login(page, "/admin/rules");
+  await page.getByRole("button", { name: "파라미터 수정" }).first().click();
+  await expect(page.getByLabel("변경 사유")).toBeVisible();
+});
