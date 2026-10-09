@@ -31,3 +31,4 @@
 | [027](027-lineage-export.md) | 근거 계보(경보 → 원천 재무제표 줄 · 매핑 규칙 · 실행) · CSV 내려받기(수식 주입 방어) · v1 호환 정책 | 채택 |
 | [028](028-nextjs16-bundler.md) | Next.js 16 으로(15 지원 종료) — 운영 빌드는 webpack(첫 로드 JS 104 KB, Turbopack 은 116 KB) | 채택 |
 | [029](029-backend-feature-modules.md) | 백엔드를 기능 모듈 10개 × 계층(api · app · domain · data)으로 — 의존 방향 · domain 순수성 · 쓰기 SQL 위치를 테스트로 고정, 경보 전이는 순수 규칙 | 채택 |
+| [030](030-frontend-layers.md) | 프론트엔드를 화면 · Hook · 순수 함수 · 기능별 API 모듈로 — 경계는 ESLint, 조회 응답은 경로에 묶음, 효과 안 setState 없음 | 채택 |

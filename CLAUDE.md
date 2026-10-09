@@ -9,6 +9,8 @@
   - 패키지는 기능 모듈 × 계층 `<기능>.api · app · domain · data` + 바깥 `adapters · batch · common` (ADR-029). 의존 방향 · domain 순수성 ·
     쓰기 SQL 위치(data 에만)는 `ArchitectureTest` 가 검사 — 새 클래스를 어디 둘지 모르면 이 테스트를 먼저 본다
 - `web/` Next.js 16 (Pages Router, 운영 빌드 webpack — ADR-028) · TypeScript · Tailwind · Recharts
+  - 화면은 그리기만, 상태 · 부수효과는 `lib/hooks`, API 는 기능별 `lib/api/<기능>`, 규칙 · 변환은 `lib/domain`(React 없음 — 단위 테스트) (ADR-030).
+    경계는 ESLint 가 검사. 화면 경합 · 오류는 E2E `frontend` 처럼 응답을 붙잡거나 실패시켜 재현
 - `ops/` nginx(edge) · prometheus · grafana · k6
 - 진입점은 **edge(nginx) 하나** `http://localhost:3400` — `/api/v1` 은 api 로, 나머지는 web 으로. api · web 은 포트를 열지 않음
 - 기타 포트: Grafana :3401 · Prometheus :9490 (`make obs`) · Postgres :5472 · Redis :6419 (모두 127.0.0.1)

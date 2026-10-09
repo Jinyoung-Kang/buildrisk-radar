@@ -389,7 +389,7 @@ buildrisk-radar/
 │     └─ common/             설정 · 역할(api/worker) · security(로그인 · 세션 · CSRF · 토큰 · 레이트리밋 · 감사) · 오류 규약 · web(traceId · 쪽 · 조회 조건 · CSV) · cache(Redis · 프로세스 안)
 ├─ app/src/main/resources/db/migration/   V1 … V21 · afterMigrate(런타임 계정 권한)
 ├─ app/src/test/             단위 · Testcontainers 통합 · WireMock fixture (DART 재무 · 공시 원문 · 실거래 · 주가 실응답)
-├─ web/                      Next.js 16 (pages · components · lib(auth · api) · e2e)
+├─ web/                      Next.js 16 — pages · components(그리기) · lib/hooks(상태 · 부수효과) · lib/api(기능별 API 모듈) · lib/domain(순수 함수) · e2e (ADR-030)
 ├─ ops/                      prometheus · grafana(프로비저닝 대시보드) · k6(부하 · 레이트리밋)
 ├─ seed/                     표준계정 · 매핑 규칙 · 업종코드 · 이벤트 사전 · 규칙 · 통계 시리즈 · 지역 별칭
 ├─ tools/smoke.py            외부 API 키 스모크 · 골든 fixture 캡처
