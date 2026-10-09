@@ -1,12 +1,12 @@
 package com.buildrisk.radar.batch.jobs;
 
-import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.adapters.dart.DartClient;
 import com.buildrisk.radar.adapters.seed.SeedCatalog;
 import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.filing.data.FilingRepository.Target;
 import com.buildrisk.radar.filing.data.FilingRepository;
 import com.buildrisk.radar.filing.domain.FilingParser;
@@ -55,7 +55,7 @@ public class FilingJobConfig {
     @Bean
     @StepScope
     ItemReader<Target> filingReader(FilingRepository filings, @Value("#{jobParameters['days']}") Long days) {
-        List<Target> plan = filings.pending(ApiQuotaService.today().minusDays(days == null ? 400 : days));
+        List<Target> plan = filings.pending(Kst.today().minusDays(days == null ? 400 : days));
         log.info("공시 원문 수집 대상 {}건", plan.size());
         return new ListItemReader<>(plan);
     }

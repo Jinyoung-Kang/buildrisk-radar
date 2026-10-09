@@ -1,9 +1,9 @@
 package com.buildrisk.radar.alert.app;
 
-import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.alert.domain.RuleData;
 import com.buildrisk.radar.alert.domain.RuleModels.TargetType;
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.filing.data.DisclosureRepository;
 import com.buildrisk.radar.filing.data.ExposureRepository;
 import com.buildrisk.radar.filing.domain.FilingModels.ContractFact;
@@ -58,5 +58,5 @@ public class DbRuleData implements RuleData {
     }
 
     @Override
-    public LocalDate today() { return ApiQuotaService.today(); }
+    public LocalDate today() { return Kst.today(); }
 }

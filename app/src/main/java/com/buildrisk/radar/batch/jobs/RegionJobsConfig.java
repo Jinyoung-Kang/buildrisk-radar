@@ -1,6 +1,5 @@
 package com.buildrisk.radar.batch.jobs;
 
-import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.adapters.kosis.KosisClient;
 import com.buildrisk.radar.adapters.rone.RoneClient;
 import com.buildrisk.radar.adapters.seed.SeedCatalog;
@@ -9,6 +8,7 @@ import com.buildrisk.radar.adapters.vworld.VworldClient;
 import com.buildrisk.radar.batch.support.BatchKeys;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.region.app.RegionResolver;
 import com.buildrisk.radar.region.data.RegionRepository.BoundaryRow;
 import com.buildrisk.radar.region.data.RegionRepository.SeriesDef;
@@ -248,7 +248,7 @@ public class RegionJobsConfig {
     ItemReader<SourceStat> kosisReader(KosisClient kosis, RegionRepository regions, AppProperties props, ObjectMapper mapper) {
         return lazyList(() -> {
             List<SourceStat> out = new ArrayList<>();
-            YearMonth now = YearMonth.now(ApiQuotaService.KST);
+            YearMonth now = YearMonth.now(Kst.ZONE);
             String start = now.minusMonths(props.kosis().months()).format(YM);
             for (SeriesDef s : regions.series("KOSIS")) {
                 Map<String, Object> p = params(mapper, s);
@@ -297,7 +297,7 @@ public class RegionJobsConfig {
             private int fetched;
 
             {
-                YearMonth now = YearMonth.now(ApiQuotaService.KST);
+                YearMonth now = YearMonth.now(Kst.ZONE);
                 for (SeriesDef s : regions.series("RONE")) {
                     for (int m = props.rone().months(); m >= 0; m--) {
                         plan.add(new String[]{s.seriesId(), s.table(), s.item(), now.minusMonths(m).format(YM)});

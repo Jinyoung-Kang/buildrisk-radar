@@ -1,7 +1,7 @@
 package com.buildrisk.radar.batch;
 
-import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.batch.support.BatchLauncher;
+import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.market.domain.TradeWindow;
 import com.buildrisk.radar.support.IntegrationTest;
 import com.github.tomakehurst.wiremock.client.WireMock;
@@ -114,10 +114,10 @@ class AptTradeJobIT extends IntegrationTest {
         WM.verify(0, getRequestedFor(urlPathEqualTo(PATH)).withQueryParam("LAWD_CD", equalTo("99200")));
         assertThat(count("SELECT count(*) FROM mkt.apt_trade_fetch")).isEqualTo(calls);
         assertThat(count("SELECT count(*) FROM mkt.apt_trade")).isEqualTo(14 * 4);
-        assertThat(count("SELECT count(*) FROM mkt.apt_trade_y" + YearMonth.now(ApiQuotaService.KST).minusMonths(1).getYear()))
+        assertThat(count("SELECT count(*) FROM mkt.apt_trade_y" + YearMonth.now(Kst.ZONE).minusMonths(1).getYear()))
                 .isPositive();                                                 // 파티션으로 들어감
 
-        int complete = TradeWindow.of(YearMonth.now(ApiQuotaService.KST), 14).completeToYm();
+        int complete = TradeWindow.of(YearMonth.now(Kst.ZONE), 14).completeToYm();
         String p = String.valueOf(complete);
         assertThat(stat("RTMS_TRADE_CNT", "99101", p)).isEqualTo("2");
         assertThat(stat("RTMS_CANCEL_CNT", "99101", p)).isEqualTo("1");
@@ -157,7 +157,7 @@ class AptTradeJobIT extends IntegrationTest {
         // 계획 단계가 '오늘 남은 호출'을 maxCalls 파라미터로 넣었고, restart 는 첫 실행의 파라미터를 그대로 쓰므로
         // 남은 호출이 7건인 날 멈춘 수집은 이후 매일 7건만 받고 멈췄음 (남은 호출이 0 이면 영구히 0건 — VERIFICATION 121)
         jdbc.update("INSERT INTO ops.api_quota (provider, day, calls) VALUES ('RTMS', ?, ?)",
-                com.buildrisk.radar.adapters.common.ApiQuotaService.today(), props.dataGoKr().dailyCallLimit() - 7);
+                Kst.today(), props.dataGoKr().dailyCallLimit() - 7);
         var first = launcher.runAndWait("aptTradeJob", Map.of("months", 13, "restart", false));
         assertThat(first.getStatus()).isEqualTo(BatchStatus.STOPPED);
 
@@ -173,7 +173,7 @@ class AptTradeJobIT extends IntegrationTest {
         // 집계 Step 이 months 를 무시하고 기본 기간만 다시 넣으면서 RTMS 시리즈를 통째로 지워, 백필한 달이 통계 · 지표에 반영되지 않았음 (VERIFICATION 136)
         int months = props.dataGoKr().tradeMonths() + 12;
         assertThat(launcher.runAndWait("aptTradeJob", Map.of("months", months, "restart", false)).getStatus()).isEqualTo(BatchStatus.COMPLETED);
-        var w = TradeWindow.of(YearMonth.now(ApiQuotaService.KST), months);
+        var w = TradeWindow.of(YearMonth.now(Kst.ZONE), months);
         assertThat(stat("RTMS_TRADE_CNT", "99101", String.valueOf(w.fromYm()))).isEqualTo("2");
         // 다음 기본 실행이 앞서 백필한 달의 집계를 지우지 않음
         assertThat(launcher.runAndWait("aptTradeJob", Map.of("restart", false)).getStatus()).isEqualTo(BatchStatus.COMPLETED);

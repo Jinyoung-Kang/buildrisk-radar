@@ -1,6 +1,5 @@
 package com.buildrisk.radar.batch.jobs;
 
-import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.adapters.dart.DartClient;
 import com.buildrisk.radar.adapters.dart.DartModels.FsResponse;
 import com.buildrisk.radar.batch.support.BatchKeys;
@@ -8,6 +7,7 @@ import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.company.data.FsRepository;
 import com.buildrisk.radar.company.domain.FsModels.FsRow;
 import com.buildrisk.radar.company.domain.FsModels.FsTarget;
@@ -79,7 +79,7 @@ public class FinancialStatementJobConfig {
                                   @Value("#{jobParameters['toYear']}") Long toYear,
                                   @Value("#{jobParameters['reprtCodes']}") String reprtCodes) {
         int from = fromYear == null ? props.dart().fromYear() : fromYear.intValue();
-        int to = toYear == null ? ApiQuotaService.today().getYear() : toYear.intValue();
+        int to = toYear == null ? Kst.today().getYear() : toYear.intValue();
         List<String> reprts = reprtCodes == null || reprtCodes.isBlank() ? PeriodKeys.REPRT_CODES
                 : Arrays.stream(reprtCodes.split(",")).map(String::trim).toList();
         return new FsTargetReader(fs, from, to, reprts);
@@ -101,7 +101,7 @@ public class FinancialStatementJobConfig {
 
         @Override
         public void open(ExecutionContext ctx) {
-            List<FsTarget> targets = fs.pendingTargets(from, to, reprts, ApiQuotaService.today());
+            List<FsTarget> targets = fs.pendingTargets(from, to, reprts, Kst.today());
             ctx.putInt(BatchKeys.PLANNED_CALLS, targets.size());
             it = targets.iterator();
         }

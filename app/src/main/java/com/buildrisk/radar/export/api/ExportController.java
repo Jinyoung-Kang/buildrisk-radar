@@ -1,7 +1,7 @@
 package com.buildrisk.radar.export.api;
 
-import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.alert.domain.AlertCodes;
+import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.common.role.ApiRole;
 import com.buildrisk.radar.common.web.CsvWriter;
 import com.buildrisk.radar.common.web.QueryParams;
@@ -81,7 +81,7 @@ public class ExportController {
     }
 
     private static void write(HttpServletResponse res, String name, Consumer<CsvWriter> body) throws IOException {
-        String file = name + "-" + LocalDate.now(ApiQuotaService.KST).format(DateTimeFormatter.BASIC_ISO_DATE) + ".csv";
+        String file = name + "-" + LocalDate.now(Kst.ZONE).format(DateTimeFormatter.BASIC_ISO_DATE) + ".csv";
         res.setContentType("text/csv;charset=UTF-8");
         res.setHeader("Content-Disposition", "attachment; filename=\"" + file + "\"");
         res.setHeader("Cache-Control", "no-store");

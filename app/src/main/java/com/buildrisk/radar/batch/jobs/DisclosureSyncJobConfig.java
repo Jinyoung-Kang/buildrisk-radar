@@ -1,6 +1,5 @@
 package com.buildrisk.radar.batch.jobs;
 
-import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.adapters.dart.DartClient;
 import com.buildrisk.radar.adapters.dart.DartModels.DisclosurePage;
 import com.buildrisk.radar.adapters.seed.SeedCatalog;
@@ -8,6 +7,7 @@ import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.filing.data.DisclosureRepository.Classified;
 import com.buildrisk.radar.filing.data.DisclosureRepository;
 import com.buildrisk.radar.filing.domain.EventClassifier;
@@ -76,7 +76,7 @@ public class DisclosureSyncJobConfig {
             AppProperties props) {
         EventClassifier classifier = seed.eventClassifier();
         QuotaGuard guard = new QuotaGuard(se, skips, Long.MAX_VALUE);
-        LocalDate today = ApiQuotaService.today();
+        LocalDate today = Kst.today();
         LocalDate backfill = fromParam == null ? null : LocalDate.parse(fromParam);
         LocalDate firstFetch = LocalDate.of(props.dart().fromYear(), 1, 1);
         return corp -> guard.call(corp, () -> {

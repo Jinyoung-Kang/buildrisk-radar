@@ -1,9 +1,9 @@
 package com.buildrisk.radar.ops.app;
 
-import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.batch.queue.WorkerRegistry;
 import com.buildrisk.radar.batch.support.BatchLauncher;
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
@@ -115,7 +115,7 @@ public class BatchQueryService {
         out.put("jobs", jobs);
         out.put("workers", workers.list());
         out.put("quota", jdbc.sql("SELECT provider, calls FROM ops.api_quota WHERE day = :d ORDER BY provider")
-                .param("d", ApiQuotaService.today()).query().listOfRows());
+                .param("d", Kst.today()).query().listOfRows());
         out.put("dartDailyLimit", props.dart().dailyCallLimit());
         out.put("schedulingEnabled", props.batch().schedulingEnabled());
         return out;

@@ -6,6 +6,7 @@ import com.buildrisk.radar.adapters.datagokr.RtmsClient;
 import com.buildrisk.radar.adapters.datagokr.StockPriceClient;
 import com.buildrisk.radar.batch.jobs.PfExposureJobConfig;
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
@@ -187,7 +188,7 @@ public class BatchLauncher {
         try {
             switch (jobName) {
                 case "financialStatementJob" -> {
-                    int from = props.dart().fromYear(), to = ApiQuotaService.today().getYear();
+                    int from = props.dart().fromYear(), to = Kst.today().getYear();
                     if (b.get("years") instanceof List<?> ys && !ys.isEmpty()) {
                         from = ys.stream().mapToInt(y -> Integer.parseInt(String.valueOf(y))).min().getAsInt();
                         to = ys.stream().mapToInt(y -> Integer.parseInt(String.valueOf(y))).max().getAsInt();
@@ -198,7 +199,7 @@ public class BatchLauncher {
                     if (b.get("fsDivOrder") instanceof List<?> order && !order.equals(List.of("CFS", "OFS"))) {
                         throw new ApiException(ErrorCode.VALIDATION_ERROR, "fsDivOrder 는 [\"CFS\",\"OFS\"] 만 지원합니다.");
                     }
-                    planned = fs.pendingTargets(from, to, reprts, ApiQuotaService.today()).size();
+                    planned = fs.pendingTargets(from, to, reprts, Kst.today()).size();
                     limit = props.dart().dailyCallLimit();
                     used = quota.used(DartClient.PROVIDER);
                     int remaining = Math.max(0, limit - used);
@@ -216,8 +217,8 @@ public class BatchLauncher {
                 case "aptTradeJob" -> {
                     int months = b.get("months") == null ? props.dataGoKr().tradeMonths() : Integer.parseInt(String.valueOf(b.get("months")));
                     if (months < 13 || months > 120) throw new ApiException(ErrorCode.VALIDATION_ERROR, "months 는 13~120");
-                    var w = TradeWindow.of(YearMonth.now(ApiQuotaService.KST), months);
-                    planned = trades.pending(w.fromYm(), w.toYm(), w.refreshFromYm(), ApiQuotaService.today()).size();
+                    var w = TradeWindow.of(YearMonth.now(Kst.ZONE), months);
+                    planned = trades.pending(w.fromYm(), w.toYm(), w.refreshFromYm(), Kst.today()).size();
                     limit = props.dataGoKr().dailyCallLimit();
                     used = quota.used(RtmsClient.PROVIDER);
                     pb.addLong("months", (long) months);
@@ -232,7 +233,7 @@ public class BatchLauncher {
                 case "filingParseJob" -> {
                     long days = b.get("days") == null ? 400L : Long.parseLong(String.valueOf(b.get("days")));
                     if (days < 1 || days > 3650) throw new ApiException(ErrorCode.VALIDATION_ERROR, "days 는 1~3650");
-                    planned = filings.pending(ApiQuotaService.today().minusDays(days)).size();
+                    planned = filings.pending(Kst.today().minusDays(days)).size();
                     limit = props.dart().dailyCallLimit();
                     used = quota.used(DartClient.PROVIDER);
                     pb.addLong("days", days);
@@ -273,7 +274,7 @@ public class BatchLauncher {
                     // from: 과거 공시 백필 시작일 (예: 경보 성적표의 부실 사건을 재무제표 기간과 맞출 때)
                     if (b.get("from") != null) {
                         LocalDate from = LocalDate.parse(String.valueOf(b.get("from")));
-                        if (from.isBefore(LocalDate.of(2015, 1, 1)) || from.isAfter(ApiQuotaService.today()))
+                        if (from.isBefore(LocalDate.of(2015, 1, 1)) || from.isAfter(Kst.today()))
                             throw new ApiException(ErrorCode.VALIDATION_ERROR, "from 은 2015-01-01 ~ 오늘");
                         pb.addString("from", from.toString());
                         warning = "기업마다 " + from + " 부터 공시 목록을 받습니다 (기업당 100건 단위 페이지 호출).";

@@ -1,6 +1,5 @@
 package com.buildrisk.radar.batch.jobs;
 
-import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.adapters.common.UpstreamException;
 import com.buildrisk.radar.adapters.datagokr.RtmsClient;
 import com.buildrisk.radar.batch.support.BatchKeys;
@@ -8,6 +7,7 @@ import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.market.data.AptTradeRepository.Fetched;
 import com.buildrisk.radar.market.data.AptTradeRepository.Target;
 import com.buildrisk.radar.market.data.AptTradeRepository;
@@ -58,9 +58,9 @@ public class MarketJobsConfig {
     @StepScope
     ItemReader<Target> aptTradeReader(AptTradeRepository trades, AppProperties props,
                                       @Value("#{jobParameters['months']}") Long months) {
-        TradeWindow w = TradeWindow.of(YearMonth.now(ApiQuotaService.KST),
+        TradeWindow w = TradeWindow.of(YearMonth.now(Kst.ZONE),
                 months == null ? props.dataGoKr().tradeMonths() : months.intValue());
-        List<Target> plan = trades.pending(w.fromYm(), w.toYm(), w.refreshFromYm(), ApiQuotaService.today());
+        List<Target> plan = trades.pending(w.fromYm(), w.toYm(), w.refreshFromYm(), Kst.today());
         log.info("실거래 수집 대상 {}건 ({}~{}, {} 이후 재수집)", plan.size(), w.fromYm(), w.toYm(), w.refreshFromYm());
         return new ListItemReader<>(plan);
     }
@@ -104,7 +104,7 @@ public class MarketJobsConfig {
     Step aptTradeAggregateStep(JobRepository repo, PlatformTransactionManager tm, AptTradeRepository trades,
                                AppProperties props) {
         return new StepBuilder("aptTradeAggregateStep", repo).tasklet((contribution, ctx) -> {
-            TradeWindow w = TradeWindow.of(YearMonth.now(ApiQuotaService.KST), props.dataGoKr().tradeMonths());
+            TradeWindow w = TradeWindow.of(YearMonth.now(Kst.ZONE), props.dataGoKr().tradeMonths());
             UUID run = UUID.fromString(contribution.getStepExecution().getJobExecution().getExecutionContext()
                     .getString(BatchKeys.COLLECT_RUN_ID));
             int n = trades.aggregate(w.completeToYm(), run);

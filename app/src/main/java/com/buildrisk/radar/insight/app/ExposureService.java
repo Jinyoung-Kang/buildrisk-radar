@@ -1,7 +1,7 @@
 package com.buildrisk.radar.insight.app;
 
-import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.common.Disclaimer;
+import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.filing.data.ExposureRepository;
@@ -100,7 +100,7 @@ public class ExposureService {
 
     /** 유니버스 기업별 노출 요약: 최근 days 일 현재 수주 중 위험 지역 비중 · 최신 보증 잔액/자기자본 · PF 보증 */
     public Exposure exposure(int days, BigDecimal unsoldTh) {
-        LocalDate since = LocalDate.now(ApiQuotaService.KST).minusDays(days);
+        LocalDate since = LocalDate.now(Kst.ZONE).minusDays(days);
         List<ExposureRow> rows = jdbc.sql("WITH u AS (" + MetricRepository.LATEST_UNSOLD + "), " + """
                 cur AS (SELECT c.* , u.value AS unsold FROM dart.contract c LEFT JOIN u ON u.region_cd = c.region_cd
                          WHERE c.rcept_dt >= :since AND""" + " " + ExposureRepository.CURRENT + " " + """
@@ -164,7 +164,7 @@ public class ExposureService {
                 .query(String.class).optional()
                 .orElseThrow(() -> ApiException.notFound(ErrorCode.COMPANY_NOT_FOUND, "기업 " + corpCode));
         if (stock == null) return new Prices(corpCode, null, List.of(), List.of(), null);
-        LocalDate from = LocalDate.now(ApiQuotaService.KST).minusDays(days);
+        LocalDate from = LocalDate.now(Kst.ZONE).minusDays(days);
         var bars = stocks.bars(stock, from).stream()
                 .map(b -> new PricePoint(b.basDt().toString(), b.clpr(), b.mrktTotAmt())).toList();
         // 표시일 = 경보 근거 공시가 공개된 날(백테스트와 같은 point-in-time 기준) — 배치를 돌린 날이 아님

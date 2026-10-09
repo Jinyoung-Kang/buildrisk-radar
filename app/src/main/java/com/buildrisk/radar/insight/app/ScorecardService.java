@@ -1,6 +1,5 @@
 package com.buildrisk.radar.insight.app;
 
-import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.adapters.seed.SeedCatalog;
 import com.buildrisk.radar.alert.app.DbRuleData;
 import com.buildrisk.radar.alert.app.RuleRegistry;
@@ -10,6 +9,7 @@ import com.buildrisk.radar.alert.domain.RuleData;
 import com.buildrisk.radar.alert.domain.RuleModels.Finding;
 import com.buildrisk.radar.alert.domain.RuleModels.RuleDefinition;
 import com.buildrisk.radar.common.Disclaimer;
+import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.insight.domain.CreditEventRule;
@@ -70,7 +70,7 @@ public class ScorecardService {
         Map<String, CreditEvent> events = creditEvents(seed.creditEventRule(), names.keySet());
         Map<String, LocalDate> ruleFrom = ruleFrom();
         LocalDate from = ruleFrom.values().stream().min(LocalDate::compareTo).orElse(null);
-        LocalDate to = ApiQuotaService.today();
+        LocalDate to = Kst.today();
         Map<String, String> ruleNames = new LinkedHashMap<>();
         List<Signal> signals = new ArrayList<>();
         for (RuleDefinition def : rules.latestEnabled()) {

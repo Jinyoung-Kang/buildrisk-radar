@@ -1,12 +1,12 @@
 package com.buildrisk.radar.batch.jobs;
 
-import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.adapters.datagokr.StockPriceClient;
 import com.buildrisk.radar.batch.support.BatchKeys;
 import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.market.data.StockRepository.Target;
 import com.buildrisk.radar.market.data.StockRepository;
 import com.buildrisk.radar.market.domain.MarketModels.Daily;
@@ -44,7 +44,7 @@ public class StockJobConfig {
     @Bean
     @StepScope
     ItemReader<Target> stockReader(StockRepository stocks, AppProperties props, @Value("#{jobParameters['years']}") Long years) {
-        LocalDate today = ApiQuotaService.today();
+        LocalDate today = Kst.today();
         LocalDate start = today.minusYears(years == null ? props.dataGoKr().stockYears() : years);
         return new ListItemReader<>(stocks.targets(start).stream().filter(t -> !t.from().isAfter(today)).toList());
     }
@@ -55,7 +55,7 @@ public class StockJobConfig {
                                                       @Value("#{stepExecution}") StepExecution se,
                                                       @Value("#{jobParameters['maxCalls']}") Long maxCalls) {
         QuotaGuard guard = new QuotaGuard(se, skips, maxCalls == null ? Long.MAX_VALUE : maxCalls);
-        LocalDate end = ApiQuotaService.today().plusDays(1);      // endBasDt 는 미포함
+        LocalDate end = Kst.today().plusDays(1);      // endBasDt 는 미포함
         return t -> guard.call(t.stockCode(), () -> client.daily(t.stockCode(), t.from(), end));
     }
 
