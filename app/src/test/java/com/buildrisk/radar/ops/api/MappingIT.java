@@ -1,6 +1,7 @@
 package com.buildrisk.radar.ops.api;
 
 import com.buildrisk.radar.support.IntegrationTest;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -13,8 +14,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** 매핑 화면 API — 표준계정별 매핑률과 미매핑 (기업 × 표준계정)의 원천 계정 후보 (FR-206) */
@@ -26,6 +30,11 @@ class MappingIT extends IntegrationTest {
     ObjectMapper mapper;
     @Autowired
     org.springframework.data.redis.core.StringRedisTemplate redis;
+
+    @AfterEach
+    void cleanup() {
+        jdbc.update("DELETE FROM ref.account_map WHERE origin = 'USER' AND pattern = '자산합계(시험)'");   // 중간에 실패해도 표준화 규칙에 남지 않게
+    }
 
     private void raw(String corp, String sj, int line, String id, String name, long amount) {
         jdbc.update("""
@@ -99,5 +108,35 @@ class MappingIT extends IntegrationTest {
             jdbc.update("DELETE FROM ref.region_code_map WHERE source_code IN ('T-X', 'T-Y')");
             jdbc.update("DELETE FROM ref.region WHERE region_cd IN ('95101', '95102')");
         }
+    }
+
+    @Test
+    void 매핑_규칙은_화면에서_추가_삭제하고_같은_규칙은_우선순위만_바꾸며_seed_규칙은_지울_수_없다() throws Exception {
+        String rule = """
+                {"stdCode":"TOTAL_ASSETS","sjDiv":"BS","matchType":"NAME_EXACT","pattern":"자산합계(시험)","priority":40}""";
+        JsonNode added = mapper.readTree(mvc.perform(post("/api/v1/mapping/account-rules").header("X-Admin-Token", ADMIN)
+                        .contentType(MediaType.APPLICATION_JSON).content(rule))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        int id = added.get("mapId").asInt();
+        assertThat(jdbc.queryForObject("SELECT origin || ':' || priority FROM ref.account_map WHERE map_id = ?", String.class, id))
+                .isEqualTo("USER:40");
+        mvc.perform(post("/api/v1/mapping/account-rules").header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON)
+                        .content(rule.replace("40", "35")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.mapId").value(id));          // 같은 규칙 → 우선순위만
+        assertThat(jdbc.queryForObject("SELECT priority FROM ref.account_map WHERE map_id = ?", Integer.class, id)).isEqualTo(35);
+
+        for (String bad : List.of("{\"stdCode\":\"NO_SUCH\",\"matchType\":\"NAME_EXACT\",\"pattern\":\"x\"}",
+                "{\"stdCode\":\"TOTAL_ASSETS\",\"matchType\":\"NAME_REGEX\",\"pattern\":\"(\"}",
+                "{\"stdCode\":\"TOTAL_ASSETS\",\"matchType\":\"NAME_EXACT\",\"pattern\":\"x\",\"sjDiv\":\"XX\"}")) {
+            mvc.perform(post("/api/v1/mapping/account-rules").header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON)
+                    .content(bad)).andExpect(status().isBadRequest());
+        }
+
+        int seed = jdbc.queryForObject("SELECT min(map_id) FROM ref.account_map WHERE origin <> 'USER'", Integer.class);
+        mvc.perform(delete("/api/v1/mapping/account-rules/" + seed).header("X-Admin-Token", ADMIN)).andExpect(status().isBadRequest());
+        mvc.perform(delete("/api/v1/mapping/account-rules/" + id).header("X-Admin-Token", ADMIN))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.deleted").value(id));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ref.account_map WHERE map_id = ?", Integer.class, id)).isZero();
+        mvc.perform(delete("/api/v1/mapping/account-rules/" + id).header("X-Admin-Token", ADMIN)).andExpect(status().isNotFound());
     }
 }
