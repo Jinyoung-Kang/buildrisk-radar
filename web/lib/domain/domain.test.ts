@@ -12,6 +12,7 @@ import { safeNext, targetHref } from "@/lib/domain/nav";
 import { describeSubscription, subscriptionBody, toggleCode } from "@/lib/domain/notify";
 import { joinRegionValues, projectShapes, sidoOptions } from "@/lib/domain/regions";
 import { bestRule, episodesOf, ruleCodesOf } from "@/lib/domain/scorecard";
+import { ruleParamsBody, ruleParamsForm } from "@/lib/domain/ruleLabels";
 import { phraseParts, splitSentences } from "@/lib/domain/text";
 
 describe("text", () => {
@@ -162,3 +163,16 @@ describe("axis · colors", () => {
     assert.equal(makeScale([], false, true).color(1), MISSING);
   });
 });
+
+describe("rule params", () => {
+  it("폼 ↔ 본문: 목록은 쉼표, 숫자는 숫자", () => {
+    const orig = { threshold: 1, consecutive: 2, eventTypes: ["REHAB", "DEFAULT"] };
+    assert.deepEqual(ruleParamsForm(orig), { threshold: "1", consecutive: "2", eventTypes: "REHAB,DEFAULT" });
+    assert.deepEqual(ruleParamsBody(orig, { threshold: "0.8", consecutive: "3", eventTypes: "REHAB, ,SUSPENSION" }),
+      { threshold: 0.8, consecutive: 3, eventTypes: ["REHAB", "SUSPENSION"] });
+  });
+  it("지금 동작: 빈 칸은 0 으로 읽힘", () => {
+    assert.deepEqual(ruleParamsBody({ threshold: 1 }, { threshold: "" }), { threshold: 0 });
+  });
+});
+

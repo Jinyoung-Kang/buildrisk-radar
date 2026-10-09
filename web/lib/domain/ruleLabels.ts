@@ -28,3 +28,16 @@ export function paramValue(key: string, v: unknown, names: Record<string, string
 
 /** 이 파라미터 묶음이 공시 유형 이름을 필요로 하는지 (그때만 /meta 를 부름) */
 export const needsEventNames = (params: Record<string, unknown>) => "eventTypes" in params;
+
+/** 규칙 파라미터 → 편집 폼 값 (목록은 쉼표로 이음) */
+export function ruleParamsForm(params: Record<string, unknown>): Record<string, string> {
+  return Object.fromEntries(Object.entries(params).map(([k, v]) => [k, Array.isArray(v) ? v.join(",") : String(v)]));
+}
+
+/** 편집 폼 → 저장 본문: 원래 값이 목록이면 쉼표로 나누고, 그 밖은 숫자로 읽히면 숫자 */
+export function ruleParamsBody(orig: Record<string, unknown>, form: Record<string, string>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(form).map(([k, v]) => {
+    const o = orig[k];
+    return [k, Array.isArray(o) ? v.split(",").map((s) => s.trim()).filter(Boolean) : Number.isNaN(Number(v)) ? v : Number(v)];
+  }));
+}

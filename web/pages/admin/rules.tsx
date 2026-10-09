@@ -5,14 +5,13 @@ import { ErrorBox, Loading, PageTitle, Prose, SeverityBadge } from "@/components
 import { commands, queries, type RuleView } from "@/lib/api";
 import { dt } from "@/lib/domain/format";
 import { useAuth } from "@/lib/auth";
-import { paramLabel, paramValue } from "@/lib/domain/ruleLabels";
+import { paramLabel, paramValue, ruleParamsBody, ruleParamsForm } from "@/lib/domain/ruleLabels";
 import { useEventTypes } from "@/lib/hooks/useEventNames";
 import { useAction } from "@/lib/hooks/useAction";
 import { useApi } from "@/lib/hooks/useApi";
 
 function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) {
-  const [params, setParams] = useState<Record<string, string>>(
-    Object.fromEntries(Object.entries(rule.params).map(([k, v]) => [k, Array.isArray(v) ? v.join(",") : String(v)])));
+  const [params, setParams] = useState<Record<string, string>>(() => ruleParamsForm(rule.params));
   const [severity, setSeverity] = useState(rule.severity);
   const [enabled, setEnabled] = useState(rule.enabled);
   const [note, setNote] = useState("");
@@ -23,10 +22,7 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
   const names = Object.fromEntries(eventTypes.map((t) => [t.code, t.name]));
   const save = () => {
     setMsg(null);
-    const body = Object.fromEntries(Object.entries(params).map(([k, v]) => {
-      const orig = rule.params[k];
-      return [k, Array.isArray(orig) ? v.split(",").map((s) => s.trim()).filter(Boolean) : Number.isNaN(Number(v)) ? v : Number(v)];
-    }));
+    const body = ruleParamsBody(rule.params, params);
     return action.run(() => commands.updateRule(rule.ruleCode, { params: body, severity, enabled, changeNote: note }), (r) => {
       setMsg(r.version === rule.version ? "바뀐 값이 없어 버전을 올리지 않았습니다." : `v${r.version} 을 만들었습니다. ruleEvalJob 을 실행하면 새 버전으로 평가합니다.`);
       onSaved(); history.reload();
