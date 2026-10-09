@@ -181,7 +181,8 @@ function SubscriptionsCard({ admin }: { admin: boolean }) {
       {err && <p role="alert" className="text-xs text-crit mb-2">{err}</p>}
       {editing !== null && (
         <div className="mb-3">
-          <SubscriptionForm initial={editing === "new" ? null : editing} rules={ruleList} webhooks={hooks.data?.items.filter((w) => w.enabled) ?? []}
+          {/* key: 다른 구독을 고르면 폼 상태를 새로 — 없으면 앞서 고치던 구독의 값이 남은 채 이 구독으로 저장됨 (VERIFICATION 123) */}
+          <SubscriptionForm key={editing === "new" ? "new" : editing.subscriptionId} initial={editing === "new" ? null : editing} rules={ruleList} webhooks={hooks.data?.items.filter((w) => w.enabled) ?? []}
             admin={admin} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); subs.reload(); }} />
         </div>
       )}
