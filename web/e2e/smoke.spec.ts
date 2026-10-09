@@ -59,3 +59,16 @@ test("테마 전환: 다크·라이트 선택이 새로고침 뒤에도 유지�
   await page.getByRole("radio", { name: "시스템 설정" }).click();
   await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);
 });
+
+test("테마 전환: 다른 탭에서 고르면 이 탭의 화면 색도 바뀐다", async ({ page, context }) => {
+  // 다른 탭의 저장(storage 이벤트)은 선택 버튼만 바꾸고 화면 색(data-theme)은 그대로였음 (VERIFICATION 161)
+  await page.goto("/");
+  const other = await context.newPage();
+  await other.goto("/companies");
+  await other.getByRole("radio", { name: "다크 모드" }).click();
+  await expect(page.getByRole("radio", { name: "다크 모드" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await other.getByRole("radio", { name: "시스템 설정" }).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.+/);
+  await other.close();
+});
