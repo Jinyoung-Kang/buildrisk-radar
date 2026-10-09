@@ -12,7 +12,8 @@ test("보안 헤더: 화면에 CSP · 클릭재킹 방지", async ({ page }) => 
 });
 
 test("edge: 대소문자만 다른 /API 경로도 api 가 받아 거부 (web 을 거쳐 클라이언트 IP 가 바뀌지 않게)", async ({ request }) => {
-  for (const p of ["/API/v1/dashboard", "/Api/v1/rules", "/SWAGGER-UI/index.html"]) {
+  // 끝 슬래시가 없는 '/API/v1' 도 — 'api/v1/' 로만 잡아 web 으로 갔음 (VERIFICATION 164)
+  for (const p of ["/API/v1/dashboard", "/Api/v1/rules", "/SWAGGER-UI/index.html", "/API/v1", "/Api/V1?x=1"]) {
     const res = await request.get(p);
     expect(res.status(), p).toBe(401);
   }
