@@ -2,7 +2,6 @@ package com.buildrisk.radar.batch.jobs;
 
 import com.buildrisk.radar.batch.support.BatchKeys;
 import com.buildrisk.radar.batch.support.RunRecorder;
-import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.domain.account.AccountStandardizer;
 import com.buildrisk.radar.domain.account.FsRepository.StdRow;
 import com.buildrisk.radar.domain.account.FsRepository;
@@ -60,8 +59,8 @@ public class CalcJobsConfig {
 
     @Bean
     Job standardizeMetricJob(JobRepository repo, Step standardizeStep, Step companyMetricStep, Step pfMetricStep, Step regionMetricStep,
-                             Step siteLocateStep, RunRecorder runs, JsonCache cache) {
-        return new JobBuilder("standardizeMetricJob", repo).listener(runs.calc("METRIC", cache::invalidateAll))
+                             Step siteLocateStep, RunRecorder runs) {
+        return new JobBuilder("standardizeMetricJob", repo).listener(runs.calc("METRIC"))
                 .start(standardizeStep).next(companyMetricStep).next(pfMetricStep).next(regionMetricStep).next(siteLocateStep).build();
     }
 
@@ -178,8 +177,8 @@ public class CalcJobsConfig {
     public record RuleTarget(RuleDefinition rule, String targetKey) {}
 
     @Bean
-    Job ruleEvalJob(JobRepository repo, Step ruleEvalStep, Step ruleScopeStep, RunRecorder runs, JsonCache cache) {
-        return new JobBuilder("ruleEvalJob", repo).listener(runs.calc("RULE", cache::invalidateAll))
+    Job ruleEvalJob(JobRepository repo, Step ruleEvalStep, Step ruleScopeStep, RunRecorder runs) {
+        return new JobBuilder("ruleEvalJob", repo).listener(runs.calc("RULE"))
                 .start(ruleEvalStep).next(ruleScopeStep).build();
     }
 

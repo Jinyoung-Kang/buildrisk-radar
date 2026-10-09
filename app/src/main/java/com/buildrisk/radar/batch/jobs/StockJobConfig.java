@@ -8,7 +8,6 @@ import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.AppProperties;
-import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.domain.market.StockRepository.Target;
 import com.buildrisk.radar.domain.market.StockRepository;
 
@@ -39,9 +38,8 @@ import java.util.UUID;
 public class StockJobConfig {
 
     @Bean
-    Job stockPriceJob(JobRepository repo, Step stockPriceStep, RunRecorder runs,
-                  JsonCache cache) {
-        return new JobBuilder("stockPriceJob", repo).listener(runs.collect("FSC", cache::invalidateAll)).start(stockPriceStep).build();
+    Job stockPriceJob(JobRepository repo, Step stockPriceStep, RunRecorder runs) {
+        return new JobBuilder("stockPriceJob", repo).listener(runs.collect("FSC")).start(stockPriceStep).build();
     }
 
     @Bean

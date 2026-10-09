@@ -29,10 +29,8 @@ public class RunRecorder {
         this.mapper = mapper;
     }
 
-    public JobExecutionListener collect(String source) { return collect(source, () -> { }); }
-
-    /** onFinish: 끝나면(성공·중단 모두 — 일부라도 저장됐을 수 있음) 조회 캐시 무효화 등 */
-    public JobExecutionListener collect(String source, Runnable onFinish) {
+    /** 수집 실행 기록. 조회 캐시 무효화는 여기가 아니라 모든 Job 이 끝나는 BatchLauncher.awaitFinished 한 곳에서 (ADR-022) */
+    public JobExecutionListener collect(String source) {
         return new JobExecutionListener() {
             @Override
             public void beforeJob(JobExecution je) {
@@ -61,12 +59,11 @@ public class RunRecorder {
                         .param("st", status(je)).param("stats", stats(je))
                         .param("id", UUID.fromString(je.getExecutionContext().getString(BatchKeys.COLLECT_RUN_ID)))
                         .update();
-                onFinish.run();
             }
         };
     }
 
-    public JobExecutionListener calc(String kind, Runnable onComplete) {
+    public JobExecutionListener calc(String kind) {
         return new JobExecutionListener() {
             @Override
             public void beforeJob(JobExecution je) {
@@ -88,7 +85,6 @@ public class RunRecorder {
                 jdbc.sql("UPDATE ops.calc_run SET finished_at = now(), stats = cast(:stats AS jsonb) WHERE calc_run_id = :id")
                         .param("stats", stats(je))
                         .param("id", UUID.fromString(je.getExecutionContext().getString(BatchKeys.CALC_RUN_ID))).update();
-                if (je.getStatus() == BatchStatus.COMPLETED && onComplete != null) onComplete.run();
             }
         };
     }

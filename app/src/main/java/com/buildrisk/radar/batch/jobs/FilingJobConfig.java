@@ -6,7 +6,6 @@ import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.AppProperties;
-import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.domain.filing.FilingParser;
 import com.buildrisk.radar.domain.filing.FilingRepository.Target;
@@ -49,9 +48,8 @@ public class FilingJobConfig {
     public record Downloaded(Target target, String html) {}
 
     @Bean
-    Job filingParseJob(JobRepository repo, Step filingFetchStep, Step filingReparseStep, Step filingLinkStep, RunRecorder runs,
-                  JsonCache cache) {
-        return new JobBuilder("filingParseJob", repo).listener(runs.collect("DART", cache::invalidateAll))
+    Job filingParseJob(JobRepository repo, Step filingFetchStep, Step filingReparseStep, Step filingLinkStep, RunRecorder runs) {
+        return new JobBuilder("filingParseJob", repo).listener(runs.collect("DART"))
                 .start(filingFetchStep).next(filingReparseStep).next(filingLinkStep).build();
     }
 
