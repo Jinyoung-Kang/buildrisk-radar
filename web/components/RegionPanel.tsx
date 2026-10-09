@@ -5,13 +5,21 @@ import { eok, int, num, ym, signed } from "@/lib/domain/format";
 import { regionPanel } from "@/lib/domain/regions";
 import { useApi } from "@/lib/hooks/useApi";
 import WatchButton from "@/components/WatchButton";
+import type { RegionContracts, RegionSeries } from "@/lib/api";
 import * as regionApi from "@/lib/api/region";
 
 /** 지역 카드 — 미분양 추이 · 가격지수 추이 · 경보 (지도 옆, 지역 상세 화면 공용) */
-/** headingAs: 지도 옆 패널은 h3, 지역 상세 페이지에서는 이 이름이 페이지 제목이라 h1 */
-export default function RegionPanel({ regionCd, compact, headingAs: H = "h3" }: { regionCd: string; compact?: boolean; headingAs?: "h1" | "h3" }) {
-  const { data, error } = useApi(regionApi.series(regionCd));
-  const contracts = useApi(regionApi.contracts(regionCd));
+/** headingAs: 지도 옆 패널은 h3, 지역 상세 페이지에서는 이 이름이 페이지 제목이라 h1.
+ *  preloaded: 지역 상세 페이지가 이미 받은 값 — 같은 요청을 다시 하지 않고, 불러오는 중에서 긴 내용으로 바뀌며 아래 차트를 밀어내지 않게 (CLS) */
+export default function RegionPanel({ regionCd, compact, headingAs: H = "h3", preloaded }: {
+  regionCd: string; compact?: boolean; headingAs?: "h1" | "h3";
+  preloaded?: { series: RegionSeries; contracts: RegionContracts | null; contractsError: Error | null };
+}) {
+  const own = useApi(preloaded ? null : regionApi.series(regionCd));
+  const ownContracts = useApi(preloaded ? null : regionApi.contracts(regionCd));
+  const data = preloaded?.series ?? own.data;
+  const error = preloaded ? null : own.error;
+  const contracts = preloaded ? { data: preloaded.contracts, error: preloaded.contractsError } : ownContracts;
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
   const { unsold, idx, households: hh, per1k, chg, units, trades, priceM2, tradeYoy: tYoy, cancel, priceYoy: pYoy, tradeCount: tCnt } =
