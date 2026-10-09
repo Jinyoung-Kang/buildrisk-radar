@@ -1,5 +1,6 @@
 package com.buildrisk.radar.alert.app;
 
+import com.buildrisk.radar.alert.data.AlertRepository;
 import com.buildrisk.radar.alert.data.RuleRepository;
 import com.buildrisk.radar.alert.domain.AlertViews.RuleHistory;
 import com.buildrisk.radar.alert.domain.AlertViews.RuleUpdate;
@@ -8,7 +9,6 @@ import com.buildrisk.radar.alert.domain.Params;
 import com.buildrisk.radar.alert.domain.RuleEvaluator;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,12 +22,12 @@ import java.util.Set;
 public class RuleService {
     private final RuleRepository rules;
     private final RuleRegistry registry;
-    private final JdbcClient jdbc;
+    private final AlertRepository alerts;
 
-    public RuleService(RuleRepository rules, RuleRegistry registry, JdbcClient jdbc) {
+    public RuleService(RuleRepository rules, RuleRegistry registry, AlertRepository alerts) {
         this.rules = rules;
         this.registry = registry;
-        this.jdbc = jdbc;
+        this.alerts = alerts;
     }
 
     public List<RuleView> list() { return rules.latest().stream().map(this::view).toList(); }
@@ -77,8 +77,7 @@ public class RuleService {
         } catch (RuntimeException e) {
             cond = "(파라미터 오류) " + e.getMessage();
         }
-        long open = jdbc.sql("SELECT count(*) FROM risk.alert WHERE rule_code = :c AND rule_version = :v AND status IN ('OPEN','ACK')")
-                .param("c", d.code()).param("v", d.version()).query(Long.class).single();
+        long open = alerts.openCount(d.code(), d.version());
         return new RuleView(d.code(), d.version(), d.targetType().name(), d.nameKo(), d.description(), d.params(),
                 d.severity(), d.enabled(), cond, v.changeNote(), v.createdBy(), v.createdAt(), open);
     }

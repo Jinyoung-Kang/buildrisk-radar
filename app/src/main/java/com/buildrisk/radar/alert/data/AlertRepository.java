@@ -55,6 +55,12 @@ public class AlertRepository {
                 .query((rs, i) -> new Active(rs.getLong(1), rs.getInt(2), rs.getString(3))).list();
     }
 
+    /** 그 규칙 버전의 열린(OPEN · ACK) 경보 수 */
+    public long openCount(String ruleCode, int version) {
+        return jdbc.sql("SELECT count(*) FROM risk.alert WHERE rule_code = :c AND rule_version = :v AND status IN ('OPEN','ACK')")
+                .param("c", ruleCode).param("v", version).query(Long.class).single();
+    }
+
     public void close(long alertId, String reason) {
         jdbc.sql("UPDATE risk.alert SET status = 'CLOSED', close_reason = :why, closed_at = now() WHERE alert_id = :id")
                 .param("why", reason).param("id", alertId).update();

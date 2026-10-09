@@ -1,16 +1,16 @@
 package com.buildrisk.radar.notify.api;
 
 import com.buildrisk.radar.common.role.ApiRole;
-import com.buildrisk.radar.notify.app.NotificationQueryService.Delivery;
-import com.buildrisk.radar.notify.app.NotificationQueryService.Inbox;
-import com.buildrisk.radar.notify.app.NotificationQueryService.ReadRequest;
-import com.buildrisk.radar.notify.app.NotificationQueryService.Subscription;
-import com.buildrisk.radar.notify.app.NotificationQueryService.SubscriptionRequest;
-import com.buildrisk.radar.notify.app.NotificationQueryService.TestResult;
-import com.buildrisk.radar.notify.app.NotificationQueryService.Watch;
-import com.buildrisk.radar.notify.app.NotificationQueryService.WebhookCreated;
-import com.buildrisk.radar.notify.app.NotificationQueryService.WebhookRequest;
 import com.buildrisk.radar.notify.app.NotificationQueryService;
+import com.buildrisk.radar.notify.domain.NotifyViews.Delivery;
+import com.buildrisk.radar.notify.domain.NotifyViews.Inbox;
+import com.buildrisk.radar.notify.domain.NotifyViews.ReadRequest;
+import com.buildrisk.radar.notify.domain.NotifyViews.Subscription;
+import com.buildrisk.radar.notify.domain.NotifyViews.SubscriptionRequest;
+import com.buildrisk.radar.notify.domain.NotifyViews.TestResult;
+import com.buildrisk.radar.notify.domain.NotifyViews.Watch;
+import com.buildrisk.radar.notify.domain.NotifyViews.WebhookCreated;
+import com.buildrisk.radar.notify.domain.NotifyViews.WebhookRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
