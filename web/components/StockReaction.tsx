@@ -38,7 +38,7 @@ export default function StockReaction() {
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <p className="text-sm text-ink2">규칙이 '위험'이라고 한 기업의 주가가 이후 같은 업종(유니버스 건설사) 평균보다 약했는지 봅니다.</p>
+        <p className="text-sm text-ink2">규칙이 ‘위험’이라고 한 기업의 주가가 이후 같은 업종(유니버스 건설사) 평균보다 약했는지 봅니다.</p>
         <Segmented label="보유 기간" value={h} onChange={setH} options={[{ value: "20", label: "20거래일" }, { value: "60", label: "60거래일" }, { value: "120", label: "120거래일" }]} />
       </div>
       <ErrorBox error={error} />

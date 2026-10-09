@@ -27,7 +27,7 @@ const SECURITY_HEADERS = [
 ];
 
 /** @type {import('next').NextConfig} */
-export default {
+const config = {
   output: "standalone",
   reactStrictMode: true,
   poweredByHeader: false,
@@ -44,3 +44,5 @@ export default {
     ];
   },
 };
+
+export default config;

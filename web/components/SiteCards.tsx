@@ -58,11 +58,11 @@ function Site({ s, riskTh, showCorp }: { s: SiteCard; riskTh: number; showCorp: 
       {s.market && <p className="text-[10px] text-muted -mt-1"><Prose text={`${ym(s.market.fromYm)}~${ym(s.market.toYm)} · 전년 대비는 그 전 12개월(${s.market.tradesPrev}건)과 비교`} /></p>}
       {s.complex && (
         <div className="text-xs border-t border-line pt-2">
-          <PhraseList items={[<><span className="text-ink2">같은 지번의 아파트</span> <b>{s.complex.aptNm ?? "–"}</b></>,
-            <span className="text-muted">12개월 거래 {s.complex.trades}건</span>,
-            s.complex.medianPriceM2 != null && <span className="text-muted">㎡당 {num(s.complex.medianPriceM2, 0)}만</span>,
-            s.complex.lastDealDate && <span className="text-muted">최근 {s.complex.lastDealDate}</span>,
-            s.complex.buildYear && <span className="text-muted">{s.complex.buildYear}년 준공</span>]} />
+          <PhraseList items={[<span key="apt"><span className="text-ink2">같은 지번의 아파트</span> <b>{s.complex.aptNm ?? "–"}</b></span>,
+            <span key="trades" className="text-muted">12개월 거래 {s.complex.trades}건</span>,
+            s.complex.medianPriceM2 != null && <span key="price" className="text-muted">㎡당 {num(s.complex.medianPriceM2, 0)}만</span>,
+            s.complex.lastDealDate && <span key="last" className="text-muted">최근 {s.complex.lastDealDate}</span>,
+            s.complex.buildYear && <span key="built" className="text-muted">{s.complex.buildYear}년 준공</span>]} />
           <div className="text-[11px] text-muted mt-0.5">재건축 · 재개발 공사라면 새 단지가 아니라 철거 전 단지일 수 있습니다.</div>
         </div>
       )}

@@ -29,7 +29,8 @@ export default function RegionMap({ geo, colorOf, tooltipOf, selected, onSelect,
   const polys = useRef<Map<string, { shapes: any[]; props: RegionProps }>>(new Map());
   const tip = useRef<any>(null);
   const cb = useRef({ colorOf, tooltipOf, onSelect, selected });
-  cb.current = { colorOf, tooltipOf, onSelect, selected };
+  // 지도 이벤트가 최신 콜백을 읽게 — 렌더 중이 아니라 커밋 뒤에 바꿈. 아래 효과들보다 먼저 선언해 먼저 돎
+  useEffect(() => { cb.current = { colorOf, tooltipOf, onSelect, selected }; });
   const [err, setErr] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const bounds = useRef<any>(null);
@@ -71,6 +72,18 @@ export default function RegionMap({ geo, colorOf, tooltipOf, selected, onSelect,
     });
   }
 
+  function hover(p: RegionProps, latLng: any, on: boolean) {
+    const e = polys.current.get(p.regionCd);
+    if (!e) return;
+    const sel = p.regionCd === cb.current.selected;
+    e.shapes.forEach((s) => s.setOptions({ strokeColor: on || sel ? "#0b0b0b" : "#ffffff", strokeWeight: on || sel ? 2 : 1 }));
+    if (on && latLng) {
+      tip.current.setContent(`<div class="map-tip"><b>${esc(p.fullName)}</b><br/>${cb.current.tooltipOf(p)}</div>`);
+      tip.current.setPosition(latLng);
+      tip.current.setMap(map.current);
+    } else tip.current?.setMap(null);
+  }
+
   useEffect(() => {
     const kakao = kakaoRef.current;
     if (!ready || !kakao || !geo) return;
@@ -101,22 +114,9 @@ export default function RegionMap({ geo, colorOf, tooltipOf, selected, onSelect,
     paint();
     bounds.current = b;
     requestAnimationFrame(fit);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, geo]);
 
-  useEffect(() => { if (ready) paint(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [colorOf, selected, ready]);
-
-  function hover(p: RegionProps, latLng: any, on: boolean) {
-    const e = polys.current.get(p.regionCd);
-    if (!e) return;
-    const sel = p.regionCd === cb.current.selected;
-    e.shapes.forEach((s) => s.setOptions({ strokeColor: on || sel ? "#0b0b0b" : "#ffffff", strokeWeight: on || sel ? 2 : 1 }));
-    if (on && latLng) {
-      tip.current.setContent(`<div class="map-tip"><b>${esc(p.fullName)}</b><br/>${cb.current.tooltipOf(p)}</div>`);
-      tip.current.setPosition(latLng);
-      tip.current.setMap(map.current);
-    } else tip.current?.setMap(null);
-  }
+  useEffect(() => { if (ready) paint(); }, [colorOf, selected, ready]);
 
   return (
     <div className={`relative ${className ?? ""}`}>

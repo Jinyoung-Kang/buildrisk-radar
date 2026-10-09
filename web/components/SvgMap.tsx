@@ -13,15 +13,14 @@ export default function SvgMap({ geo, colorOf, tooltipOf, selected, onSelect }: 
   const [hover, setHover] = useState<{ p: RegionProps; x: number; y: number } | null>(null);
   const shapes = useMemo(() => {
     const k = Math.cos((36 * Math.PI) / 180);
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     const polys = geo.features.map((f) => {
       const parts = (f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates) as number[][][][];
-      return parts.map((rings) => rings.map((ring) => ring.map(([lon, lat]) => {
-        const x = lon * k, y = -lat;
-        if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y;
-        return [x, y];
-      })));
+      return parts.map((rings) => rings.map((ring) => ring.map(([lon, lat]) => [lon * k, -lat])));
     });
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const parts of polys) for (const rings of parts) for (const ring of rings) for (const [x, y] of ring) {
+      if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
     const W = 1000, s = W / (maxX - minX || 1), H = (maxY - minY) * s;
     const d = polys.map((parts) => parts.map((rings) => rings.map((ring) =>
       "M" + ring.map(([x, y]) => `${((x - minX) * s).toFixed(1)},${((y - minY) * s).toFixed(1)}`).join("L") + "Z").join("")).join(""));
