@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Card, DartLink, Empty, ErrorBox, Loading, Prose, Segmented } from "@/components/ui";
-import { queries, type ScInterval, type ScOutcome, type ScRule } from "@/lib/api";
+import { type ScInterval, type ScOutcome, type ScRule } from "@/lib/api";
 import { num } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
 import { bestRule, episodesOf, ruleCodesOf } from "@/lib/domain/scorecard";
+import * as insightApi from "@/lib/api/insight";
 
 const months = (days?: number | null) => (days == null ? "–" : `${num(days / 30.44, 1, true)}개월`);
 const pct0 = (v?: number | null) => (v == null ? "–" : `${num(v * 100, 0)}%`);
@@ -48,7 +49,7 @@ function RuleRow({ r, name, base, h }: { r: ScRule; name: string; base?: number;
 export default function ScorecardPanel() {
   const [h, setH] = useState<"6" | "12" | "24">("12");
   const [outcome, setOutcome] = useState<"" | ScOutcome>("MISS");
-  const sc = useApi(queries.scorecard(h));
+  const sc = useApi(insightApi.scorecard(h));
   const { error } = sc;
   // 새 기간을 불러오는 동안 이전 기간의 숫자를 흐리게 남김 — 기간 이름도 보이는 숫자의 기간으로 (VERIFICATION 103)
   const data = sc.data ?? sc.stale;

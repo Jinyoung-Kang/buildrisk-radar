@@ -2,15 +2,15 @@ import { useState } from "react";
 import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
 import { Card, Empty, ErrorBox, Loading, PageTitle } from "@/components/ui";
-import { queries } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/hooks/useApi";
+import * as opsApi from "@/lib/api/ops";
 
 function AuditTable() {
   const [actor, setActor] = useState("");
   const [action, setAction] = useState("");
   const [applied, setApplied] = useState({ actor: "", action: "" });
-  const { data, error, reload } = useApi(queries.audit({ ...applied, limit: 200 }));
+  const { data, error, reload } = useApi(opsApi.audit({ ...applied, limit: 200 }));
   return (
     <>
       <form className="flex flex-wrap gap-2 mb-3 text-sm" onSubmit={(e) => { e.preventDefault(); setApplied({ actor: actor.trim(), action: action.trim() }); }}>

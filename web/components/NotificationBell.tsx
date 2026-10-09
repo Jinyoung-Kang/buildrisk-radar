@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { commands } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { usePolling } from "@/lib/hooks/usePolling";
 import { NOTIFY_EVENT } from "@/lib/notify";
+import * as sessionApi from "@/lib/api/session";
 
 /** 머리말 종 — 로그인했을 때만, 읽지 않은 알림 수를 1분마다(화면이 보일 때만) 다시 봄 (ADR-025) */
 export default function NotificationBell() {
@@ -17,7 +17,7 @@ export default function NotificationBell() {
   const load = useCallback(() => {
     if (!on || document.visibilityState !== "visible") return;
     const my = ++seq.current;
-    commands.unreadCount()
+    sessionApi.unreadCount()
       .then((r) => { if (my === seq.current) setUnread({ user, n: r.unread }); })
       .catch(() => { if (my === seq.current) setUnread({ user, n: null }); });
   }, [on, user]);

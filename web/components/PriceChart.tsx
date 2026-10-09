@@ -1,13 +1,13 @@
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Empty, ErrorBox, Loading, Prose, SeverityBadge } from "@/components/ui";
-import { queries } from "@/lib/api";
 import { SEVERITY } from "@/lib/domain/colors";
 import { int } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
+import * as companyApi from "@/lib/api/company";
 
 /** 종가 추이 + 경보 처음 발생일 표시 (금융위 주식시세, 수정주가 아님) */
 export default function PriceChart({ corp }: { corp: string }) {
-  const { data, error } = useApi(queries.companyPrices(corp));
+  const { data, error } = useApi(companyApi.prices(corp));
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
   if (!data.stockCode) return <Empty>상장 종목코드가 없습니다.</Empty>;

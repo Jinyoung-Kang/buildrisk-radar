@@ -1,16 +1,16 @@
-import { commands, queries } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useAction } from "@/lib/hooks/useAction";
 import { useApi } from "@/lib/hooks/useApi";
+import * as notifyApi from "@/lib/api/notify";
 
 /** 관심 목록 넣기 · 빼기 (로그인했을 때만). '관심 목록만' 구독이 이 목록으로 알림을 거름 (ADR-025) */
 export default function WatchButton({ type, keyCd }: { type: "COMPANY" | "REGION"; keyCd: string }) {
   const { me } = useAuth();
-  const { data, reload } = useApi(me?.authenticated ? queries.watches() : null);
+  const { data, reload } = useApi(me?.authenticated ? notifyApi.watches() : null);
   const action = useAction();
   if (!me?.authenticated || !data) return null;
   const on = data.some((w) => w.targetType === type && w.targetKey === keyCd);
-  const toggle = () => action.run(() => (on ? commands.unwatch(type, keyCd) : commands.watch(type, keyCd)), reload);
+  const toggle = () => action.run(() => (on ? notifyApi.unwatch(type, keyCd) : notifyApi.watch(type, keyCd)), reload);
   return (
     <span className="inline-flex items-center gap-2">
       <button type="button" onClick={toggle} disabled={action.busy} aria-pressed={on}

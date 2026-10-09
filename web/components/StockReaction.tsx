@@ -2,9 +2,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, Empty, ErrorBox, Loading, Prose, Segmented } from "@/components/ui";
-import { queries, type BtStats } from "@/lib/api";
+import { type BtStats } from "@/lib/api";
 import { int, num, signed, isNeg } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
+import * as insightApi from "@/lib/api/insight";
 
 const pct = (v?: number | null, d = 1) => (v == null ? "–" : `${signed(v * 100, d)}%`);
 const neg = (v?: number | null) => isNeg(v == null ? v : v * 100);
@@ -31,7 +32,7 @@ function StatRow({ name, code, s, base }: { name: string; code?: string; s: BtSt
 export default function StockReaction() {
   const [h, setH] = useState<"20" | "60" | "120">("60");
   const [showEx, setShowEx] = useState(false);
-  const { data, error } = useApi(queries.backtest(h));
+  const { data, error } = useApi(insightApi.backtest(h));
   const chart = (data?.rules ?? []).filter((r) => r.stats.meanExcess != null)
     .map((r) => ({ x: `${r.ruleCode} · n${r.stats.used}`, v: (r.stats.meanExcess ?? 0) * 100, n: r.stats.used }));
   const events = (data?.events ?? []).filter((e) => showEx || !e.excluded);

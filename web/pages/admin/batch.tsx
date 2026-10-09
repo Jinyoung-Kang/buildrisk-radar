@@ -2,16 +2,17 @@ import { useState } from "react";
 import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
 import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle, Prose } from "@/components/ui";
-import { commands, queries, type Row } from "@/lib/api";
+import { type Row } from "@/lib/api";
 import { changedRows } from "@/lib/domain/batch";
 import { dt, int } from "@/lib/domain/format";
 import { useAuth } from "@/lib/auth";
 import { useAction } from "@/lib/hooks/useAction";
 import { useApi } from "@/lib/hooks/useApi";
 import { usePolling } from "@/lib/hooks/usePolling";
+import * as opsApi from "@/lib/api/ops";
 
 function ExecutionDetail({ id }: { id: number }) {
-  const { data, error } = useApi(queries.batchExecution(id));
+  const { data, error } = useApi(opsApi.batchExecution(id));
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
   const changed = changedRows(data.runStats);
@@ -95,10 +96,10 @@ function Workers({ workers }: { workers?: Row[] }) {
 export default function Batch() {
   const { has } = useAuth();
   const admin = has("ADMIN");
-  const jobs = useApi(queries.batchJobs());
-  const requests = useApi(queries.batchRequests());
+  const jobs = useApi(opsApi.batchJobs());
+  const requests = useApi(opsApi.batchRequests());
   const [filter, setFilter] = useState("");
-  const execs = useApi(queries.batchExecutions(filter));
+  const execs = useApi(opsApi.batchExecutions(filter));
   const [sel, setSel] = useState<number | null>(null);
   const action = useAction();
   const [msg, setMsg] = useState<string | null>(null);
@@ -107,14 +108,14 @@ export default function Batch() {
   usePolling(() => { jobs.reload(); execs.reload(); requests.reload(); }, 3000, !!anyRunning);
   const launch = (name: string, fresh = false) => {
     setMsg(null);
-    return action.run(() => commands.launchJob(name, fresh), (r) => {
+    return action.run(() => opsApi.launchJob(name, fresh), (r) => {
       setMsg(`${name} 실행 요청 #${r.requestId} 을 큐에 넣었습니다 — worker 가 곧 시작합니다${r.plannedCalls != null ? ` · 예상 호출 ${int(r.plannedCalls)}건` : ""}${r.warning ? ` · ${r.warning}` : ""}`);
       jobs.reload(); execs.reload(); requests.reload();
     });
   };
   const recover = (execId: number) => {
     setMsg(null);
-    return action.run(() => commands.recoverExecution(execId), () => {
+    return action.run(() => opsApi.recoverExecution(execId), () => {
       setMsg(`실행 #${execId} 을 FAILED 로 정리했습니다. 다시 실행하면 마지막 커밋 이후부터 이어갑니다.`);
       jobs.reload(); execs.reload();
     });

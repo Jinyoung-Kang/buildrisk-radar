@@ -2,13 +2,14 @@ import { Fragment, useState } from "react";
 import Layout from "@/components/Layout";
 import RequireRole from "@/components/RequireRole";
 import { ErrorBox, Loading, PageTitle, Prose, SeverityBadge } from "@/components/ui";
-import { commands, queries, type RuleView } from "@/lib/api";
+import { type RuleView } from "@/lib/api";
 import { dt } from "@/lib/domain/format";
 import { useAuth } from "@/lib/auth";
 import { paramLabel, paramValue, ruleParamsBody, ruleParamsForm } from "@/lib/domain/ruleLabels";
 import { useEventTypes } from "@/lib/hooks/useEventNames";
 import { useAction } from "@/lib/hooks/useAction";
 import { useApi } from "@/lib/hooks/useApi";
+import * as alertApi from "@/lib/api/alert";
 
 function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) {
   const [params, setParams] = useState<Record<string, string>>(() => ruleParamsForm(rule.params));
@@ -17,7 +18,7 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
   const [note, setNote] = useState("");
   const action = useAction();
   const [msg, setMsg] = useState<string | null>(null);
-  const history = useApi(queries.ruleHistory(rule.ruleCode));
+  const history = useApi(alertApi.ruleHistory(rule.ruleCode));
   const eventTypes = useEventTypes("eventTypes" in rule.params);
   const names = Object.fromEntries(eventTypes.map((t) => [t.code, t.name]));
   const save = () => {
@@ -27,7 +28,7 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
       action.setError(new Error(`${paramLabel(rule.ruleCode, parsed.key)}: ${parsed.error}`));
       return;
     }
-    return action.run(() => commands.updateRule(rule.ruleCode, { params: parsed.body, severity, enabled, changeNote: note }), (r) => {
+    return action.run(() => alertApi.updateRule(rule.ruleCode, { params: parsed.body, severity, enabled, changeNote: note }), (r) => {
       setMsg(r.version === rule.version ? "바뀐 값이 없어 버전을 올리지 않았습니다." : `v${r.version} 을 만들었습니다. ruleEvalJob 을 실행하면 새 버전으로 평가합니다.`);
       onSaved(); history.reload();
     });
@@ -98,7 +99,7 @@ function RuleEditor({ rule, onSaved }: { rule: RuleView; onSaved: () => void }) 
 
 export default function Rules() {
   const { has } = useAuth();
-  const { data, error, reload } = useApi(queries.rules());
+  const { data, error, reload } = useApi(alertApi.rules());
   const [open, setOpen] = useState<string | null>(null);
   return (
     <Layout title="규칙">

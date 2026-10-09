@@ -3,9 +3,9 @@ import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, Empty, ErrorBox, Loading, MetricStatus, PageTitle, Segmented, SeverityBadge, Pager } from "@/components/ui";
-import { queries } from "@/lib/api";
 import { num, pk } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
+import * as companyApi from "@/lib/api/company";
 
 type Sort = "alerts" | "debtRatio" | "interestCoverage" | "name";
 
@@ -22,7 +22,7 @@ export default function Companies() {
     router.replace({ query: { sort: next.sort ?? sort, ...((next.p ?? 0) > 0 ? { p: String(next.p) } : {}) } }, undefined, { shallow: true });
   useEffect(() => { const t = setTimeout(() => setTerm(q.trim()), 250); return () => clearTimeout(t); }, [q]);
   // 검색 중에도 쪽은 주소의 p — 검색어를 바꾸면 첫 쪽으로 (전에는 검색 중 쪽을 0 으로 고정해 '다음'이 듣지 않음 — VERIFICATION 149)
-  const { data, error, loading } = useApi(router.isReady ? queries.companies({ q: term, sort, page, size: PAGE }) : null);
+  const { data, error, loading } = useApi(router.isReady ? companyApi.list({ q: term, sort, page, size: PAGE }) : null);
   return (
     <Layout title="기업">
       <PageTitle title="건설업 유니버스" sub="DART 기업개황 업종코드 41(종합 건설업)·421(토목 기반조성 전문공사업) 유가·코스닥 상장사 + 수동 포함. 지표는 최신 분기, 연결 우선."

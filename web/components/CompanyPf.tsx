@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Card, DartLink, DownloadLink, Empty, ErrorBox, Loading, Prose } from "@/components/ui";
 import { TrendLine } from "@/components/LazyCharts";
-import { downloads, queries, type PfReport, type PfScope, type PfStatus } from "@/lib/api";
+import { type PfReport, type PfScope, type PfStatus } from "@/lib/api";
 import { eok, num, pk } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
 import { due12, PF_BUCKETS, PF_DUE12_TH, PF_GUARANTEE_TH } from "@/lib/domain/filings";
+import * as companyApi from "@/lib/api/company";
 
 const SCOPE: Record<PfScope, string> = { SOLE: "단독사업", CONSORTIUM_ALL: "컨소시엄 전체 (참고)", CONSORTIUM_SHARE: "컨소시엄 회사분" };
 const STATUS: Record<PfStatus, string> = {
@@ -57,7 +58,7 @@ function Maturity({ r }: { r: PfReport }) {
 
 /** 정기보고서 부동산 PF 우발채무 (ADR-024) — 수주·보증 탭 위쪽 */
 export default function CompanyPf({ corp, riskTh = 5 }: { corp: string; riskTh?: number }) {
-  const { data, error } = useApi(queries.companyPf(corp));
+  const { data, error } = useApi(companyApi.pf(corp));
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
   const cur = data.current;
@@ -125,7 +126,7 @@ export default function CompanyPf({ corp, riskTh = 5 }: { corp: string; riskTh?:
           </Card>
 
           <Card title={`사업장별 PF 보증 ${data.sites.length}곳`} sub={`사업지역을 시군구로 해석해 그 지역의 최신 천 가구당 미분양과 잇습니다 (▲ = ${riskTh}호 이상)`} pad={false}
-            right={data.sites.length > 0 && <DownloadLink href={downloads.pfSitesCsv(corp)}>CSV</DownloadLink>}>
+            right={data.sites.length > 0 && <DownloadLink href={companyApi.pfSitesCsv(corp)}>CSV</DownloadLink>}>
             {data.sites.length === 0 ? <Empty>사업장별 내역이 없습니다.</Empty> : (
               <div className="table-wrap max-h-[60vh]">
                 <table className="data-table">

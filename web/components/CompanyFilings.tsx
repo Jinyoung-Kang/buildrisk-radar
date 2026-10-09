@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Card, DartLink, Empty, ErrorBox, Loading, Phrases, Prose, Segmented } from "@/components/ui";
-import { queries } from "@/lib/api";
 import { eok, num } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
 import { contractState, type ContractState } from "@/lib/domain/filings";
+import * as companyApi from "@/lib/api/company";
 
 const MATCH: Record<string, string> = { SIGUNGU: "", SIDO: "시도만", OVERSEAS: "해외", UNKNOWN: "주소 해석 불가", NONE: "지역 없음" };
 
@@ -17,7 +17,7 @@ const STATE: Record<ContractState, { label: string; cls: string }> = {
 
 /** 수주 계약 · 채무보증 — 공시 원문 구조화 결과 (ADR-016) */
 export default function CompanyFilings({ corp, riskTh = 5 }: { corp: string; riskTh?: number }) {
-  const { data, error } = useApi(queries.companyFilings(corp));
+  const { data, error } = useApi(companyApi.filings(corp));
   const [view, setView] = useState<"current" | "all">("current");
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;

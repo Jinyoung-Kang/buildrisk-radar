@@ -2,17 +2,18 @@ import { useState } from "react";
 import RequireRole from "@/components/RequireRole";
 import Layout from "@/components/Layout";
 import { Card, Empty, ErrorBox, Loading, PageTitle, Prose } from "@/components/ui";
-import { commands, queries, type Row } from "@/lib/api";
+import { type Row } from "@/lib/api";
 import { eok, num } from "@/lib/domain/format";
 import { useAuth } from "@/lib/auth";
 import { useAction } from "@/lib/hooks/useAction";
 import { useApi } from "@/lib/hooks/useApi";
+import * as opsApi from "@/lib/api/ops";
 
 function AddRule({ stdCode, sjDiv, suggest, onDone }: { stdCode: string; sjDiv: string; suggest?: string; onDone: (m: string) => void }) {
   const [pattern, setPattern] = useState(suggest ?? "");
   const [type, setType] = useState("NAME_EXACT");
   const action = useAction();
-  const add = () => action.run(() => commands.addAccountRule({ stdCode, sjDiv, matchType: type, pattern, priority: 30 }),
+  const add = () => action.run(() => opsApi.addAccountRule({ stdCode, sjDiv, matchType: type, pattern, priority: 30 }),
     (r) => onDone(`규칙 #${r.mapId} 추가 — ${r.next}`));
   return (
     <RequireRole role="ADMIN" inline>
@@ -30,7 +31,7 @@ function AddRule({ stdCode, sjDiv, suggest, onDone }: { stdCode: string; sjDiv: 
 function RegionFix({ r, onDone }: { r: Row; onDone: (m: string) => void }) {
   const [cd, setCd] = useState("");
   const action = useAction();
-  const save = () => action.run(() => commands.mapRegionCode({ source: r.source, sourceCode: r.source_code, regionCd: cd.trim() || null, note: "화면에서 수동 매핑" }),
+  const save = () => action.run(() => opsApi.mapRegionCode({ source: r.source, sourceCode: r.source_code, regionCd: cd.trim() || null, note: "화면에서 수동 매핑" }),
     (res) => onDone(`${r.source} ${r.source_name} → ${cd || "미매핑"} — 옛 지역에 남은 이 코드의 통계 ${res.removedStats ?? 0}건을 지웠습니다. 해당 출처 수집 Job 과 standardizeMetricJob 을 다시 실행하면 반영됩니다.${res.warning ? ` ${res.warning}` : ""}`));
   const { has } = useAuth();
   if (!has("ADMIN")) return <span className="text-xs text-muted">-</span>;
@@ -46,10 +47,10 @@ function RegionFix({ r, onDone }: { r: Row; onDone: (m: string) => void }) {
 
 function UserRules({ onChanged }: { onChanged: (m: string) => void }) {
   const { has } = useAuth();
-  const { data, error, reload } = useApi(queries.mappingAccountRules());
+  const { data, error, reload } = useApi(opsApi.accountRules());
   const action = useAction();
   const rules = (data ?? []).filter((r) => r.origin === "USER");
-  const remove = (id: number) => action.run(() => commands.deleteAccountRule(id), (r) => { onChanged(`규칙 #${id} 삭제 — ${r.next}`); reload(); });
+  const remove = (id: number) => action.run(() => opsApi.deleteAccountRule(id), (r) => { onChanged(`규칙 #${id} 삭제 — ${r.next}`); reload(); });
   return (
     <Card title={`화면에서 추가한 매핑 규칙 (${rules.length})`} sub="seed 규칙은 seed/account_map.csv 에서 관리합니다">
       <ErrorBox error={action.error ?? error} />
@@ -72,7 +73,7 @@ function UserRules({ onChanged }: { onChanged: (m: string) => void }) {
 }
 
 export default function Mapping() {
-  const { data, error, reload } = useApi(queries.mappingUnmapped());
+  const { data, error, reload } = useApi(opsApi.unmapped());
   const [msg, setMsg] = useState<string | null>(null);
   return (
     <Layout title="매핑">

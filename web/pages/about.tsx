@@ -1,12 +1,13 @@
 import Layout from "@/components/Layout";
 import { Card, ErrorBox, Loading, PageTitle, Prose } from "@/components/ui";
-import { queries, type Meta } from "@/lib/api";
+import { type Meta } from "@/lib/api";
 import { useApi } from "@/lib/hooks/useApi";
 import { RISK_EVENTS } from "@/lib/domain/company";
+import * as insightApi from "@/lib/api/insight";
 
 
 export default function About() {
-  const { data, error } = useApi(queries.meta());
+  const { data, error } = useApi(insightApi.meta());
   const company = data?.metrics.filter((m) => m.target === "COMPANY") ?? [];
   const region = data?.metrics.filter((m) => m.target === "REGION") ?? [];
   const metricTable = (rows: Meta["metrics"]) => (

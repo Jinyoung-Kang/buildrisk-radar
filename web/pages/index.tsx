@@ -2,13 +2,14 @@ import Link from "next/link";
 import Layout from "@/components/Layout";
 import PersonaEntry from "@/components/PersonaEntry";
 import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle, SeverityBadge, Stat, StatusPill, TargetLink } from "@/components/ui";
-import { queries, type Personas, type Row } from "@/lib/api";
+import { type Personas, type Row } from "@/lib/api";
 import { SEVERITY } from "@/lib/domain/colors";
 import { dt, int, num, pk, ym } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
+import * as insightApi from "@/lib/api/insight";
 
 export default function Dashboard() {
-  const { data, error, loading } = useApi(queries.dashboard());
+  const { data, error, loading } = useApi(insightApi.dashboard());
   const oa = data?.openAlerts ?? {};
   const f = data?.freshness ?? {};
   const maxUnsold = Math.max(1, ...((data?.topUnsold ?? []) as Row[]).map((r) => Number(r.per1kHh) || 0));

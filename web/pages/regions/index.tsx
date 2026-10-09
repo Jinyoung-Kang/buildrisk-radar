@@ -5,12 +5,14 @@ import Layout from "@/components/Layout";
 import RegionMap from "@/components/RegionMap";
 import { RegionPanel } from "@/components/LazyCharts";
 import { Card, ErrorBox, PhraseList } from "@/components/ui";
-import { queries, type GeoJson, type RegionProps } from "@/lib/api";
+import { type GeoJson, type RegionProps } from "@/lib/api";
 import { makeScale, MISSING } from "@/lib/domain/colors";
 import { num, STATUS_LABEL, withUnit, ym } from "@/lib/domain/format";
 import { regionTooltipHtml } from "@/lib/domain/html";
 import { joinRegionValues, SIGNED_METRICS, sidoOptions } from "@/lib/domain/regions";
 import { useApi } from "@/lib/hooks/useApi";
+import * as insightApi from "@/lib/api/insight";
+import * as regionApi from "@/lib/api/region";
 
 export default function Regions() {
   const router = useRouter();
@@ -28,11 +30,11 @@ export default function Regions() {
     }
     router.replace({ query: next }, undefined, { shallow: true });
   };
-  const meta = useApi(queries.meta());
-  const list = useApi(router.isReady ? queries.regions({ metric, period, sido }) : null);
+  const meta = useApi(insightApi.meta());
+  const list = useApi(router.isReady ? regionApi.list({ metric, period, sido }) : null);
   // 경계는 버전이 바뀔 때만 받음(브라우저 영구 캐시) — 지표·기간·시도를 바꾸면 값 목록(약 20KB)만 다시 받아 색을 칠함
   const version = list.data?.boundaryVersion;
-  const bounds = useApi(version ? queries.regionBoundaries(version) : null);
+  const bounds = useApi(version ? regionApi.boundaries(version) : null);
   const geo = useMemo<{ data: GeoJson | null; error: Error | null }>(() =>
     !bounds.data || !list.data ? { data: null, error: bounds.error } : { data: joinRegionValues(bounds.data, list.data), error: null },
   [bounds.data, bounds.error, list.data]);

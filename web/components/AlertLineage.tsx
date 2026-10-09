@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { queries, type Lineage, type LineageStatement } from "@/lib/api";
+import { type Lineage, type LineageStatement } from "@/lib/api";
 import { dt } from "@/lib/domain/format";
 import { needsEventNames, paramLabel, paramValue } from "@/lib/domain/ruleLabels";
 import { useEventNames } from "@/lib/hooks/useEventNames";
 import { useApi } from "@/lib/hooks/useApi";
 import { DartLink, ErrorBox, Loading, PhraseList, Prose } from "./ui";
+import * as alertApi from "@/lib/api/alert";
 
 const BASIS: Record<string, string> = { POINT: "시점", CUM: "누적", QTR: "분기" };
 const FS_DIV: Record<string, string> = { CFS: "연결", OFS: "별도" };
@@ -154,7 +155,7 @@ function Body({ l }: { l: Lineage }) {
 /** 근거 계보 (ADR-027) — 펼칠 때만 불러옴 (경보 목록 · 상세 응답은 그대로) */
 export default function AlertLineage({ id }: { id: number }) {
   const [open, setOpen] = useState(false);
-  const { data, error } = useApi(open ? queries.alertLineage(id) : null);
+  const { data, error } = useApi(open ? alertApi.lineage(id) : null);
   return (
     <details className="rounded-lg border border-line" onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
       <summary className="cursor-pointer px-3 py-2 text-sm font-medium rounded-lg focus-ring">
