@@ -8,6 +8,11 @@ import java.util.List;
 public final class FilingModels {
     private FilingModels() {}
 
+    private static final String DART_VIEWER = "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=";
+
+    /** 공시 원문 보기 주소 (접수번호가 없으면 null) */
+    public static String dartUrl(String rceptNo) { return rceptNo == null ? null : DART_VIEWER + rceptNo; }
+
     public enum Kind { CONTRACT, TERMINATION, GUARANTEE }
 
     /** 정정 공시면 정정 대상 원 공시 제출일 · 사유 */

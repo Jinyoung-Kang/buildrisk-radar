@@ -1,23 +1,22 @@
 package com.buildrisk.radar.api;
 
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
+import com.buildrisk.radar.alert.app.DbRuleData;
+import com.buildrisk.radar.alert.app.RuleRegistry;
+import com.buildrisk.radar.alert.data.RuleRepository;
+import com.buildrisk.radar.alert.domain.FullHistoryRuleData;
+import com.buildrisk.radar.alert.domain.RuleData;
+import com.buildrisk.radar.alert.domain.RuleModels.Finding;
+import com.buildrisk.radar.alert.domain.RuleModels.RuleDefinition;
 import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.domain.backtest.CreditEventRule;
 import com.buildrisk.radar.domain.backtest.PointInTime;
-import com.buildrisk.radar.domain.backtest.Scorecard;
 import com.buildrisk.radar.domain.backtest.Scorecard.CreditEvent;
 import com.buildrisk.radar.domain.backtest.Scorecard.Signal;
-import com.buildrisk.radar.domain.rule.DbRuleData;
-import com.buildrisk.radar.domain.rule.FullHistoryRuleData;
-import com.buildrisk.radar.domain.rule.RuleData;
-import com.buildrisk.radar.domain.rule.RuleModels.Finding;
-import com.buildrisk.radar.domain.rule.RuleModels.RuleDefinition;
-import com.buildrisk.radar.domain.rule.RuleRegistry;
-import com.buildrisk.radar.domain.rule.RuleRepository;
-
+import com.buildrisk.radar.domain.backtest.Scorecard;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 

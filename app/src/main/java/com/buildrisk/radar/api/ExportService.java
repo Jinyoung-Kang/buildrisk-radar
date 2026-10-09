@@ -1,10 +1,12 @@
 package com.buildrisk.radar.api;
 
+import com.buildrisk.radar.alert.app.AlertQueryService;
 import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.common.web.CsvWriter;
 import com.buildrisk.radar.filing.app.PfExposureService;
+import com.buildrisk.radar.filing.domain.FilingModels;
 import com.buildrisk.radar.metric.domain.MetricCatalog;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -97,7 +99,7 @@ public class ExportService {
                     w.row(corpCode, name, rs.getString(1), code, def == null ? null : def.nameKo(), def == null ? null : def.unit(),
                             rs.getBigDecimal(3), rs.getString(4), rs.getString(5), rcept, str(n.get("std")), str(n.get("basis")),
                             num(n.get("amount")), str(d.get("std")), str(d.get("basis")), num(d.get("amount")), rs.getString(7),
-                            LineageService.url(rcept));
+                            FilingModels.dartUrl(rcept));
                     return null;
                 }).list();
     }
@@ -126,7 +128,7 @@ public class ExportService {
             w.row(corpCode, c.current().rceptNo(), c.current().periodKey(), s.seq(), s.category(), s.regionText(), s.regionCd(),
                     s.regionName(), s.regionMatch(), s.sidoName(), s.siteType(), s.pfType(), s.enhancement(), s.limitTotal(), s.sharePct(),
                     s.guarantee(), s.debtor(), s.related(), s.lenderType(), s.balance(), s.priorBalance(), s.loanPeriod(), s.maturity(),
-                    s.kind(), s.completionAmount(), s.unsoldPer1kHh(), s.unsoldPeriod(), LineageService.url(c.current().rceptNo()));
+                    s.kind(), s.completionAmount(), s.unsoldPer1kHh(), s.unsoldPeriod(), FilingModels.dartUrl(c.current().rceptNo()));
         }
     }
 

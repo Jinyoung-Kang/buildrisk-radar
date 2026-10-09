@@ -1,6 +1,7 @@
 package com.buildrisk.radar.api;
 
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
+import com.buildrisk.radar.alert.domain.AlertCodes;
 import com.buildrisk.radar.common.role.ApiRole;
 import com.buildrisk.radar.common.web.CsvWriter;
 import com.buildrisk.radar.common.web.QueryParams;
@@ -46,8 +47,9 @@ public class ExportController {
                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime since,
                        @RequestParam(required = false) String targetKey, @RequestParam(required = false) String ruleCode,
                        HttpServletResponse res) throws IOException {
-        var f = new ExportService.AlertFilter(QueryParams.oneOf("targetType", targetType, QueryParams.TARGET_TYPES),
-                QueryParams.oneOf("severity", severity, QueryParams.SEVERITIES), QueryParams.statuses(status), since, targetKey, ruleCode);
+        var f = new ExportService.AlertFilter(QueryParams.oneOf("targetType", targetType, AlertCodes.TARGET_TYPES),
+                QueryParams.oneOf("severity", severity, AlertCodes.SEVERITIES), QueryParams.listOf("status", status, AlertCodes.STATUSES),
+                since, targetKey, ruleCode);
         long total = exports.alertCount(f);
         res.setHeader("X-Total-Count", String.valueOf(total));
         res.setHeader("X-Row-Cap", String.valueOf(ExportService.ALERT_CAP));
