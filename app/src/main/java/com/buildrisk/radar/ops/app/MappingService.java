@@ -4,6 +4,8 @@ import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.company.data.CompanyRepository;
+import com.buildrisk.radar.company.data.FsRepository;
+import com.buildrisk.radar.region.data.RegionRepository;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -19,7 +21,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-/** FR-206 · FR-405 — 미매핑 계정·지역 코드와 매핑률, 매핑 규칙 추가 */
+/** FR-206 · FR-405 — 미매핑 계정·지역 코드와 매핑률(관리 화면 조회), 매핑 규칙 추가 · 지역 코드 수동 매핑(쓰기는 각 기능의 저장소로) */
 @Service
 public class MappingService {
     private static final Map<String, String> HINT = Map.ofEntries(
@@ -30,10 +32,14 @@ public class MappingService {
             Map.entry("INTEREST_EXPENSE", "이자|금융원가|금융비용"), Map.entry("OPERATING_CASH_FLOW", "영업활동"));
     private final JdbcClient jdbc;
     private final CompanyRepository companies;
+    private final FsRepository fs;
+    private final RegionRepository regions;
 
-    public MappingService(JdbcClient jdbc, CompanyRepository companies) {
+    public MappingService(JdbcClient jdbc, CompanyRepository companies, FsRepository fs, RegionRepository regions) {
         this.jdbc = jdbc;
         this.companies = companies;
+        this.fs = fs;
+        this.regions = regions;
     }
 
     /**
@@ -160,8 +166,7 @@ public class MappingService {
                                      Boolean absValue, String note, String section) {}
 
     public Map<String, Object> addAccountRule(AccountRuleRequest r) {
-        if (r.stdCode() == null || jdbc.sql("SELECT count(*) FROM ref.std_account WHERE std_code = :c")
-                .param("c", r.stdCode()).query(Integer.class).single() == 0) {
+        if (r.stdCode() == null || !fs.stdAccountExists(r.stdCode())) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "알 수 없는 표준계정: " + r.stdCode());
         }
         if (r.matchType() == null || !Set.of("ACCOUNT_ID", "NAME_EXACT", "NAME_REGEX").contains(r.matchType())) {
@@ -183,14 +188,8 @@ public class MappingService {
         if (r.section() != null && !Set.of("CURRENT", "NONCURRENT").contains(r.section())) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "section 은 CURRENT · NONCURRENT");
         }
-        Integer id = jdbc.sql("""
-                        INSERT INTO ref.account_map (std_code, sj_div, match_type, pattern, priority, abs_value, origin, note, section)
-                        VALUES (:c, :sj, :t, :p, :pr, :abs, 'USER', :note, :sec)
-                        ON CONFLICT (std_code, match_type, pattern, sj_div) DO UPDATE SET priority = EXCLUDED.priority
-                        RETURNING map_id""")
-                .param("c", r.stdCode()).param("sj", r.sjDiv()).param("t", r.matchType()).param("p", r.pattern())
-                .param("pr", r.priority() == null ? 30 : r.priority()).param("abs", Boolean.TRUE.equals(r.absValue()))
-                .param("note", r.note()).param("sec", r.section()).query(Integer.class).single();
+        Integer id = fs.addUserMapRule(r.stdCode(), r.sjDiv(), r.matchType(), r.pattern(), r.priority() == null ? 30 : r.priority(),
+                Boolean.TRUE.equals(r.absValue()), r.note(), r.section());
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("mapId", id);
         out.put("next", "standardizeMetricJob → ruleEvalJob 을 실행하면 반영됩니다 (POST /api/v1/batch/jobs/standardizeMetricJob/launch).");
@@ -199,13 +198,11 @@ public class MappingService {
 
     /** 화면에서 추가한 규칙(origin USER)만 지울 수 있음 — seed 규칙은 seed/account_map.csv 에서 관리 */
     public Map<String, Object> deleteAccountRule(int mapId) {
-        String origin = jdbc.sql("SELECT origin FROM ref.account_map WHERE map_id = :id").param("id", mapId)
-                .query(String.class).optional()
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "매핑 규칙이 없습니다: " + mapId));
+        String origin = fs.mapRuleOrigin(mapId).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "매핑 규칙이 없습니다: " + mapId));
         if (!"USER".equals(origin)) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "seed 규칙은 seed/account_map.csv 에서 고치세요 (map_id " + mapId + ").");
         }
-        jdbc.sql("DELETE FROM ref.account_map WHERE map_id = :id").param("id", mapId).update();
+        fs.deleteMapRule(mapId);
         return Map.of("deleted", mapId, "next", "standardizeMetricJob → ruleEvalJob 을 실행하면 반영됩니다.");
     }
 
@@ -217,28 +214,15 @@ public class MappingService {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "source · sourceCode 가 필요합니다.");
         }
         String source = r.source(), sourceCode = r.sourceCode();
-        if (r.regionCd() != null && jdbc.sql("SELECT count(*) FROM ref.region WHERE region_cd = :c")
-                .param("c", r.regionCd()).query(Integer.class).single() == 0) {
+        if (r.regionCd() != null && !regions.exists(r.regionCd())) {
             throw ApiException.notFound(ErrorCode.REGION_NOT_FOUND, "지역 " + r.regionCd());
         }
-        int n = jdbc.sql("""
-                        UPDATE ref.region_code_map SET region_cd = cast(:r AS char(5)),
-                          match_method = CASE WHEN cast(:r AS text) IS NULL THEN 'UNMAPPED' ELSE 'MANUAL' END,
-                          verified = true, note = :n, updated_at = now()
-                        WHERE source = :s AND source_code = :c""")
-                .param("r", r.regionCd()).param("n", r.note()).param("s", source).param("c", sourceCode).update();
+        int n = regions.remapSourceCode(source, sourceCode, r.regionCd(), r.note());
         if (n == 0) throw new ApiException(ErrorCode.NOT_FOUND, "출처 코드가 없습니다: " + source + "/" + sourceCode);
         // 옛 지역에 남은 이 출처 코드의 통계를 지움 — 남기면 옛 지역의 지표 · 경보가 다른 지역 수치로 계속 계산됨 (VERIFICATION 130).
         // 새 지역 값은 그 출처를 다시 수집하면 들어감
-        int stale = jdbc.sql("""
-                        DELETE FROM mkt.region_stat s USING mkt.stat_series ss
-                         WHERE ss.series_id = s.series_id AND ss.source = :s AND s.source_code = :c
-                           AND (cast(:r AS text) IS NULL OR s.region_cd <> cast(:r AS char(5)))""")
-                .param("s", source).param("c", sourceCode).param("r", r.regionCd()).update();
-        List<String> others = r.regionCd() == null ? List.of() : jdbc.sql("""
-                        SELECT source_code FROM ref.region_code_map
-                         WHERE source = :s AND region_cd = cast(:r AS char(5)) AND source_code <> :c ORDER BY source_code""")
-                .param("s", source).param("r", r.regionCd()).param("c", sourceCode).query(String.class).list();
+        int stale = regions.deleteStatsOutside(source, sourceCode, r.regionCd());
+        List<String> others = r.regionCd() == null ? List.of() : regions.otherCodesMappedTo(source, r.regionCd(), sourceCode);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("source", source);
         out.put("sourceCode", sourceCode);

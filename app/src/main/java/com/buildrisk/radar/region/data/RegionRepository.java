@@ -131,6 +131,37 @@ public class RegionRepository {
                 .param("m", method).param("note", note).update();
     }
 
+    public boolean exists(String regionCd) {
+        return jdbc.sql("SELECT count(*) FROM ref.region WHERE region_cd = :c").param("c", regionCd).query(Integer.class).single() > 0;
+    }
+
+    /** 출처 코드를 사람이 지역에 매핑(regionCd 가 null 이면 매핑 해제 — UNMAPPED). 바뀐 행 수 */
+    public int remapSourceCode(String source, String sourceCode, String regionCd, String note) {
+        return jdbc.sql("""
+                        UPDATE ref.region_code_map SET region_cd = cast(:r AS char(5)),
+                          match_method = CASE WHEN cast(:r AS text) IS NULL THEN 'UNMAPPED' ELSE 'MANUAL' END,
+                          verified = true, note = :n, updated_at = now()
+                        WHERE source = :s AND source_code = :c""")
+                .param("r", regionCd).param("n", note).param("s", source).param("c", sourceCode).update();
+    }
+
+    /** 그 출처 코드로 들어온 통계 중 regionCd(없으면 전부) 밖의 것을 지움. 지운 행 수 */
+    public int deleteStatsOutside(String source, String sourceCode, String regionCd) {
+        return jdbc.sql("""
+                        DELETE FROM mkt.region_stat s USING mkt.stat_series ss
+                         WHERE ss.series_id = s.series_id AND ss.source = :s AND s.source_code = :c
+                           AND (cast(:r AS text) IS NULL OR s.region_cd <> cast(:r AS char(5)))""")
+                .param("s", source).param("c", sourceCode).param("r", regionCd).update();
+    }
+
+    /** 같은 출처에서 그 지역에 매핑된 다른 코드 */
+    public List<String> otherCodesMappedTo(String source, String regionCd, String exceptCode) {
+        return jdbc.sql("""
+                        SELECT source_code FROM ref.region_code_map
+                         WHERE source = :s AND region_cd = cast(:r AS char(5)) AND source_code <> :c ORDER BY source_code""")
+                .param("s", source).param("r", regionCd).param("c", exceptCode).query(String.class).list();
+    }
+
     public record StatRow(String seriesId, String regionCd, String period, BigDecimal value, String rawSymbol,
                           String sourceCode, UUID collectRunId) {}
 

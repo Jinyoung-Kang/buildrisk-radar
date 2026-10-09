@@ -16,6 +16,7 @@ import java.sql.Types;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -119,6 +120,31 @@ public class FsRepository {
         return jdbc.sql("SELECT map_id, std_code, sj_div, match_type, pattern, priority, abs_value, section FROM ref.account_map")
                 .query((rs, i) -> new MapRule(rs.getInt(1), rs.getString(2), rs.getString(3), rs.getString(4),
                         rs.getString(5), rs.getInt(6), rs.getBoolean(7), rs.getString(8))).list();
+    }
+
+    public boolean stdAccountExists(String stdCode) {
+        return jdbc.sql("SELECT count(*) FROM ref.std_account WHERE std_code = :c").param("c", stdCode).query(Integer.class).single() > 0;
+    }
+
+    /** 화면에서 추가하는 매핑 규칙(origin USER) — 같은 규칙이 있으면 우선순위만 바꿈. map_id */
+    public int addUserMapRule(String stdCode, String sjDiv, String matchType, String pattern, int priority, boolean absValue,
+                              String note, String section) {
+        return jdbc.sql("""
+                        INSERT INTO ref.account_map (std_code, sj_div, match_type, pattern, priority, abs_value, origin, note, section)
+                        VALUES (:c, :sj, :t, :p, :pr, :abs, 'USER', :note, :sec)
+                        ON CONFLICT (std_code, match_type, pattern, sj_div) DO UPDATE SET priority = EXCLUDED.priority
+                        RETURNING map_id""")
+                .param("c", stdCode).param("sj", sjDiv).param("t", matchType).param("p", pattern)
+                .param("pr", priority).param("abs", absValue).param("note", note).param("sec", section).query(Integer.class).single();
+    }
+
+    /** 규칙의 출처(USER · seed) — 없으면 빈 값 */
+    public Optional<String> mapRuleOrigin(int mapId) {
+        return jdbc.sql("SELECT origin FROM ref.account_map WHERE map_id = :id").param("id", mapId).query(String.class).optional();
+    }
+
+    public void deleteMapRule(int mapId) {
+        jdbc.sql("DELETE FROM ref.account_map WHERE map_id = :id").param("id", mapId).update();
     }
 
     public List<Report> latestReports(String corpCode) {
