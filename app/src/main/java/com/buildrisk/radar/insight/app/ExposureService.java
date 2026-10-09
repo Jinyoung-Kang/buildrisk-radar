@@ -146,6 +146,10 @@ public class ExposureService {
     }
 
     public RegionContracts regionContracts(String regionCd) {
+        // 다른 지역 하위 자원(series · sites)처럼 없는 지역은 404 — 200 빈 목록이면 아무 코드마다 캐시 키가 생겼음 (VERIFICATION 159)
+        if (jdbc.sql("SELECT count(*) FROM ref.region WHERE region_cd = :r").param("r", regionCd).query(Long.class).single() == 0) {
+            throw ApiException.notFound(ErrorCode.REGION_NOT_FOUND, "지역 " + regionCd);
+        }
         List<RegionContract> items = jdbc.sql("""
                 SELECT c.rcept_no, c.rcept_dt::text, c.corp_code, co.corp_name, c.contract_name, c.amount, c.counterparty,
                        c.end_date::text

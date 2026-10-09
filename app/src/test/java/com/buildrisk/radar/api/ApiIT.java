@@ -7,6 +7,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -36,6 +38,15 @@ class ApiIT extends IntegrationTest {
                 .andExpect(header().exists("X-Trace-Id"));
         mvc.perform(get("/api/v1/companies/abc")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void 없는_지역의_하위_자원은_404() throws Exception {
+        // 계약 목록만 지역을 확인하지 않아 아무 다섯 자리나 200 빈 목록 — 없는 코드마다 캐시 키가 생겼음 (VERIFICATION 159)
+        for (String sub : List.of("series", "contracts", "sites")) {
+            mvc.perform(get("/api/v1/regions/99998/" + sub)).andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value("REGION_NOT_FOUND"));
+        }
     }
 
     @Test
