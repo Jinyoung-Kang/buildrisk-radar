@@ -6,6 +6,7 @@ import com.buildrisk.radar.domain.universe.CompanyRepository;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -209,6 +210,7 @@ public class MappingService {
 
     public record RegionMapRequest(String source, String sourceCode, String regionCd, String note) {}
 
+    @Transactional
     public Map<String, Object> mapRegion(RegionMapRequest r) {
         if (r.source() == null || r.sourceCode() == null) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "source · sourceCode 가 필요합니다.");
@@ -225,10 +227,23 @@ public class MappingService {
                         WHERE source = :s AND source_code = :c""")
                 .param("r", r.regionCd()).param("n", r.note()).param("s", source).param("c", sourceCode).update();
         if (n == 0) throw new ApiException(ErrorCode.NOT_FOUND, "출처 코드가 없습니다: " + source + "/" + sourceCode);
+        // 옛 지역에 남은 이 출처 코드의 통계를 지움 — 남기면 옛 지역의 지표 · 경보가 다른 지역 수치로 계속 계산됨 (VERIFICATION 130).
+        // 새 지역 값은 그 출처를 다시 수집하면 들어감
+        int stale = jdbc.sql("""
+                        DELETE FROM mkt.region_stat s USING mkt.stat_series ss
+                         WHERE ss.series_id = s.series_id AND ss.source = :s AND s.source_code = :c
+                           AND (cast(:r AS text) IS NULL OR s.region_cd <> cast(:r AS char(5)))""")
+                .param("s", source).param("c", sourceCode).param("r", r.regionCd()).update();
+        List<String> others = r.regionCd() == null ? List.of() : jdbc.sql("""
+                        SELECT source_code FROM ref.region_code_map
+                         WHERE source = :s AND region_cd = cast(:r AS char(5)) AND source_code <> :c ORDER BY source_code""")
+                .param("s", source).param("r", r.regionCd()).param("c", sourceCode).query(String.class).list();
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("source", source);
         out.put("sourceCode", sourceCode);
         out.put("regionCd", r.regionCd());
+        out.put("removedStats", stale);
+        if (!others.isEmpty()) out.put("warning", "같은 출처의 다른 코드 " + others + " 도 이 지역에 매핑돼 있어, 같은 통계가 수집 순서에 따라 서로 덮어쓸 수 있습니다.");
         out.put("next", "해당 출처 수집 Job 과 standardizeMetricJob 을 다시 실행하면 반영됩니다.");
         return out;
     }

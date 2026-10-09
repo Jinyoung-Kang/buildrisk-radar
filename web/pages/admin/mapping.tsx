@@ -35,8 +35,8 @@ function RegionFix({ r, onDone }: { r: Row; onDone: (m: string) => void }) {
   const [err, setErr] = useState<Error | null>(null);
   const save = async () => {
     try {
-      await mutate<Row>("/mapping/region-codes", "PUT", { source: r.source, sourceCode: r.source_code, regionCd: cd.trim() || null, note: "화면에서 수동 매핑" });
-      onDone(`${r.source} ${r.source_name} → ${cd || "미매핑"} — 해당 출처 수집 Job 과 standardizeMetricJob 을 다시 실행하면 반영됩니다.`);
+      const res = await mutate<Row>("/mapping/region-codes", "PUT", { source: r.source, sourceCode: r.source_code, regionCd: cd.trim() || null, note: "화면에서 수동 매핑" });
+      onDone(`${r.source} ${r.source_name} → ${cd || "미매핑"} — 옛 지역에 남은 이 코드의 통계 ${res.removedStats ?? 0}건을 지웠습니다. 해당 출처 수집 Job 과 standardizeMetricJob 을 다시 실행하면 반영됩니다.${res.warning ? ` ${res.warning}` : ""}`);
     } catch (e) { setErr(e as Error); }
   };
   const { has } = useAuth();

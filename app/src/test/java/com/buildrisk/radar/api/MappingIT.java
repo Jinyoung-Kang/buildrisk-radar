@@ -4,6 +4,7 @@ import com.buildrisk.radar.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -13,6 +14,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** 매핑 화면 API — 표준계정별 매핑률과 미매핑 (기업 × 표준계정)의 원천 계정 후보 (FR-206) */
@@ -75,5 +77,23 @@ class MappingIT extends IntegrationTest {
         assertThat(account(accounts, "CURRENT_LIABILITIES").has("latest")).isFalse();
         JsonNode c = account(accounts, "CURRENT_LIABILITIES").get("candidates").get(0);
         assertThat(c.get("account_id").asString()).isEqualTo("ifrs-full_CurrentLiabilities");
+    }
+
+    @Test
+    void 지역_코드를_다시_매핑하면_옛_지역에_남은_그_출처의_통계를_지운다() throws Exception {
+        // 이름 매칭이 X 를 A 에 잘못 붙였다가 관리자가 B 로 고쳐도, A 에 X 의 수치가 계속 남아 A 의 지표 · 경보가 틀렸음 (VERIFICATION 130)
+        jdbc.update("INSERT INTO ref.region (region_cd, name, full_name, sido_cd, sido_name, level) VALUES ('95101', '가구', '시험시 가구', '95', '시험시', 2), ('95102', '나구', '시험시 나구', '95', '시험시', 2)");
+        try {
+            jdbc.update("INSERT INTO ref.region_code_map (source, source_code, source_name, region_cd, match_method) VALUES ('KOSIS', 'T-X', '시험 > 나구', '95101', 'NAME'), ('KOSIS', 'T-Y', '시험 > 가구', '95101', 'NAME')");
+            jdbc.update("INSERT INTO mkt.region_stat (series_id, region_cd, period, value, source_code) VALUES ('KOSIS_UNSOLD', '95101', '202606', 100, 'T-X'), ('KOSIS_UNSOLD', '95101', '202605', 90, 'T-Y')");
+            mvc.perform(put("/api/v1/mapping/region-codes").header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"source\":\"KOSIS\",\"sourceCode\":\"T-X\",\"regionCd\":\"95102\"}")).andExpect(status().isOk());
+            assertThat(count("SELECT count(*) FROM mkt.region_stat WHERE region_cd = '95101' AND source_code = 'T-X'")).isZero();
+            assertThat(count("SELECT count(*) FROM mkt.region_stat WHERE region_cd = '95101' AND source_code = 'T-Y'")).isEqualTo(1);   // 다른 코드의 값은 그대로
+        } finally {
+            jdbc.update("DELETE FROM mkt.region_stat WHERE region_cd IN ('95101', '95102')");
+            jdbc.update("DELETE FROM ref.region_code_map WHERE source_code IN ('T-X', 'T-Y')");
+            jdbc.update("DELETE FROM ref.region WHERE region_cd IN ('95101', '95102')");
+        }
     }
 }
