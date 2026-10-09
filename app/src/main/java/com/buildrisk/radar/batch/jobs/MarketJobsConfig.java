@@ -110,7 +110,7 @@ public class MarketJobsConfig {
             TradeWindow w = TradeWindow.of(YearMonth.now(ApiQuotaService.KST), props.dataGoKr().tradeMonths());
             UUID run = UUID.fromString(contribution.getStepExecution().getJobExecution().getExecutionContext()
                     .getString(BatchKeys.COLLECT_RUN_ID));
-            int n = trades.aggregate(w.fromYm(), w.completeToYm(), run);
+            int n = trades.aggregate(w.completeToYm(), run);
             contribution.incrementWriteCount(n);
             log.info("실거래 월 집계 {}행 (~{})", n, w.completeToYm());
             return RepeatStatus.FINISHED;

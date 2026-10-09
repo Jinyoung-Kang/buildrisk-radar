@@ -86,8 +86,10 @@ public class AptTradeRepository {
      * 화면 단위 시군구 × 계약월 집계 → mkt.region_stat (거래 건수 · 해제 건수 · ㎡당 중위 가격).
      * 하위 일반구를 모두 받은 달만 (일부만 받은 달은 건수가 작게 나와 '거래 급감'으로 오인되므로 제외),
      * 받았는데 거래가 없는 달은 0 건. 아직 신고가 들어오는 중인 달(toYm 이후)은 넣지 않습니다.
+     * 받은 모든 달을 다시 집계 — 시리즈를 통째로 바꾸므로 범위도 통째. 전에는 기본 기간(25개월)만 다시 넣어
+     * 더 길게 받은(백필) 달의 집계가 지워졌음 (VERIFICATION 136)
      */
-    public int aggregate(int fromYm, int toYm, UUID runId) {
+    public int aggregate(int toYm, UUID runId) {
         jdbc.sql("DELETE FROM mkt.region_stat WHERE series_id IN (:s)").param("s", SERIES).update();
         return jdbc.sql("""
                 WITH units AS (
@@ -96,7 +98,7 @@ public class AptTradeRepository {
                 got AS (
                     SELECT u.screen_cd, f.deal_ym, count(*) AS n
                       FROM mkt.apt_trade_fetch f JOIN units u ON u.region_cd = f.lawd_cd
-                     WHERE f.deal_ym BETWEEN :from AND :to GROUP BY u.screen_cd, f.deal_ym),
+                     WHERE f.deal_ym <= :to GROUP BY u.screen_cd, f.deal_ym),
                 agg AS (
                     SELECT u.screen_cd, a.deal_ym,
                            count(*) FILTER (WHERE NOT a.cancelled) AS trades,
@@ -104,7 +106,7 @@ public class AptTradeRepository {
                            percentile_cont(0.5) WITHIN GROUP (ORDER BY a.deal_amount / a.exclu_use_ar)
                                FILTER (WHERE NOT a.cancelled) AS m2
                       FROM mkt.apt_trade a JOIN units u ON u.region_cd = a.lawd_cd
-                     WHERE a.deal_ym BETWEEN :from AND :to GROUP BY u.screen_cd, a.deal_ym),
+                     WHERE a.deal_ym <= :to GROUP BY u.screen_cd, a.deal_ym),
                 base AS (
                     SELECT g.screen_cd, g.deal_ym, coalesce(x.trades, 0) AS trades, coalesce(x.cancels, 0) AS cancels, x.m2
                       FROM got g JOIN need nd ON nd.screen_cd = g.screen_cd AND nd.n = g.n
@@ -116,6 +118,6 @@ public class AptTradeRepository {
                        'RTMS', :run
                   FROM base b CROSS JOIN (VALUES ('RTMS_TRADE_CNT'), ('RTMS_CANCEL_CNT'), ('RTMS_PRICE_M2')) s(id)
                  WHERE s.id <> 'RTMS_PRICE_M2' OR b.m2 IS NOT NULL""")
-                .param("from", fromYm).param("to", toYm).param("run", runId).update();
+                .param("to", toYm).param("run", runId).update();
     }
 }

@@ -169,6 +169,18 @@ class AptTradeJobIT extends IntegrationTest {
     }
 
     @Test
+    void 기본보다_길게_받은_달도_월_집계에_들어간다() {
+        // 집계 Step 이 months 를 무시하고 기본 기간만 다시 넣으면서 RTMS 시리즈를 통째로 지워, 백필한 달이 통계 · 지표에 반영되지 않았음 (VERIFICATION 136)
+        int months = props.dataGoKr().tradeMonths() + 12;
+        assertThat(launcher.runAndWait("aptTradeJob", Map.of("months", months, "restart", false)).getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        var w = TradeWindow.of(YearMonth.now(ApiQuotaService.KST), months);
+        assertThat(stat("RTMS_TRADE_CNT", "99101", String.valueOf(w.fromYm()))).isEqualTo("2");
+        // 다음 기본 실행이 앞서 백필한 달의 집계를 지우지 않음
+        assertThat(launcher.runAndWait("aptTradeJob", Map.of("restart", false)).getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        assertThat(stat("RTMS_TRADE_CNT", "99101", String.valueOf(w.fromYm()))).isEqualTo("2");
+    }
+
+    @Test
     void 트래픽_초과_응답이면_STOPPED() {
         WM.stubFor(get(urlPathEqualTo(PATH)).withQueryParam("LAWD_CD", equalTo("99101"))
                 .willReturn(aResponse().withBody("<OpenAPI_ServiceResponse><cmmMsgHeader><returnAuthMsg>LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR"
