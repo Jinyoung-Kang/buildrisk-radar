@@ -10,6 +10,39 @@ async function hold(page: Page, url: string | RegExp) {
   return () => release();
 }
 
+type KakaoFake = { polys: { __l: Record<string, (e?: unknown) => void> }[]; tip: { content: string; shown: boolean } };
+
+/** 카카오 지도 SDK 대역 — 외부 망 · 키 없이 지도 컴포넌트의 이벤트 · 툴팁을 시험. 폴리곤과 툴팁 상태를 window.__kakaoFake 에 남김 */
+const FAKE_KAKAO = `(() => {
+  const noop = () => {};
+  const tip = { content: "", shown: false };
+  window.__kakaoFake = { polys: [], tip };
+  window.kakao = { maps: {
+    load: (cb) => cb(),
+    LatLng: function (lat, lng) { this.lat = lat; this.lng = lng; },
+    LatLngBounds: function () { this.extend = noop; this.isEmpty = () => false; },
+    Map: function () { this.addControl = noop; this.relayout = noop; this.setBounds = noop; },
+    ZoomControl: function () {}, ControlPosition: { RIGHT: 0 },
+    CustomOverlay: function () { this.setContent = (c) => { tip.content = c; }; this.setPosition = noop; this.setMap = (m) => { tip.shown = !!m; }; },
+    Polygon: function () { this.setOptions = noop; this.setMap = noop; window.__kakaoFake.polys.push(this); },
+    event: { addListener: (t, type, fn) => { (t.__l ||= {})[type] = fn; } },
+  } };
+})();`;
+
+async function fakeKakao(page: Page) {
+  await page.route("**/api/config", (route) => route.fulfill({ json: { kakaoJsKey: "e2e-fake" } }));
+  await page.route("https://dapi.kakao.com/**", (route) => route.fulfill({ contentType: "text/javascript", body: FAKE_KAKAO }));
+}
+
+/** 첫 폴리곤에 마우스를 올렸다 내렸다 하고(over=true 면 올린 채로) 툴팁 상태를 돌려줌 */
+function kakaoTip(page: Page, over?: boolean) {
+  return page.evaluate((o) => {
+    const f = (window as unknown as { __kakaoFake: KakaoFake }).__kakaoFake;
+    if (o !== undefined) { f.polys[0].__l.mouseout(); if (o) f.polys[0].__l.mouseover({ latLng: {} }); }
+    return { ...f.tip };
+  }, over);
+}
+
 test("조건을 바꾸면 새 응답이 올 때까지 옛 숫자에 새 이름표를 붙이지 않음 (VERIFICATION 140)", async ({ page }) => {
   await page.goto("/backtest?tab=price");
   await expect(page.getByText("규칙별 60거래일 초과수익률")).toBeVisible({ timeout: 15_000 });
@@ -253,4 +286,26 @@ test("탭 주소로 바로 열면 다른 탭을 잠깐 그리며 그 탭의 요�
   await page.goto("/backtest?tab=price");
   await expect(page.getByText(/비교 기준 — 신호 없는 모든 창/)).toBeVisible({ timeout: 15_000 });
   expect(scorecard).toEqual([]);
+});
+
+test("지표를 바꾸는 동안 지도 툴팁에 옛 값을 새 지표 이름으로 보이지 않음 (VERIFICATION 162)", async ({ page }) => {
+  await fakeKakao(page);
+  await page.goto("/regions");
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __kakaoFake?: KakaoFake }).__kakaoFake?.polys.length ?? 0),
+    { timeout: 15_000 }).toBeGreaterThan(0);
+  expect((await kakaoTip(page, true)).shown).toBe(true);
+  const select = page.getByLabel("지표");
+  const current = await select.inputValue();
+  const other = await select.locator("option").evaluateAll((os, cur) => {
+    const o = (os as HTMLOptionElement[]).find((x) => x.value !== cur)!;
+    return { value: o.value, name: o.text.replace(/ \([^)]*\)$/, "") };
+  }, current);
+  const release = await hold(page, new RegExp(`/api/v1/regions\\?metric=${other.value}`));
+  await select.selectOption(other.value);
+  await page.waitForTimeout(300);
+  expect((await kakaoTip(page)).shown).toBe(false);          // 떠 있던 옛 툴팁은 닫힘
+  expect((await kakaoTip(page, true)).shown).toBe(false);    // 새 값이 오기 전에는 띄우지 않음
+  release();
+  await expect.poll(async () => (await kakaoTip(page, true)).content).toContain(other.name);
+  expect((await kakaoTip(page, true)).shown).toBe(true);
 });

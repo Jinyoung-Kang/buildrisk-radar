@@ -25,6 +25,9 @@ export default function RegionMap({ geo, colorOf, tooltipOf, selected, onSelect,
   const kakaoRef = useRef<any>(null);
   const polys = useRef<Map<string, { shapes: any[]; props: RegionProps }>>(new Map());
   const tip = useRef<any>(null);
+  // 폴리곤이 든 값(props)이 지금 geo 의 것인지 — 지표를 바꿔 새 값을 기다리는 동안(geo 없음)은 옛 값이라 툴팁을 띄우지 않음.
+  // 전에는 새 지표 이름 · 단위 옆에 옛 지표의 숫자가 보였음 (VERIFICATION 162)
+  const live = useRef(false);
   const cb = useRef({ colorOf, tooltipOf, onSelect, selected });
   // 지도 이벤트가 최신 콜백을 읽게 — 렌더 중이 아니라 커밋 뒤에 바꿈. 아래 효과들보다 먼저 선언해 먼저 돎
   useEffect(() => { cb.current = { colorOf, tooltipOf, onSelect, selected }; });
@@ -74,7 +77,7 @@ export default function RegionMap({ geo, colorOf, tooltipOf, selected, onSelect,
     if (!e) return;
     const sel = p.regionCd === cb.current.selected;
     e.shapes.forEach((s) => s.setOptions({ strokeColor: on || sel ? "#0b0b0b" : "#ffffff", strokeWeight: on || sel ? 2 : 1 }));
-    if (on && latLng) {
+    if (on && latLng && live.current) {
       tip.current.setContent(`<div class="map-tip">${cb.current.tooltipOf(p)}</div>`);
       tip.current.setPosition(latLng);
       tip.current.setMap(map.current);
@@ -82,6 +85,8 @@ export default function RegionMap({ geo, colorOf, tooltipOf, selected, onSelect,
   }
 
   useEffect(() => {
+    live.current = !!geo;
+    if (!geo) tip.current?.setMap(null);
     const kakao = kakaoRef.current;
     if (!ready || !kakao || !geo) return;
     const same = geo.features.length === polys.current.size && geo.features.every((f) => polys.current.has(f.properties.regionCd));
