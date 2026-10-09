@@ -1,17 +1,17 @@
 package com.buildrisk.radar.batch.jobs;
 
+import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.adapters.dart.DartClient;
 import com.buildrisk.radar.adapters.dart.DartModels.FsResponse;
-import com.buildrisk.radar.adapters.dart.DartModels.FsRow;
-import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.batch.support.BatchKeys;
 import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.AppProperties;
-import com.buildrisk.radar.domain.account.FsRepository;
-import com.buildrisk.radar.domain.account.FsRepository.FsTarget;
-import com.buildrisk.radar.domain.account.PeriodKeys;
+import com.buildrisk.radar.company.data.FsRepository;
+import com.buildrisk.radar.company.domain.FsModels.FsRow;
+import com.buildrisk.radar.company.domain.FsModels.FsTarget;
+import com.buildrisk.radar.company.domain.PeriodKeys;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;

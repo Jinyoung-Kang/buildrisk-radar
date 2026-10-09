@@ -1,4 +1,4 @@
-package com.buildrisk.radar.api.dto;
+package com.buildrisk.radar.common.web;
 
 import java.util.List;
 

@@ -1,12 +1,13 @@
-package com.buildrisk.radar.domain.metric;
+package com.buildrisk.radar.company.domain;
 
-import com.buildrisk.radar.domain.account.PeriodKeys;
+import com.buildrisk.radar.company.domain.FsModels.StdRow;
 import com.buildrisk.radar.metric.domain.MetricValue;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +32,38 @@ public final class CompanyMetricCalculator {
     }
 
     private CompanyMetricCalculator() {}
+
+    /** 기간마다 연결(CFS) 우선, 없으면 별도(OFS) — AUTO */
+    public static Map<String, PeriodFacts> facts(List<StdRow> rows) {
+        Map<String, Map<String, List<StdRow>>> byPeriodFs = new TreeMap<>();
+        for (StdRow r : rows) {
+            byPeriodFs.computeIfAbsent(r.periodKey(), k -> new LinkedHashMap<>())
+                    .computeIfAbsent(r.fsDiv(), k -> new ArrayList<>()).add(r);
+        }
+        Map<String, PeriodFacts> out = new TreeMap<>();
+        byPeriodFs.forEach((pk, byFs) -> {
+            String fsDiv = byFs.containsKey("CFS") ? "CFS" : "OFS";
+            Map<String, BigDecimal> point = new HashMap<>(), cum = new HashMap<>(), qtr = new HashMap<>();
+            Map<String, String> sources = new HashMap<>();
+            String rcept = null, reprt = null;
+            for (StdRow r : byFs.get(fsDiv)) {
+                if (!"QTR".equals(r.basis()) && r.sourceAccount() != null) {
+                    sources.put(r.stdCode(), (r.sourceSjDiv() == null ? "" : r.sourceSjDiv() + ":") + r.sourceAccount());
+                }
+                switch (r.basis()) {
+                    case "POINT" -> point.put(r.stdCode(), r.amount());
+                    case "CUM" -> cum.put(r.stdCode(), r.amount());
+                    default -> qtr.put(r.stdCode(), r.amount());
+                }
+                if (r.rceptNo() != null && !"QTR".equals(r.basis())) {
+                    rcept = r.rceptNo();
+                    reprt = r.reprtCode();
+                }
+            }
+            out.put(pk, new PeriodFacts(pk, fsDiv, rcept, reprt, point, cum, qtr, sources));
+        });
+        return out;
+    }
 
     public static List<MetricValue> compute(String corpCode, Map<String, PeriodFacts> byPeriod) {
         TreeMap<String, PeriodFacts> sorted = new TreeMap<>(byPeriod);

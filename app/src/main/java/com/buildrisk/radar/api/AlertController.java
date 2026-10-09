@@ -3,11 +3,11 @@ package com.buildrisk.radar.api;
 import com.buildrisk.radar.api.dto.AlertDtos.AlertDetail;
 import com.buildrisk.radar.api.dto.AlertDtos.AlertRow;
 import com.buildrisk.radar.api.dto.AlertDtos.StatusChange;
-import com.buildrisk.radar.api.dto.Page;
 import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.common.role.ApiRole;
 import com.buildrisk.radar.common.security.Viewer;
-
+import com.buildrisk.radar.common.web.Page;
+import com.buildrisk.radar.common.web.QueryParams;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;

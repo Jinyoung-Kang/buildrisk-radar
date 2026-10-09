@@ -7,13 +7,12 @@ import com.buildrisk.radar.adapters.common.HttpSupport;
 import com.buildrisk.radar.adapters.common.Json;
 import com.buildrisk.radar.adapters.common.Throttle;
 import com.buildrisk.radar.adapters.common.UpstreamException;
-import com.buildrisk.radar.adapters.dart.DartModels.CompanyProfile;
 import com.buildrisk.radar.adapters.dart.DartModels.Disclosure;
 import com.buildrisk.radar.adapters.dart.DartModels.DisclosurePage;
 import com.buildrisk.radar.adapters.dart.DartModels.FsResponse;
-import com.buildrisk.radar.adapters.dart.DartModels.FsRow;
 import com.buildrisk.radar.common.AppProperties;
-
+import com.buildrisk.radar.company.domain.CompanyModels.CompanyProfile;
+import com.buildrisk.radar.company.domain.FsModels.FsRow;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;

@@ -1,8 +1,8 @@
-package com.buildrisk.radar.domain;
+package com.buildrisk.radar.company.domain;
 
-import com.buildrisk.radar.domain.account.PeriodKeys;
-import com.buildrisk.radar.domain.account.QuarterDeriver;
-import com.buildrisk.radar.domain.account.QuarterDeriver.Cum;
+import com.buildrisk.radar.company.domain.PeriodKeys;
+import com.buildrisk.radar.company.domain.QuarterDeriver.Cum;
+import com.buildrisk.radar.company.domain.QuarterDeriver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;

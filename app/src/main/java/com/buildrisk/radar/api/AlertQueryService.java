@@ -1,12 +1,12 @@
 package com.buildrisk.radar.api;
 
-import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.api.dto.AlertDtos.AlertDetail;
 import com.buildrisk.radar.api.dto.AlertDtos.AlertRow;
-import com.buildrisk.radar.api.dto.Page;
 import com.buildrisk.radar.common.Disclaimer;
+import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
+import com.buildrisk.radar.common.web.Page;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;

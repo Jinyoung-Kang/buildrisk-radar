@@ -1,6 +1,6 @@
 package com.buildrisk.radar.domain.rule.rules;
 
-import com.buildrisk.radar.domain.account.PeriodKeys;
+import com.buildrisk.radar.company.domain.PeriodKeys;
 import com.buildrisk.radar.domain.rule.RuleModels.Evaluation;
 import com.buildrisk.radar.domain.rule.RuleModels.Finding;
 import com.buildrisk.radar.domain.rule.RuleModels.TargetType;

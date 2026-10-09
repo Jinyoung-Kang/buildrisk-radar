@@ -1,4 +1,4 @@
-package com.buildrisk.radar.domain.account;
+package com.buildrisk.radar.company.domain;
 
 import java.time.LocalDate;
 import java.util.List;

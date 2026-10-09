@@ -1,16 +1,16 @@
 package com.buildrisk.radar.batch.jobs;
 
-import com.buildrisk.radar.adapters.dart.DartModels.CorpCode;
+import com.buildrisk.radar.company.domain.CompanyModels.CorpCode;
 import org.springframework.batch.infrastructure.item.support.AbstractItemCountingItemStreamItemReader;
 
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamConstants;
-import javax.xml.stream.XMLStreamReader;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamReader;
 
 /**
  * CORPCODE.xml 스트리밍 Reader (StAX). 약 10만 건을 메모리에 올리지 않고 &lt;list&gt; 단위로 읽습니다.

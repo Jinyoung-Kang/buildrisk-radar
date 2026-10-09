@@ -1,7 +1,7 @@
-package com.buildrisk.radar.domain.universe;
+package com.buildrisk.radar.company.data;
 
-import com.buildrisk.radar.adapters.dart.DartModels.CompanyProfile;
-import com.buildrisk.radar.adapters.dart.DartModels.CorpCode;
+import com.buildrisk.radar.company.domain.CompanyModels.CompanyProfile;
+import com.buildrisk.radar.company.domain.CompanyModels.CorpCode;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;

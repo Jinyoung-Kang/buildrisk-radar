@@ -3,7 +3,7 @@ package com.buildrisk.radar.api;
 import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
-import com.buildrisk.radar.domain.universe.CompanyRepository;
+import com.buildrisk.radar.company.data.CompanyRepository;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;

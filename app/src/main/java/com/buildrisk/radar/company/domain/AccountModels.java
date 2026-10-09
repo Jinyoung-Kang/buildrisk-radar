@@ -1,4 +1,4 @@
-package com.buildrisk.radar.domain.account;
+package com.buildrisk.radar.company.domain;
 
 import java.math.BigDecimal;
 import java.util.Set;

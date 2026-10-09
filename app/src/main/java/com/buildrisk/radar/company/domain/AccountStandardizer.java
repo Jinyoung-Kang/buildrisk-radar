@@ -1,10 +1,10 @@
-package com.buildrisk.radar.domain.account;
+package com.buildrisk.radar.company.domain;
 
-import com.buildrisk.radar.domain.account.AccountModels.Basis;
-import com.buildrisk.radar.domain.account.AccountModels.MapRule;
-import com.buildrisk.radar.domain.account.AccountModels.RawLine;
-import com.buildrisk.radar.domain.account.AccountModels.StdAccount;
-import com.buildrisk.radar.domain.account.AccountModels.StdValue;
+import com.buildrisk.radar.company.domain.AccountModels.Basis;
+import com.buildrisk.radar.company.domain.AccountModels.MapRule;
+import com.buildrisk.radar.company.domain.AccountModels.RawLine;
+import com.buildrisk.radar.company.domain.AccountModels.StdAccount;
+import com.buildrisk.radar.company.domain.AccountModels.StdValue;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;

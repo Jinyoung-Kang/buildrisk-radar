@@ -1,7 +1,7 @@
 package com.buildrisk.radar.domain;
 
+import com.buildrisk.radar.company.domain.UniversePolicy;
 import com.buildrisk.radar.domain.disclosure.EventClassifier;
-import com.buildrisk.radar.domain.universe.UniversePolicy;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 

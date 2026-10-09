@@ -1,14 +1,15 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.company.api;
 
-import com.buildrisk.radar.api.dto.CompanyDtos.CompanyRow;
-import com.buildrisk.radar.api.dto.CompanyDtos.CompanySummary;
-import com.buildrisk.radar.api.dto.CompanyDtos.DisclosureRow;
-import com.buildrisk.radar.api.dto.CompanyDtos.Financials;
-import com.buildrisk.radar.api.dto.CompanyDtos.Metrics;
-import com.buildrisk.radar.api.dto.Page;
 import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.common.role.ApiRole;
-
+import com.buildrisk.radar.common.web.Page;
+import com.buildrisk.radar.common.web.QueryParams;
+import com.buildrisk.radar.company.app.CompanyQueryService;
+import com.buildrisk.radar.company.domain.CompanyViews.CompanyRow;
+import com.buildrisk.radar.company.domain.CompanyViews.CompanySummary;
+import com.buildrisk.radar.company.domain.CompanyViews.DisclosureRow;
+import com.buildrisk.radar.company.domain.CompanyViews.Financials;
+import com.buildrisk.radar.company.domain.CompanyViews.Metrics;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;

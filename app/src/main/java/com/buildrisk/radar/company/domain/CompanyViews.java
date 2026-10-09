@@ -1,12 +1,12 @@
-package com.buildrisk.radar.api.dto;
+package com.buildrisk.radar.company.domain;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-public final class CompanyDtos {
-    private CompanyDtos() {}
+public final class CompanyViews {
+    private CompanyViews() {}
 
     public record CompanyRow(String corpCode, String corpName, String stockCode, String corpCls, String indutyCode,
                              String latestPeriod, BigDecimal debtRatio, String debtRatioStatus,

@@ -1,9 +1,13 @@
-package com.buildrisk.radar.domain.account;
+package com.buildrisk.radar.company.data;
 
-import com.buildrisk.radar.adapters.dart.DartModels.FsRow;
-import com.buildrisk.radar.domain.account.AccountModels.MapRule;
-import com.buildrisk.radar.domain.account.AccountModels.RawLine;
-import com.buildrisk.radar.domain.account.AccountModels.StdAccount;
+import com.buildrisk.radar.company.domain.AccountModels.MapRule;
+import com.buildrisk.radar.company.domain.AccountModels.RawLine;
+import com.buildrisk.radar.company.domain.AccountModels.StdAccount;
+import com.buildrisk.radar.company.domain.FsModels.FsRow;
+import com.buildrisk.radar.company.domain.FsModels.FsTarget;
+import com.buildrisk.radar.company.domain.FsModels.Report;
+import com.buildrisk.radar.company.domain.FsModels.StdRow;
+import com.buildrisk.radar.company.domain.PeriodKeys;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -23,11 +27,6 @@ public class FsRepository {
     public FsRepository(JdbcClient jdbc, JdbcTemplate jdbcTemplate) {
         this.jdbc = jdbc;
         this.jdbcTemplate = jdbcTemplate;
-    }
-
-    /** (기업 × 연도 × 보고서) 한 조합 */
-    public record FsTarget(String corpCode, String bsnsYear, String reprtCode) {
-        public String key() { return corpCode + ":" + bsnsYear + ":" + reprtCode; }
     }
 
     /**
@@ -123,11 +122,6 @@ public class FsRepository {
                         rs.getString(5), rs.getInt(6), rs.getBoolean(7), rs.getString(8))).list();
     }
 
-    /** 한 보고서(최신 접수번호)의 원천 행 묶음 */
-    public record Report(String corpCode, String bsnsYear, String reprtCode, String fsDiv, String rceptNo, List<RawLine> lines) {
-        public String periodKey() { return PeriodKeys.key(bsnsYear, reprtCode); }
-    }
-
     public List<Report> latestReports(String corpCode) {
         record Key(String year, String reprt, String fsDiv, String rcept) {}
         List<Key> keys = jdbc.sql("""
@@ -145,9 +139,6 @@ public class FsRepository {
                 .query((rs, i) -> new RawLine(rs.getString(1), rs.getInt(2), rs.getString(3), rs.getString(4),
                         rs.getBigDecimal(5), rs.getBigDecimal(6))).list())).toList();
     }
-
-    public record StdRow(String corpCode, String periodKey, String fsDiv, String stdCode, String basis, BigDecimal amount,
-                         String sourceAccount, String sourceSjDiv, String rceptNo, String reprtCode) {}
 
     public void replaceStd(String corpCode, List<StdRow> rows, UUID calcRunId) {
         jdbc.sql("DELETE FROM dart.fs_std WHERE corp_code = :c").param("c", corpCode).update();

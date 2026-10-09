@@ -1,11 +1,11 @@
-package com.buildrisk.radar.domain;
+package com.buildrisk.radar.company.domain;
 
-import com.buildrisk.radar.domain.account.AccountModels.Basis;
-import com.buildrisk.radar.domain.account.AccountModels.MapRule;
-import com.buildrisk.radar.domain.account.AccountModels.RawLine;
-import com.buildrisk.radar.domain.account.AccountModels.StdAccount;
-import com.buildrisk.radar.domain.account.AccountModels.StdValue;
-import com.buildrisk.radar.domain.account.AccountStandardizer;
+import com.buildrisk.radar.company.domain.AccountModels.Basis;
+import com.buildrisk.radar.company.domain.AccountModels.MapRule;
+import com.buildrisk.radar.company.domain.AccountModels.RawLine;
+import com.buildrisk.radar.company.domain.AccountModels.StdAccount;
+import com.buildrisk.radar.company.domain.AccountModels.StdValue;
+import com.buildrisk.radar.company.domain.AccountStandardizer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;

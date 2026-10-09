@@ -1,4 +1,4 @@
-package com.buildrisk.radar.domain.universe;
+package com.buildrisk.radar.company.domain;
 
 import java.util.List;
 import java.util.Map;

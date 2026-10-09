@@ -1,15 +1,14 @@
 package com.buildrisk.radar.batch.jobs;
 
 import com.buildrisk.radar.adapters.dart.DartClient;
-import com.buildrisk.radar.adapters.dart.DartModels.CompanyProfile;
-import com.buildrisk.radar.adapters.dart.DartModels.CorpCode;
 import com.buildrisk.radar.batch.support.QuotaGuard;
 import com.buildrisk.radar.batch.support.RunRecorder;
 import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.seed.SeedCatalog;
-import com.buildrisk.radar.domain.universe.CompanyRepository;
-import com.buildrisk.radar.domain.universe.UniversePolicy;
-
+import com.buildrisk.radar.company.data.CompanyRepository;
+import com.buildrisk.radar.company.domain.CompanyModels.CompanyProfile;
+import com.buildrisk.radar.company.domain.CompanyModels.CorpCode;
+import com.buildrisk.radar.company.domain.UniversePolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.BatchStatus;

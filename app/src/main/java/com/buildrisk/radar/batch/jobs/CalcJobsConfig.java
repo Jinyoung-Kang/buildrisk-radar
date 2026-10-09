@@ -2,11 +2,12 @@ package com.buildrisk.radar.batch.jobs;
 
 import com.buildrisk.radar.batch.support.BatchKeys;
 import com.buildrisk.radar.batch.support.RunRecorder;
-import com.buildrisk.radar.domain.account.AccountStandardizer;
-import com.buildrisk.radar.domain.account.FsRepository.StdRow;
-import com.buildrisk.radar.domain.account.FsRepository;
-import com.buildrisk.radar.domain.metric.CompanyMetricCalculator;
-import com.buildrisk.radar.domain.metric.StandardizeService;
+import com.buildrisk.radar.company.app.StandardizeService;
+import com.buildrisk.radar.company.data.CompanyRepository;
+import com.buildrisk.radar.company.data.FsRepository;
+import com.buildrisk.radar.company.domain.AccountStandardizer;
+import com.buildrisk.radar.company.domain.CompanyMetricCalculator;
+import com.buildrisk.radar.company.domain.FsModels.StdRow;
 import com.buildrisk.radar.domain.rule.AlertService;
 import com.buildrisk.radar.domain.rule.DbRuleData;
 import com.buildrisk.radar.domain.rule.RuleEvaluator;
@@ -14,7 +15,6 @@ import com.buildrisk.radar.domain.rule.RuleModels.RuleDefinition;
 import com.buildrisk.radar.domain.rule.RuleModels.TargetType;
 import com.buildrisk.radar.domain.rule.RuleRegistry;
 import com.buildrisk.radar.domain.rule.RuleRepository;
-import com.buildrisk.radar.domain.universe.CompanyRepository;
 import com.buildrisk.radar.metric.data.MetricRepository;
 import com.buildrisk.radar.metric.domain.MetricValue;
 import com.buildrisk.radar.region.data.RegionRepository;
@@ -94,8 +94,8 @@ public class CalcJobsConfig {
 
     @Bean
     @StepScope
-    ItemProcessor<String, List<MetricValue>> companyMetricProcessor(StandardizeService svc, FsRepository fs) {
-        return corp -> CompanyMetricCalculator.compute(corp, svc.facts(fs.std(corp)));
+    ItemProcessor<String, List<MetricValue>> companyMetricProcessor(FsRepository fs) {
+        return corp -> CompanyMetricCalculator.compute(corp, CompanyMetricCalculator.facts(fs.std(corp)));
     }
 
     @Bean
