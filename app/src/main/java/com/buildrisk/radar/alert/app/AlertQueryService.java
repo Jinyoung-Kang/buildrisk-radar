@@ -1,5 +1,6 @@
 package com.buildrisk.radar.alert.app;
 
+import com.buildrisk.radar.alert.data.AlertRepository;
 import com.buildrisk.radar.alert.domain.AlertViews.AlertDetail;
 import com.buildrisk.radar.alert.domain.AlertViews.AlertRow;
 import com.buildrisk.radar.common.Disclaimer;
@@ -25,10 +26,12 @@ public class AlertQueryService {
                                ELSE (SELECT full_name FROM ref.region r WHERE r.region_cd = a.target_key) END""";
     private final JdbcClient jdbc;
     private final ObjectMapper mapper;
+    private final AlertRepository alerts;
 
-    public AlertQueryService(JdbcClient jdbc, ObjectMapper mapper) {
+    public AlertQueryService(JdbcClient jdbc, ObjectMapper mapper, AlertRepository alerts) {
         this.jdbc = jdbc;
         this.mapper = mapper;
+        this.alerts = alerts;
     }
 
     /** 목록 · CSV 내려받기가 같은 조건 (:tt :sev :st :since :tk :rc) */
@@ -90,12 +93,8 @@ public class AlertQueryService {
         if ("CLOSED".equals(cur.status())) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "이미 닫힌 경보입니다 (" + cur.closeReason() + ").");
         }
-        // 닫히지 않은 경보만 — 위 확인 뒤 규칙 평가가 막 닫은 행을 'ACK + 닫힌 사유'로 되살리지 않게 (행 잠금 뒤 조건을 다시 봄, VERIFICATION 133)
-        int n = jdbc.sql("""
-                        UPDATE risk.alert SET status = :s, acked_at = CASE WHEN :s = 'ACK' THEN now() END,
-                               acked_by = CASE WHEN :s = 'ACK' THEN :actor END
-                         WHERE alert_id = :id AND status <> 'CLOSED'""")
-                .param("s", status).param("actor", actor).param("id", id).update();
+        // 위 확인 뒤 규칙 평가가 막 닫았으면 바뀌지 않음 (VERIFICATION 133)
+        int n = alerts.changeStatus(id, status, actor);
         if (n == 0) throw new ApiException(ErrorCode.VALIDATION_ERROR, "이미 닫힌 경보입니다 (" + detail(id).closeReason() + ").");
         return detail(id);
     }
