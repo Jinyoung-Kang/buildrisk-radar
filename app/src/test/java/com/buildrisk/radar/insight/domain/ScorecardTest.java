@@ -1,9 +1,9 @@
-package com.buildrisk.radar.domain;
+package com.buildrisk.radar.insight.domain;
 
-import com.buildrisk.radar.domain.backtest.Scorecard;
-import com.buildrisk.radar.domain.backtest.Scorecard.CreditEvent;
-import com.buildrisk.radar.domain.backtest.Scorecard.Outcome;
-import com.buildrisk.radar.domain.backtest.Scorecard.Signal;
+import com.buildrisk.radar.insight.domain.Scorecard.CreditEvent;
+import com.buildrisk.radar.insight.domain.Scorecard.Outcome;
+import com.buildrisk.radar.insight.domain.Scorecard.Signal;
+import com.buildrisk.radar.insight.domain.Scorecard;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;

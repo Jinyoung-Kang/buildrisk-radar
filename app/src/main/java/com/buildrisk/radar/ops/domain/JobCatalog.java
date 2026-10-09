@@ -1,4 +1,4 @@
-package com.buildrisk.radar.batch.support;
+package com.buildrisk.radar.ops.domain;
 
 import java.util.List;
 import java.util.Optional;

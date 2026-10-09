@@ -1,12 +1,12 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.insight.app;
 
 import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
-import com.buildrisk.radar.domain.backtest.EventStudy.Event;
-import com.buildrisk.radar.domain.backtest.EventStudy.Outcome;
-import com.buildrisk.radar.domain.backtest.EventStudy;
-import com.buildrisk.radar.domain.backtest.PointInTime;
+import com.buildrisk.radar.insight.domain.EventStudy.Event;
+import com.buildrisk.radar.insight.domain.EventStudy.Outcome;
+import com.buildrisk.radar.insight.domain.EventStudy;
+import com.buildrisk.radar.insight.domain.PointInTime;
 import com.buildrisk.radar.market.data.StockRepository;
 import com.buildrisk.radar.market.domain.MarketModels.Bar;
 import org.springframework.jdbc.core.simple.JdbcClient;

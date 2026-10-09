@@ -1,9 +1,11 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.insight.api;
 
 import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.common.role.ApiRole;
 import com.buildrisk.radar.common.seed.SeedCatalog;
+import com.buildrisk.radar.insight.app.DashboardService;
+import com.buildrisk.radar.insight.app.SearchService;
 import com.buildrisk.radar.metric.domain.MetricCatalog;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

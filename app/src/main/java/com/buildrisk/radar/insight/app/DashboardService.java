@@ -1,9 +1,9 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.insight.app;
 
-import com.buildrisk.radar.batch.support.JobCatalog;
 import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.cache.JsonCache;
-import com.buildrisk.radar.domain.backtest.Scorecard;
+import com.buildrisk.radar.insight.domain.Scorecard;
+import com.buildrisk.radar.ops.domain.JobCatalog;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 

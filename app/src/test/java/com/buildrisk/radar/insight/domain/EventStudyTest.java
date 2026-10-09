@@ -1,8 +1,8 @@
-package com.buildrisk.radar.domain;
+package com.buildrisk.radar.insight.domain;
 
-import com.buildrisk.radar.domain.backtest.EventStudy.Event;
-import com.buildrisk.radar.domain.backtest.EventStudy.Excluded;
-import com.buildrisk.radar.domain.backtest.EventStudy;
+import com.buildrisk.radar.insight.domain.EventStudy.Event;
+import com.buildrisk.radar.insight.domain.EventStudy.Excluded;
+import com.buildrisk.radar.insight.domain.EventStudy;
 import com.buildrisk.radar.market.domain.MarketModels.Bar;
 import org.junit.jupiter.api.Test;
 

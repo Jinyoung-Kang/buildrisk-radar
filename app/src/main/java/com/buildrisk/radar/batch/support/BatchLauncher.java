@@ -15,6 +15,7 @@ import com.buildrisk.radar.filing.data.FilingRepository;
 import com.buildrisk.radar.filing.data.PfExposureRepository;
 import com.buildrisk.radar.market.data.AptTradeRepository;
 import com.buildrisk.radar.market.domain.TradeWindow;
+import com.buildrisk.radar.ops.domain.JobCatalog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.BatchStatus;

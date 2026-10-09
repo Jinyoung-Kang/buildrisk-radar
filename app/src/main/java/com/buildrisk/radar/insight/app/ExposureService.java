@@ -1,4 +1,4 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.insight.app;
 
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.common.Disclaimer;

@@ -7,6 +7,7 @@ import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.common.web.CsvWriter;
 import com.buildrisk.radar.filing.app.PfExposureService;
 import com.buildrisk.radar.filing.domain.FilingModels;
+import com.buildrisk.radar.insight.app.ExposureService;
 import com.buildrisk.radar.metric.domain.MetricCatalog;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;

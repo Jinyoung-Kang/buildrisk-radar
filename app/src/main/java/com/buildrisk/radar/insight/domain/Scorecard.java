@@ -1,4 +1,4 @@
-package com.buildrisk.radar.domain.backtest;
+package com.buildrisk.radar.insight.domain;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;

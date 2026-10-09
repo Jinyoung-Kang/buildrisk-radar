@@ -37,9 +37,7 @@ class ArchitectureTest {
             "api.BatchController → batch.support.BatchLauncher",
             "api.BatchQueryService → batch.queue.WorkerRegistry",
             "api.BatchQueryService → batch.support.BatchLauncher",
-            "api.BatchQueryService → batch.support.JobCatalog",
-            "api.DashboardService → batch.support.JobCatalog",
-            "common.seed.SeedCatalog → domain.backtest.CreditEventRule",
+            "common.seed.SeedCatalog → insight.domain.CreditEventRule",
             "common.seed.SeedCatalog → filing.domain.EventClassifier",
             "common.seed.SeedCatalog → region.domain.RegionAliases");
 

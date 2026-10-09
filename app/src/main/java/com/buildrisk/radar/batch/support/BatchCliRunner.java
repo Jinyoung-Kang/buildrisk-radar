@@ -1,6 +1,7 @@
 package com.buildrisk.radar.batch.support;
 
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.ops.domain.JobCatalog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.BatchStatus;

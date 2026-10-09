@@ -1,4 +1,4 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.insight.app;
 
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.alert.app.DbRuleData;
@@ -12,11 +12,11 @@ import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.common.seed.SeedCatalog;
-import com.buildrisk.radar.domain.backtest.CreditEventRule;
-import com.buildrisk.radar.domain.backtest.PointInTime;
-import com.buildrisk.radar.domain.backtest.Scorecard.CreditEvent;
-import com.buildrisk.radar.domain.backtest.Scorecard.Signal;
-import com.buildrisk.radar.domain.backtest.Scorecard;
+import com.buildrisk.radar.insight.domain.CreditEventRule;
+import com.buildrisk.radar.insight.domain.PointInTime;
+import com.buildrisk.radar.insight.domain.Scorecard.CreditEvent;
+import com.buildrisk.radar.insight.domain.Scorecard.Signal;
+import com.buildrisk.radar.insight.domain.Scorecard;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 

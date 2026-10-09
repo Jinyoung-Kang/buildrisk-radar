@@ -1,4 +1,4 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.insight.app;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;

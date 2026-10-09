@@ -1,4 +1,4 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.insight.api;
 
 import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.support.IntegrationTest;
@@ -13,9 +13,9 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;

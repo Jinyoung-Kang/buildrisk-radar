@@ -1,4 +1,4 @@
-package com.buildrisk.radar.domain.backtest;
+package com.buildrisk.radar.insight.domain;
 
 import java.util.List;
 import java.util.regex.Pattern;

@@ -1,14 +1,13 @@
 package com.buildrisk.radar.api;
 
-import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.batch.queue.WorkerRegistry;
 import com.buildrisk.radar.batch.support.BatchLauncher;
-import com.buildrisk.radar.batch.support.JobCatalog;
 import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
-
+import com.buildrisk.radar.ops.domain.JobCatalog;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;

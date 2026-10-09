@@ -1,7 +1,6 @@
 package com.buildrisk.radar.batch.queue;
 
-import com.buildrisk.radar.batch.support.JobCatalog;
-
+import com.buildrisk.radar.ops.domain.JobCatalog;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;

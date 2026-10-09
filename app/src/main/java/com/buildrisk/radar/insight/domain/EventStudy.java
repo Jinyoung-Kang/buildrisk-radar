@@ -1,4 +1,4 @@
-package com.buildrisk.radar.domain.backtest;
+package com.buildrisk.radar.insight.domain;
 
 import com.buildrisk.radar.market.domain.MarketModels.Bar;
 
