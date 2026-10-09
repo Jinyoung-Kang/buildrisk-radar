@@ -1,7 +1,7 @@
 package com.buildrisk.radar.domain.rule;
 
-import com.buildrisk.radar.domain.rule.RuleModels.MetricPoint;
 import com.buildrisk.radar.domain.rule.RuleModels.RuleDefinition;
+import com.buildrisk.radar.metric.domain.MetricPoint;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

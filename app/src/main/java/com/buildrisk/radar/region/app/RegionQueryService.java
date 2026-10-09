@@ -1,12 +1,13 @@
 package com.buildrisk.radar.region.app;
 
-import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.common.Disclaimer;
+import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
-import com.buildrisk.radar.domain.metric.MetricCatalog;
-import com.buildrisk.radar.domain.metric.MetricRepository.StatPoint;
-import com.buildrisk.radar.domain.metric.RegionSeriesAssembler;
+import com.buildrisk.radar.metric.domain.MetricCatalog;
+import com.buildrisk.radar.metric.domain.StatPoint;
+import com.buildrisk.radar.region.domain.RegionRef;
+import com.buildrisk.radar.region.domain.RegionSeriesAssembler;
 import com.buildrisk.radar.region.domain.RegionViews.AlertBrief;
 import com.buildrisk.radar.region.domain.RegionViews.MetricPoint;
 import com.buildrisk.radar.region.domain.RegionViews.MetricSeries;
@@ -15,7 +16,6 @@ import com.buildrisk.radar.region.domain.RegionViews.RegionList;
 import com.buildrisk.radar.region.domain.RegionViews.RegionRow;
 import com.buildrisk.radar.region.domain.RegionViews.RegionSeries;
 import com.buildrisk.radar.region.domain.RegionViews.StatSeries;
-import com.buildrisk.radar.region.domain.RegionRef;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;

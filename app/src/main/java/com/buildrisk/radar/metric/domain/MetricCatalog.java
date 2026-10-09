@@ -1,4 +1,4 @@
-package com.buildrisk.radar.domain.metric;
+package com.buildrisk.radar.metric.domain;
 
 import java.util.LinkedHashMap;
 import java.util.List;

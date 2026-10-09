@@ -1,6 +1,7 @@
 package com.buildrisk.radar.domain.metric;
 
 import com.buildrisk.radar.domain.account.PeriodKeys;
+import com.buildrisk.radar.metric.domain.MetricValue;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -73,7 +74,7 @@ public final class CompanyMetricCalculator {
         if (d.signum() < 0) return new MetricValue(corp, f.periodKey(), code, null, negDenIsEquity ? "NEG_EQUITY" : "INCONSISTENT", c);
         BigDecimal v = n.divide(d, MC);
         if (percent) v = v.multiply(HUNDRED);
-        return new MetricValue(corp, f.periodKey(), code, scale(v), MetricValue.OK, c);
+        return new MetricValue(corp, f.periodKey(), code, MetricValue.scale(v), MetricValue.OK, c);
     }
 
     /** 분자 · 분모 한쪽 — basis 는 fs_std 의 기준(POINT · CUM · QTR), 근거 계보(ADR-027)가 이 값으로 원천 행을 찾음 */
@@ -97,7 +98,7 @@ public final class CompanyMetricCalculator {
         }
         if (ta.signum() <= 0) return new MetricValue(corp, f.periodKey(), "BORROWING_DEP", null, "ZERO_DENOM", c);
         BigDecimal total = zero(sb).add(zero(lb)).add(zero(bo));
-        return new MetricValue(corp, f.periodKey(), "BORROWING_DEP", scale(total.divide(ta, MC).multiply(HUNDRED)),
+        return new MetricValue(corp, f.periodKey(), "BORROWING_DEP", MetricValue.scale(total.divide(ta, MC).multiply(HUNDRED)),
                 MetricValue.OK, c);
     }
 
@@ -114,7 +115,7 @@ public final class CompanyMetricCalculator {
         if (cur == null || prev == null || !cur.ok() || !prev.ok()) {
             return new MetricValue(corp, f.periodKey(), code, null, "MISSING", c);
         }
-        return new MetricValue(corp, f.periodKey(), code, scale(cur.value().subtract(prev.value())), MetricValue.OK, c);
+        return new MetricValue(corp, f.periodKey(), code, MetricValue.scale(cur.value().subtract(prev.value())), MetricValue.OK, c);
     }
 
     private static MetricValue growth(String corp, PeriodFacts f, PeriodFacts ago) {
@@ -124,7 +125,7 @@ public final class CompanyMetricCalculator {
         if (cur == null || prev == null) return new MetricValue(corp, f.periodKey(), "REVENUE_YOY", null, "MISSING", c);
         if (prev.signum() == 0) return new MetricValue(corp, f.periodKey(), "REVENUE_YOY", null, "ZERO_DENOM", c);
         BigDecimal v = cur.subtract(prev).divide(prev.abs(), MC).multiply(HUNDRED);
-        return new MetricValue(corp, f.periodKey(), "REVENUE_YOY", scale(v), MetricValue.OK, c);
+        return new MetricValue(corp, f.periodKey(), "REVENUE_YOY", MetricValue.scale(v), MetricValue.OK, c);
     }
 
     private static Map<String, Object> comp(PeriodFacts f, Map<String, Object> extra) {
@@ -134,8 +135,6 @@ public final class CompanyMetricCalculator {
         m.put("reprtCode", nz(f.reprtCode()));
         return m;
     }
-
-    static BigDecimal scale(BigDecimal v) { return v.setScale(4, RoundingMode.HALF_UP); }
 
     private static Object nz(Object o) { return o == null ? "-" : o; }
 

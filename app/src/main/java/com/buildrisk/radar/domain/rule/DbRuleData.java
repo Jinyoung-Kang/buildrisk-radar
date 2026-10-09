@@ -4,11 +4,10 @@ import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.common.AppProperties;
 import com.buildrisk.radar.domain.disclosure.DisclosureRepository;
 import com.buildrisk.radar.domain.filing.ExposureRepository;
-import com.buildrisk.radar.domain.metric.MetricRepository;
 import com.buildrisk.radar.domain.rule.RuleModels.DisclosureEvent;
-import com.buildrisk.radar.domain.rule.RuleModels.MetricPoint;
 import com.buildrisk.radar.domain.rule.RuleModels.TargetType;
-
+import com.buildrisk.radar.metric.data.MetricRepository;
+import com.buildrisk.radar.metric.domain.MetricPoint;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;

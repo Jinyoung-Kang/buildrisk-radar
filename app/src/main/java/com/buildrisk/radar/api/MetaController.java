@@ -4,8 +4,7 @@ import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.common.role.ApiRole;
 import com.buildrisk.radar.common.seed.SeedCatalog;
-import com.buildrisk.radar.domain.metric.MetricCatalog;
-
+import com.buildrisk.radar.metric.domain.MetricCatalog;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Size;

@@ -1,6 +1,7 @@
-package com.buildrisk.radar.domain.metric;
+package com.buildrisk.radar.metric.domain;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Map;
 
 /**
@@ -13,4 +14,7 @@ public record MetricValue(String targetKey, String period, String metricCode, Bi
     public static final String OK = "OK";
 
     public boolean ok() { return OK.equals(status) && value != null; }
+
+    /** 저장하는 소수 자릿수 (기업 · 지역 지표 공통) */
+    public static BigDecimal scale(BigDecimal v) { return v.setScale(4, RoundingMode.HALF_UP); }
 }

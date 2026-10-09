@@ -1,4 +1,6 @@
-package com.buildrisk.radar.domain.metric;
+package com.buildrisk.radar.region.domain;
+
+import com.buildrisk.radar.metric.domain.MetricValue;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -131,7 +133,7 @@ public final class RegionMetricCalculator {
     }
 
     private static MetricValue of(String r, String p, String code, BigDecimal v, String status, Map<String, Object> c) {
-        return new MetricValue(r, p, code, v == null ? null : CompanyMetricCalculator.scale(v), status, c);
+        return new MetricValue(r, p, code, v == null ? null : MetricValue.scale(v), status, c);
     }
 
     private static Object nz(Object o) { return o == null ? "-" : o; }

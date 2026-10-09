@@ -1,11 +1,11 @@
 package com.buildrisk.radar.domain.rule.rules;
 
 import com.buildrisk.radar.domain.account.PeriodKeys;
-import com.buildrisk.radar.domain.metric.RegionMetricCalculator;
 import com.buildrisk.radar.domain.rule.RuleModels.Evaluation;
 import com.buildrisk.radar.domain.rule.RuleModels.Finding;
-import com.buildrisk.radar.domain.rule.RuleModels.MetricPoint;
 import com.buildrisk.radar.domain.rule.RuleModels.TargetType;
+import com.buildrisk.radar.metric.domain.MetricPoint;
+import com.buildrisk.radar.region.domain.RegionMetricCalculator;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -1,8 +1,8 @@
 package com.buildrisk.radar.domain.rule;
 
 import com.buildrisk.radar.domain.rule.RuleModels.DisclosureEvent;
-import com.buildrisk.radar.domain.rule.RuleModels.MetricPoint;
 import com.buildrisk.radar.domain.rule.RuleModels.TargetType;
+import com.buildrisk.radar.metric.domain.MetricPoint;
 
 import java.time.LocalDate;
 import java.util.List;

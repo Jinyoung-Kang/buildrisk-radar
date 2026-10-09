@@ -1,9 +1,9 @@
 package com.buildrisk.radar.domain;
 
-import com.buildrisk.radar.domain.metric.CompanyMetricCalculator;
 import com.buildrisk.radar.domain.metric.CompanyMetricCalculator.PeriodFacts;
-import com.buildrisk.radar.domain.metric.MetricValue;
-import com.buildrisk.radar.domain.metric.RegionMetricCalculator;
+import com.buildrisk.radar.domain.metric.CompanyMetricCalculator;
+import com.buildrisk.radar.metric.domain.MetricValue;
+import com.buildrisk.radar.region.domain.RegionMetricCalculator;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

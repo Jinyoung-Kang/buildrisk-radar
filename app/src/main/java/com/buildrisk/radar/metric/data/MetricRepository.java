@@ -1,6 +1,8 @@
-package com.buildrisk.radar.domain.metric;
+package com.buildrisk.radar.metric.data;
 
-import com.buildrisk.radar.domain.rule.RuleModels.MetricPoint;
+import com.buildrisk.radar.metric.domain.MetricPoint;
+import com.buildrisk.radar.metric.domain.MetricValue;
+import com.buildrisk.radar.metric.domain.StatPoint;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -136,9 +138,6 @@ public class MetricRepository {
                 .list().forEach(p -> out.put(p.period(), p));
         return out;
     }
-
-    /** 지역 지표 계산 입력: (stat_code, region_cd, period, value) */
-    public record StatPoint(String statCode, String agg, String regionCd, String period, BigDecimal value) {}
 
     public List<StatPoint> allRegionStats() {
         return jdbc.sql("""

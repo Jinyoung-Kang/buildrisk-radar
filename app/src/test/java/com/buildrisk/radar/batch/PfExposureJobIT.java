@@ -1,7 +1,7 @@
 package com.buildrisk.radar.batch;
 
 import com.buildrisk.radar.batch.support.BatchLauncher;
-import com.buildrisk.radar.domain.metric.MetricRepository;
+import com.buildrisk.radar.metric.data.MetricRepository;
 import com.buildrisk.radar.support.IntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

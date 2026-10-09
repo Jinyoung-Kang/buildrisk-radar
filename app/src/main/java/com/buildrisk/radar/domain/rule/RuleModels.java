@@ -14,11 +14,6 @@ public final class RuleModels {
     public record RuleDefinition(String code, int version, TargetType targetType, String nameKo, String description,
                                  Map<String, Object> params, String severity, boolean enabled) {}
 
-    /** 지표 한 점 (company_metric · region_metric) */
-    public record MetricPoint(String period, BigDecimal value, String status, Map<String, Object> components) {
-        public boolean ok() { return value != null && "OK".equals(status); }
-    }
-
     public record DisclosureEvent(String rceptNo, String reportNm, LocalDate rceptDt, String eventType, String keyword) {}
 
     /** 현재(정정 반영·해지 제외) 수주 계약 — regionCd 는 화면 단위 시군구, 매핑 못 하면 null */

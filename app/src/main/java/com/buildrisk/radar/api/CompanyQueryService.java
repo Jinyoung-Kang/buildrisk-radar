@@ -1,6 +1,5 @@
 package com.buildrisk.radar.api;
 
-import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.api.dto.CompanyDtos.AlertBrief;
 import com.buildrisk.radar.api.dto.CompanyDtos.CompanyRow;
 import com.buildrisk.radar.api.dto.CompanyDtos.CompanySummary;
@@ -16,9 +15,10 @@ import com.buildrisk.radar.api.dto.CompanyDtos.MetricSeries;
 import com.buildrisk.radar.api.dto.CompanyDtos.Metrics;
 import com.buildrisk.radar.api.dto.Page;
 import com.buildrisk.radar.common.Disclaimer;
+import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
-import com.buildrisk.radar.domain.metric.MetricCatalog;
+import com.buildrisk.radar.metric.domain.MetricCatalog;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;
