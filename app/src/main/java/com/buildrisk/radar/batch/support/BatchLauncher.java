@@ -141,7 +141,8 @@ public class BatchLauncher {
         List<Long> out = new ArrayList<>();
         for (JobExecution je : repository.findRunningJobExecutions(jobName)) {
             if (force || stale(je)) {
-                log.warn("{} 실행 {} 정리 (하트비트 {}) → FAILED", jobName, je.getId(), heartbeat(je));
+                // 로그에는 요청값이 아니라 저장된 실행의 Job 이름 — 요청 경로의 값을 그대로 쓰면 로그 위조 경로가 됨(CodeQL, VERIFICATION 168)
+                log.warn("{} 실행 {} 정리 (하트비트 {}) → FAILED", je.getJobInstance().getJobName(), je.getId(), heartbeat(je));
                 operator.recover(je);
                 noteRecovered(je.getId(), "하트비트 " + heartbeat(je) + " 이후 멈춤 — 자동 정리");
                 out.add(je.getId());
