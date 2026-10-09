@@ -34,7 +34,7 @@ export default function SvgMap({ geo, colorOf, tooltipOf, selected, onSelect }: 
       </svg>
       {hover && (
         <div className="map-tip absolute pointer-events-none" style={{ left: hover.x + 12, top: hover.y + 12 }}
-          dangerouslySetInnerHTML={{ __html: `<b>${hover.p.fullName.replace(/</g, "&lt;")}</b><br/>${tooltipOf(hover.p)}` }} />
+          dangerouslySetInnerHTML={{ __html: tooltipOf(hover.p) }} />
       )}
       <div className="absolute left-3 bottom-3 text-[11px] text-muted bg-raised/80 rounded px-2 py-1">
         배경 지도 없이 표시 중 (카카오 지도 로드 실패)

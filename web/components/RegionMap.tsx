@@ -8,15 +8,12 @@ import { MISSING } from "@/lib/domain/colors";
 type Props = {
   geo: GeoJson | null;
   colorOf: (p: RegionProps) => string;
+  /** 이스케이프를 마친 툴팁 HTML (lib/domain/html) */
   tooltipOf: (p: RegionProps) => string;
   selected?: string | null;
   onSelect?: (regionCd: string) => void;
   className?: string;
 };
-
-function esc(s: string) {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
-}
 
 /**
  * 카카오 지도 위 시군구 단계구분도 (FR-602). 경계(geometry)가 같으면 폴리곤을 다시 만들지 않고 색만 칠합니다
@@ -78,7 +75,7 @@ export default function RegionMap({ geo, colorOf, tooltipOf, selected, onSelect,
     const sel = p.regionCd === cb.current.selected;
     e.shapes.forEach((s) => s.setOptions({ strokeColor: on || sel ? "#0b0b0b" : "#ffffff", strokeWeight: on || sel ? 2 : 1 }));
     if (on && latLng) {
-      tip.current.setContent(`<div class="map-tip"><b>${esc(p.fullName)}</b><br/>${cb.current.tooltipOf(p)}</div>`);
+      tip.current.setContent(`<div class="map-tip">${cb.current.tooltipOf(p)}</div>`);
       tip.current.setPosition(latLng);
       tip.current.setMap(map.current);
     } else tip.current?.setMap(null);

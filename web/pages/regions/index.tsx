@@ -8,6 +8,7 @@ import { Card, ErrorBox, PhraseList } from "@/components/ui";
 import { queries, type GeoJson, type RegionProps } from "@/lib/api";
 import { makeScale, MISSING } from "@/lib/domain/colors";
 import { num, STATUS_LABEL, withUnit, ym } from "@/lib/domain/format";
+import { regionTooltipHtml } from "@/lib/domain/html";
 import { joinRegionValues, SIGNED_METRICS, sidoOptions } from "@/lib/domain/regions";
 import { useApi } from "@/lib/hooks/useApi";
 
@@ -41,9 +42,8 @@ export default function Regions() {
     SIGNED_METRICS.has(metric), def?.higherIsRisk ?? true), [list.data, metric, def]);
   const colorOf = useCallback((p: RegionProps) => scale.color(p.value), [scale]);
   const unit = def?.unit ?? "";
-  const tooltipOf = useCallback((p: RegionProps) =>
-    `${def?.nameKo ?? metric}: <b>${p.value == null ? STATUS_LABEL[p.status] ?? "없음" : withUnit(p.value, unit)}</b>${p.alertCount ? `<br/>경보 ${p.alertCount}건` : ""}`,
-    [def, metric, unit]);
+  const tooltipOf = useCallback((p: RegionProps) => regionTooltipHtml(p.fullName, def?.nameKo ?? metric,
+    p.value == null ? STATUS_LABEL[p.status] ?? "없음" : withUnit(p.value, unit), p.alertCount), [def, metric, unit]);
   const sidos = useMemo(() => sidoOptions(list.data?.items ?? []), [list.data]);
   const ranked = (list.data?.items ?? []).filter((r) => r.value != null);
 
