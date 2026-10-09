@@ -1,4 +1,4 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.alert.api;
 
 import com.buildrisk.radar.batch.support.BatchLauncher;
 import com.buildrisk.radar.common.cache.JsonCache;

@@ -3,7 +3,6 @@ package com.buildrisk.radar.insight.domain;
 import com.buildrisk.radar.insight.domain.Scorecard.CreditEvent;
 import com.buildrisk.radar.insight.domain.Scorecard.Outcome;
 import com.buildrisk.radar.insight.domain.Scorecard.Signal;
-import com.buildrisk.radar.insight.domain.Scorecard;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;

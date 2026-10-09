@@ -1,11 +1,11 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.ops.api;
 
 import com.buildrisk.radar.batch.queue.JobRequestService;
 import com.buildrisk.radar.batch.queue.WorkerRegistry;
 import com.buildrisk.radar.batch.support.BatchLauncher;
 import com.buildrisk.radar.common.role.ApiRole;
 import com.buildrisk.radar.common.security.Viewer;
-
+import com.buildrisk.radar.ops.app.BatchQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;

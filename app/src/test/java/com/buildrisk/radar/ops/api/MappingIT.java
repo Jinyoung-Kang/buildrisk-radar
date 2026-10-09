@@ -1,4 +1,4 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.ops.api;
 
 import com.buildrisk.radar.support.IntegrationTest;
 import org.junit.jupiter.api.Test;

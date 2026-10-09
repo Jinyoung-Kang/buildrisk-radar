@@ -30,7 +30,7 @@ class FinancialStatementJobIT extends IntegrationTest {
     @Autowired
     BatchLauncher launcher;
     @Autowired
-    com.buildrisk.radar.api.BatchQueryService batchQuery;
+    com.buildrisk.radar.ops.app.BatchQueryService batchQuery;
 
     @BeforeEach
     void setUp() throws Exception {

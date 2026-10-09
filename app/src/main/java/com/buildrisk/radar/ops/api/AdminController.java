@@ -1,4 +1,4 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.ops.api;
 
 import com.buildrisk.radar.common.role.ApiRole;
 import com.buildrisk.radar.common.security.AuditService;

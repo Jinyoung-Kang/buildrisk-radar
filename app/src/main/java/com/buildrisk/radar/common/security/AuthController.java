@@ -1,10 +1,7 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.common.security;
 
 import com.buildrisk.radar.common.error.ErrorResponse;
 import com.buildrisk.radar.common.role.ApiRole;
-import com.buildrisk.radar.common.security.AuditService;
-import com.buildrisk.radar.common.security.LoginThrottle;
-import com.buildrisk.radar.common.security.ServiceTokenFilter;
 import com.buildrisk.radar.common.web.TraceIdFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

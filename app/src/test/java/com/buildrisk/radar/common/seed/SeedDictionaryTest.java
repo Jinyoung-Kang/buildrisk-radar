@@ -1,6 +1,5 @@
-package com.buildrisk.radar.domain;
+package com.buildrisk.radar.common.seed;
 
-import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.filing.domain.EventClassifier;
 import com.buildrisk.radar.insight.domain.CreditEventRule;
 import org.junit.jupiter.params.ParameterizedTest;

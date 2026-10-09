@@ -1,9 +1,6 @@
 package com.buildrisk.radar.region.domain;
 
 import com.buildrisk.radar.region.domain.AddressRegionMatcher.Match;
-import com.buildrisk.radar.region.domain.AddressRegionMatcher;
-import com.buildrisk.radar.region.domain.RegionAliases;
-import com.buildrisk.radar.region.domain.RegionRef;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 

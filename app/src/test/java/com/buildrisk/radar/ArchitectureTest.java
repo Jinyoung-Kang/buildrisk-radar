@@ -28,15 +28,12 @@ class ArchitectureTest {
     static final String BASE = "com.buildrisk.radar.";
     static final Path SRC = Path.of("src/main/java/com/buildrisk/radar");
     static final Set<String> FEATURES = Set.of("company", "metric", "region", "market", "filing", "alert", "insight", "notify", "export", "ops");
+    static final Set<String> LAYERS = Set.of("api", "app", "domain", "data");
+    static final Set<String> OUTER = Set.of("adapters", "batch", "common");
     static final Set<String> FRAMEWORK = Set.of("org.springframework.", "jakarta.", "java.sql.", "javax.sql.", "tools.jackson.", "io.micrometer.");
 
     /** 아직 옮기지 않은 위반 — '클래스 → 대상' (비면 규칙을 모두 지킴) */
     static final Set<String> KNOWN = Set.of(
-            "api.BatchController → batch.queue.JobRequestService",
-            "api.BatchController → batch.queue.WorkerRegistry",
-            "api.BatchController → batch.support.BatchLauncher",
-            "api.BatchQueryService → batch.queue.WorkerRegistry",
-            "api.BatchQueryService → batch.support.BatchLauncher",
             "common.seed.SeedCatalog → insight.domain.CreditEventRule",
             "common.seed.SeedCatalog → filing.domain.EventClassifier",
             "common.seed.SeedCatalog → region.domain.RegionAliases");
@@ -107,6 +104,17 @@ class ArchitectureTest {
         fixed.removeAll(found);
         assertThat(fresh).as("새 위반 — 규칙을 지키거나(ADR-029) 이유를 적어 KNOWN 에").isEmpty();
         assertThat(fixed).as("고친 위반이 KNOWN 에 남음 — 지우세요").isEmpty();
+    }
+
+    @Test
+    void 모든_클래스가_기능_계층이나_바깥_계층에_있다() throws IOException {
+        List<String> stray = new ArrayList<>();
+        for (Source s : sources()) {
+            String[] w = where(s.pkg());
+            boolean root = s.pkg().equals("com.buildrisk.radar");
+            if (!root && !OUTER.contains(w[0]) && !(FEATURES.contains(w[0]) && LAYERS.contains(w[1]))) stray.add(s.pkg() + "." + s.cls());
+        }
+        assertThat(stray).as("<기능>.api · app · domain · data 나 adapters · batch · common 밖의 클래스").isEmpty();
     }
 
     @Test

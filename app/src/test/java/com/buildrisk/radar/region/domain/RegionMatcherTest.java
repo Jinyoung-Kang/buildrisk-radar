@@ -1,9 +1,6 @@
 package com.buildrisk.radar.region.domain;
 
-import com.buildrisk.radar.region.domain.RegionAliases;
 import com.buildrisk.radar.region.domain.RegionMatcher.Method;
-import com.buildrisk.radar.region.domain.RegionMatcher;
-import com.buildrisk.radar.region.domain.RegionRef;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

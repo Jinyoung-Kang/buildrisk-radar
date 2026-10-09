@@ -1,6 +1,5 @@
 package com.buildrisk.radar.filing.domain;
 
-import com.buildrisk.radar.filing.domain.FilingParser;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

@@ -1,7 +1,6 @@
 package com.buildrisk.radar.alert.domain;
 
 import com.buildrisk.radar.alert.app.RuleRegistry;
-import com.buildrisk.radar.alert.domain.RuleData;
 import com.buildrisk.radar.alert.domain.RuleModels.RuleDefinition;
 import com.buildrisk.radar.alert.domain.RuleModels.TargetType;
 import com.buildrisk.radar.filing.domain.FilingModels.ContractFact;

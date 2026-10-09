@@ -1,4 +1,4 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.ops.app;
 
 import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.common.error.ApiException;

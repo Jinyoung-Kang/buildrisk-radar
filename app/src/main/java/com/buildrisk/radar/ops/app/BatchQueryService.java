@@ -1,4 +1,4 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.ops.app;
 
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.batch.queue.WorkerRegistry;

@@ -3,7 +3,6 @@ package com.buildrisk.radar.filing.domain;
 import com.buildrisk.radar.filing.domain.PfExposureParser.Scope;
 import com.buildrisk.radar.filing.domain.PfExposureParser.Site;
 import com.buildrisk.radar.filing.domain.PfExposureParser.Status;
-import com.buildrisk.radar.filing.domain.PfExposureParser;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
