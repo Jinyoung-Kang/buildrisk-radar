@@ -23,18 +23,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 로그인 · 로그아웃 · 새 확인이 일어나면 그 전에 보낸 확인의 늦은 응답은 버림 — 화면을 열 때 보낸 익명 확인이 로그인 뒤에 도착해
   // 로그인 상태를 덮던 문제 (VERIFICATION 142)
   const version = useRef(0);
-  const refresh = useCallback(async () => {
-    const my = ++version.current;
-    try {
-      const m = await commands.me();
-      if (my === version.current) setMe(m);
-    } catch {
-      if (my === version.current) setMe(ANON);
-    } finally {
-      if (my === version.current) setLoading(false);
-    }
-  }, []);
-  useEffect(() => { refresh(); }, [refresh]);
+  const check = useCallback((my: number) => commands.me()
+    .then((m) => { if (my === version.current) setMe(m); }, () => { if (my === version.current) setMe(ANON); })
+    .finally(() => { if (my === version.current) setLoading(false); }), []);
+  const refresh = useCallback(() => check(++version.current), [check]);
+  useEffect(() => { void check(++version.current); }, [check]);
   const login = useCallback(async (username: string, password: string) => {
     const m = await commands.login(username, password);
     version.current++;

@@ -1,7 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import AuthMenu from "./AuthMenu";
 import NotificationBell from "./NotificationBell";
 import ThemeToggle from "./ThemeToggle";
@@ -22,8 +22,10 @@ const GROUPS: { label: string; items: Item[] }[] = [
 export default function Layout({ title, children }: { title: string; children: ReactNode; wide?: boolean }) {
   const { pathname, asPath } = useRouter();
   const { has } = useAuth();
-  const [open, setOpen] = useState(false);
-  useEffect(() => { setOpen(false); }, [asPath]);
+  // 메뉴는 연 주소에서만 열린 것으로 — 다른 화면으로 옮기면 저절로 닫힘 (효과 안의 setState 대신 파생)
+  const [openAt, setOpenAt] = useState<string | null>(null);
+  const open = openAt === asPath;
+  const toggle = () => setOpenAt((cur) => (cur === asPath ? null : asPath));
   const active = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
   const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !i.admin || has("ADMIN")) }));
   const link = (n: Item, mobile = false) => (
@@ -60,7 +62,7 @@ export default function Layout({ title, children }: { title: string; children: R
               <div className="hidden sm:block"><AuthMenu /></div>
               <ThemeToggle />
               <button className="xl:hidden p-2 rounded-md hover:bg-line/60 focus-ring" aria-expanded={open} aria-controls="mobile-nav"
-                aria-label={open ? "메뉴 닫기" : "메뉴 열기"} onClick={() => setOpen((o) => !o)}>
+                aria-label={open ? "메뉴 닫기" : "메뉴 열기"} onClick={toggle}>
                 <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden><path d={open ? "M5 5l10 10M15 5L5 15" : "M3 6h14M3 10h14M3 14h14"}
                   stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
               </button>

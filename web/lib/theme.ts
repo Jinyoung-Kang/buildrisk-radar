@@ -10,9 +10,19 @@ export function readTheme(): Theme {
   } catch { return "system"; }
 }
 
+const CHANGED = "br:theme-changed";
+
+/** 테마가 바뀌면(이 탭에서 고름 · 다른 탭의 저장) 알림 — useSyncExternalStore 용 */
+export function subscribeTheme(onChange: () => void): () => void {
+  window.addEventListener(CHANGED, onChange);
+  window.addEventListener("storage", onChange);
+  return () => { window.removeEventListener(CHANGED, onChange); window.removeEventListener("storage", onChange); };
+}
+
 export function applyTheme(t: Theme) {
   const el = document.documentElement;
   if (t === "system") el.removeAttribute("data-theme");
   else el.setAttribute("data-theme", t);
   try { if (t === "system") localStorage.removeItem(THEME_KEY); else localStorage.setItem(THEME_KEY, t); } catch { /* 저장 불가 환경 */ }
+  window.dispatchEvent(new Event(CHANGED));
 }

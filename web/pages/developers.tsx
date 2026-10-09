@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import Layout from "@/components/Layout";
 import { Card, PageTitle, Prose } from "@/components/ui";
 
@@ -54,9 +54,11 @@ const LINEAGE: [string, string][] = [
   ["runs[]", "RULE(규칙 평가) · METRIC(지표 계산) · JOB(배치 실행) · COLLECT(통계 수집) — 시작 · 끝 · 상태"],
 ];
 
+const noSubscribe = () => () => {};
+
 export default function Developers() {
-  const [origin, setOrigin] = useState("http://localhost:3400");
-  useEffect(() => setOrigin(window.location.origin), []);
+  // 서버 렌더에서는 기본 주소, 브라우저에서는 실제 출처 (마운트 뒤 setState 대신)
+  const origin = useSyncExternalStore(noSubscribe, () => window.location.origin, () => "http://localhost:3400");
   const base = `${origin}/api/v1`;
   const code = "block whitespace-pre overflow-x-auto rounded-lg bg-page border border-line px-3 py-2 text-xs tabular";
   return (
