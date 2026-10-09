@@ -1,4 +1,4 @@
-package com.buildrisk.radar.domain.region;
+package com.buildrisk.radar.region.domain;
 
 import java.util.List;
 import java.util.Map;

@@ -1,5 +1,6 @@
 package com.buildrisk.radar.api;
 
+import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.common.web.CsvWriter;
@@ -49,10 +50,10 @@ public class ExportService {
 
     public record AlertFilter(String targetType, String severity, String status, OffsetDateTime since, String targetKey, String ruleCode) {
         MapSqlParameterSource params() {
-            return new MapSqlParameterSource().addValue("tt", CompanyQueryService.blank(targetType))
-                    .addValue("sev", CompanyQueryService.blank(severity)).addValue("st", CompanyQueryService.blank(status))
-                    .addValue("since", since).addValue("tk", CompanyQueryService.blank(targetKey))
-                    .addValue("rc", CompanyQueryService.blank(ruleCode));
+            return new MapSqlParameterSource().addValue("tt", Text.blank(targetType))
+                    .addValue("sev", Text.blank(severity)).addValue("st", Text.blank(status))
+                    .addValue("since", since).addValue("tk", Text.blank(targetKey))
+                    .addValue("rc", Text.blank(ruleCode));
         }
     }
 

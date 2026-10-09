@@ -1,4 +1,4 @@
-package com.buildrisk.radar.domain.region;
+package com.buildrisk.radar.region.domain;
 
 /** 기준 시군구 (ref.region) — 매칭에 필요한 열만 */
 public record RegionRef(String regionCd, String name, String sidoName, int level, String parentCd) {

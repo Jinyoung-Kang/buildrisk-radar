@@ -1,6 +1,6 @@
-package com.buildrisk.radar.domain.region;
+package com.buildrisk.radar.region.domain;
 
-import com.buildrisk.radar.domain.region.SiteAddressResolver.Match;
+import com.buildrisk.radar.region.domain.SiteAddressResolver.Match;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

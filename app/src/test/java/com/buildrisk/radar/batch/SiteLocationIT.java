@@ -1,7 +1,7 @@
 package com.buildrisk.radar.batch;
 
-import com.buildrisk.radar.domain.region.SiteAddressResolver.Match;
-import com.buildrisk.radar.domain.region.SiteLocationRepository;
+import com.buildrisk.radar.region.data.SiteLocationRepository;
+import com.buildrisk.radar.region.domain.SiteAddressResolver.Match;
 import com.buildrisk.radar.support.IntegrationTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

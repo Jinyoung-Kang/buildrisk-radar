@@ -1,5 +1,6 @@
 package com.buildrisk.radar.api;
 
+import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.api.dto.AlertDtos.AlertDetail;
 import com.buildrisk.radar.api.dto.AlertDtos.AlertRow;
 import com.buildrisk.radar.api.dto.Page;
@@ -42,18 +43,18 @@ public class AlertQueryService {
     public Page<AlertRow> list(String targetType, String severity, String status, OffsetDateTime since, String targetKey,
                                String ruleCode, int page, int size) {
         String where = FILTER;
-        String st = CompanyQueryService.blank(status);
+        String st = Text.blank(status);
         long total = jdbc.sql("SELECT count(*) FROM risk.alert a WHERE " + where)
-                .param("tt", CompanyQueryService.blank(targetType)).param("sev", CompanyQueryService.blank(severity))
-                .param("st", st).param("since", since).param("tk", CompanyQueryService.blank(targetKey))
-                .param("rc", CompanyQueryService.blank(ruleCode)).query(Long.class).single();
+                .param("tt", Text.blank(targetType)).param("sev", Text.blank(severity))
+                .param("st", st).param("since", since).param("tk", Text.blank(targetKey))
+                .param("rc", Text.blank(ruleCode)).query(Long.class).single();
         List<AlertRow> rows = jdbc.sql("SELECT a.alert_id, a.rule_code, a.rule_version, r.name_ko, a.severity, a.target_type, "
                         + "a.target_key, " + TARGET_NAME + ", a.as_of, a.title, a.status, a.close_reason, a.first_seen_at, a.last_evaluated_at "
                         + "FROM risk.alert a JOIN risk.rule r ON r.rule_code = a.rule_code AND r.version = a.rule_version "
                         + "WHERE " + where + " " + ORDER + " LIMIT :lim OFFSET :off")
-                .param("tt", CompanyQueryService.blank(targetType)).param("sev", CompanyQueryService.blank(severity))
-                .param("st", st).param("since", since).param("tk", CompanyQueryService.blank(targetKey))
-                .param("rc", CompanyQueryService.blank(ruleCode)).param("lim", size).param("off", (long) page * size)
+                .param("tt", Text.blank(targetType)).param("sev", Text.blank(severity))
+                .param("st", st).param("since", since).param("tk", Text.blank(targetKey))
+                .param("rc", Text.blank(ruleCode)).param("lim", size).param("off", (long) page * size)
                 .query((rs, i) -> new AlertRow(rs.getLong(1), rs.getString(2), rs.getInt(3), rs.getString(4),
                         rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8), rs.getString(9),
                         rs.getString(10), rs.getString(11), rs.getString(12), rs.getObject(13, OffsetDateTime.class),

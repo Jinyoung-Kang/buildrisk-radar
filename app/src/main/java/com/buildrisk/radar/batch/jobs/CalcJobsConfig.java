@@ -11,8 +11,6 @@ import com.buildrisk.radar.domain.metric.MetricValue;
 import com.buildrisk.radar.domain.metric.RegionMetricCalculator;
 import com.buildrisk.radar.domain.metric.RegionSeriesAssembler;
 import com.buildrisk.radar.domain.metric.StandardizeService;
-import com.buildrisk.radar.domain.region.RegionRepository;
-import com.buildrisk.radar.domain.region.SiteLocationRepository;
 import com.buildrisk.radar.domain.rule.AlertService;
 import com.buildrisk.radar.domain.rule.DbRuleData;
 import com.buildrisk.radar.domain.rule.RuleEvaluator;
@@ -21,7 +19,8 @@ import com.buildrisk.radar.domain.rule.RuleModels.TargetType;
 import com.buildrisk.radar.domain.rule.RuleRegistry;
 import com.buildrisk.radar.domain.rule.RuleRepository;
 import com.buildrisk.radar.domain.universe.CompanyRepository;
-
+import com.buildrisk.radar.region.data.RegionRepository;
+import com.buildrisk.radar.region.data.SiteLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;

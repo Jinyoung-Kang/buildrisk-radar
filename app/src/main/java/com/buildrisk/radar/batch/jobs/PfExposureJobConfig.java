@@ -7,12 +7,11 @@ import com.buildrisk.radar.batch.support.SkipRecorder;
 import com.buildrisk.radar.common.AppProperties;
 import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.domain.filing.PfExposureParser;
-import com.buildrisk.radar.domain.filing.PfExposureRepository;
 import com.buildrisk.radar.domain.filing.PfExposureRepository.Fetched;
 import com.buildrisk.radar.domain.filing.PfExposureRepository.Target;
-import com.buildrisk.radar.domain.region.AddressRegionMatcher;
-import com.buildrisk.radar.domain.region.RegionRepository;
-
+import com.buildrisk.radar.domain.filing.PfExposureRepository;
+import com.buildrisk.radar.region.data.RegionRepository;
+import com.buildrisk.radar.region.domain.AddressRegionMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;

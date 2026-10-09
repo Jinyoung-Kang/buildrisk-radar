@@ -4,8 +4,7 @@ import com.buildrisk.radar.domain.filing.FilingModels.Contract;
 import com.buildrisk.radar.domain.filing.FilingModels.Guarantee;
 import com.buildrisk.radar.domain.filing.FilingModels.Kind;
 import com.buildrisk.radar.domain.filing.FilingModels.Termination;
-import com.buildrisk.radar.domain.region.AddressRegionMatcher;
-
+import com.buildrisk.radar.region.domain.AddressRegionMatcher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.ObjectMapper;

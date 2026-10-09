@@ -1,5 +1,6 @@
 package com.buildrisk.radar.api;
 
+import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.batch.queue.WorkerRegistry;
 import com.buildrisk.radar.batch.support.BatchLauncher;
@@ -57,7 +58,7 @@ public class BatchQueryService {
 
     public List<Map<String, Object>> executions(String jobName, int limit) {
         return jdbc.sql(EXEC + " WHERE cast(:j AS text) IS NULL OR i.job_name = :j ORDER BY e.job_execution_id DESC LIMIT :l")
-                .param("j", CompanyQueryService.blank(jobName)).param("l", Math.max(1, Math.min(limit, 200))).query().listOfRows();
+                .param("j", Text.blank(jobName)).param("l", Math.max(1, Math.min(limit, 200))).query().listOfRows();
     }
 
     public Map<String, Object> execution(long id) {

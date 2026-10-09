@@ -1,5 +1,6 @@
 package com.buildrisk.radar.api;
 
+import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.domain.universe.CompanyRepository;
@@ -253,6 +254,6 @@ public class MappingService {
                 SELECT m.source, m.source_code, m.source_name, m.region_cd, r.full_name AS region_name, m.match_method,
                        m.verified, m.note FROM ref.region_code_map m LEFT JOIN ref.region r ON r.region_cd = m.region_cd
                 WHERE cast(:s AS text) IS NULL OR m.source = :s ORDER BY m.source, m.source_name""")
-                .param("s", CompanyQueryService.blank(source)).query().listOfRows());
+                .param("s", Text.blank(source)).query().listOfRows());
     }
 }

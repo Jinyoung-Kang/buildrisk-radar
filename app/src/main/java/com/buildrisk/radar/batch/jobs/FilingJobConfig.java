@@ -10,9 +10,8 @@ import com.buildrisk.radar.common.seed.SeedCatalog;
 import com.buildrisk.radar.domain.filing.FilingParser;
 import com.buildrisk.radar.domain.filing.FilingRepository.Target;
 import com.buildrisk.radar.domain.filing.FilingRepository;
-import com.buildrisk.radar.domain.region.AddressRegionMatcher;
-import com.buildrisk.radar.domain.region.RegionRepository;
-
+import com.buildrisk.radar.region.data.RegionRepository;
+import com.buildrisk.radar.region.domain.AddressRegionMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;

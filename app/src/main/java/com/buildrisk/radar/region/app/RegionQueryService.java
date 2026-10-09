@@ -1,20 +1,21 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.region.app;
 
-import com.buildrisk.radar.api.dto.RegionDtos.AlertBrief;
-import com.buildrisk.radar.api.dto.RegionDtos.MetricPoint;
-import com.buildrisk.radar.api.dto.RegionDtos.MetricSeries;
-import com.buildrisk.radar.api.dto.RegionDtos.Point;
-import com.buildrisk.radar.api.dto.RegionDtos.RegionList;
-import com.buildrisk.radar.api.dto.RegionDtos.RegionRow;
-import com.buildrisk.radar.api.dto.RegionDtos.RegionSeries;
-import com.buildrisk.radar.api.dto.RegionDtos.StatSeries;
+import com.buildrisk.radar.common.Text;
 import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.domain.metric.MetricCatalog;
 import com.buildrisk.radar.domain.metric.MetricRepository.StatPoint;
 import com.buildrisk.radar.domain.metric.RegionSeriesAssembler;
-import com.buildrisk.radar.domain.region.RegionRef;
+import com.buildrisk.radar.region.domain.RegionViews.AlertBrief;
+import com.buildrisk.radar.region.domain.RegionViews.MetricPoint;
+import com.buildrisk.radar.region.domain.RegionViews.MetricSeries;
+import com.buildrisk.radar.region.domain.RegionViews.Point;
+import com.buildrisk.radar.region.domain.RegionViews.RegionList;
+import com.buildrisk.radar.region.domain.RegionViews.RegionRow;
+import com.buildrisk.radar.region.domain.RegionViews.RegionSeries;
+import com.buildrisk.radar.region.domain.RegionViews.StatSeries;
+import com.buildrisk.radar.region.domain.RegionRef;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;
@@ -63,7 +64,7 @@ public class RegionQueryService {
                                ON a.target_key = r.region_cd
                         WHERE r.level = 2 AND (cast(:s AS text) IS NULL OR r.sido_cd = :s)
                         ORDER BY x.value DESC NULLS LAST, r.region_cd""")
-                .param("m", m).param("p", p).param("s", CompanyQueryService.blank(sido))
+                .param("m", m).param("p", p).param("s", Text.blank(sido))
                 .query((rs, i) -> new RegionRow(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4),
                         rs.getString(5), rs.getBigDecimal(6), rs.getString(7), rs.getInt(8))).list();
         String run = jdbc.sql("SELECT calc_run_id::text FROM mkt.region_metric LIMIT 1").query(String.class).optional().orElse(null);

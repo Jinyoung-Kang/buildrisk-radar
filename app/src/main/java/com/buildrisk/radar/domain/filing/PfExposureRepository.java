@@ -3,8 +3,7 @@ package com.buildrisk.radar.domain.filing;
 import com.buildrisk.radar.domain.filing.PfExposureParser.Due;
 import com.buildrisk.radar.domain.filing.PfExposureParser.Result;
 import com.buildrisk.radar.domain.filing.PfExposureParser.Status;
-import com.buildrisk.radar.domain.region.AddressRegionMatcher;
-
+import com.buildrisk.radar.region.domain.AddressRegionMatcher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;

@@ -41,7 +41,7 @@ class ArchitectureTest {
             "api.DashboardService → batch.support.JobCatalog",
             "common.seed.SeedCatalog → domain.backtest.CreditEventRule",
             "common.seed.SeedCatalog → domain.disclosure.EventClassifier",
-            "common.seed.SeedCatalog → domain.region.RegionAliases");
+            "common.seed.SeedCatalog → region.domain.RegionAliases");
 
     record Source(String pkg, String cls, List<String> imports) {}
 

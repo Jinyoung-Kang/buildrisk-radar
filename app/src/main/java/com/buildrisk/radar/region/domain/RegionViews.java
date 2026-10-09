@@ -1,11 +1,11 @@
-package com.buildrisk.radar.api.dto;
+package com.buildrisk.radar.region.domain;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
-public final class RegionDtos {
-    private RegionDtos() {}
+public final class RegionViews {
+    private RegionViews() {}
 
     public record RegionRow(String regionCd, String name, String fullName, String sidoCd, String sidoName,
                             BigDecimal value, String status, int alertCount) {}

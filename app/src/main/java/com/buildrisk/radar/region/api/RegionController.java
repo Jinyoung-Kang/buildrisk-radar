@@ -1,11 +1,11 @@
-package com.buildrisk.radar.api;
+package com.buildrisk.radar.region.api;
 
-import com.buildrisk.radar.api.dto.RegionDtos.RegionList;
-import com.buildrisk.radar.api.dto.RegionDtos.RegionSeries;
 import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.common.cache.PayloadCache;
 import com.buildrisk.radar.common.role.ApiRole;
-
+import com.buildrisk.radar.region.app.RegionQueryService;
+import com.buildrisk.radar.region.domain.RegionViews.RegionList;
+import com.buildrisk.radar.region.domain.RegionViews.RegionSeries;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Pattern;

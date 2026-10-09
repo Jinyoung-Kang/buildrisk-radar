@@ -1,4 +1,9 @@
-package com.buildrisk.radar.domain.region;
+package com.buildrisk.radar.region.app;
+
+import com.buildrisk.radar.region.data.RegionRepository;
+import com.buildrisk.radar.region.domain.RegionAliases;
+import com.buildrisk.radar.region.domain.RegionMatcher;
+import com.buildrisk.radar.region.domain.RegionRef;
 
 import java.util.HashMap;
 import java.util.List;

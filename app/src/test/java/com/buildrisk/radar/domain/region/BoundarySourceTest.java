@@ -1,5 +1,6 @@
 package com.buildrisk.radar.domain.region;
 
+import com.buildrisk.radar.region.domain.BoundarySource;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

@@ -1,7 +1,8 @@
-package com.buildrisk.radar.domain.region;
+package com.buildrisk.radar.region.data;
 
-import com.buildrisk.radar.domain.region.SiteAddressResolver.Match;
-import com.buildrisk.radar.domain.region.SiteAddressResolver.Result;
+import com.buildrisk.radar.region.domain.SiteAddressResolver.Match;
+import com.buildrisk.radar.region.domain.SiteAddressResolver.Result;
+import com.buildrisk.radar.region.domain.SiteAddressResolver;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;

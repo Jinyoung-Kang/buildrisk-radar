@@ -1,7 +1,7 @@
 package com.buildrisk.radar.domain.metric;
 
 import com.buildrisk.radar.domain.metric.MetricRepository.StatPoint;
-import com.buildrisk.radar.domain.region.RegionRef;
+import com.buildrisk.radar.region.domain.RegionRef;
 
 import java.math.BigDecimal;
 import java.math.MathContext;

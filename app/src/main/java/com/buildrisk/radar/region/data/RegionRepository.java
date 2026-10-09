@@ -1,5 +1,7 @@
-package com.buildrisk.radar.domain.region;
+package com.buildrisk.radar.region.data;
 
+import com.buildrisk.radar.region.domain.RegionRef;
+import com.buildrisk.radar.region.domain.BoundarySource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
