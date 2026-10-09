@@ -13,7 +13,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,4 +39,22 @@ class JsonCacheTest {
         verify(ops, times(2)).increment("br:gen");                               // 한 번만
         verify(ops, times(2)).set(eq("br:0:k"), any(), any(Duration.class));
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void 조회가_없는_프로세스에서도_실패한_무효화를_뒤에서_다시_올린다() {
+        // Job 이 끝날 때의 무효화는 worker 에서 일어나는데, 다시 올리는 곳이 조회(api)뿐이라 worker 에서 실패하면 아무도
+        // 다시 하지 않았음 — api 는 옛 세대 값을 TTL 동안 그대로 냄 (VERIFICATION 154)
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> ops = mock(ValueOperations.class);
+        when(redis.opsForValue()).thenReturn(ops);
+        when(ops.increment("br:gen")).thenThrow(new RedisConnectionFailureException("끊김"))
+                .thenThrow(new RedisConnectionFailureException("아직 끊김")).thenReturn(8L);
+        JsonCache cache = new JsonCache(redis, JsonMapper.builder().build(), new SimpleMeterRegistry(), Duration.ofMillis(50));
+
+        cache.invalidateAll();                                                   // 실패 — 조회는 하지 않음
+        verify(ops, timeout(3_000).times(3)).increment("br:gen");                // 뒤에서 다시 시도해 성공
+        verify(ops, after(300).times(3)).increment("br:gen");                    // 성공한 뒤에는 멈춤
+    }
 }
+

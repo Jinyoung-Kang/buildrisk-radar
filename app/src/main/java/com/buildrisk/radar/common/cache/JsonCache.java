@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.Cursor;
@@ -17,6 +18,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -37,14 +39,23 @@ public class JsonCache {
     private volatile long lastWarn;
     /** 세대를 올리지 못한 무효화 — Redis 가 돌아온 뒤 첫 조회 전에 다시 올림 */
     private volatile boolean invalidatePending;
+    private final Duration retryDelay;
+    private final AtomicBoolean retrying = new AtomicBoolean();
 
     /** 적중률은 Prometheus 의 buildrisk_cache_requests_total{result} 로 — 캐시가 실제로 DB 부하를 덜어 주는지 확인 (ADR-022) */
+    @Autowired
     public JsonCache(StringRedisTemplate redis, ObjectMapper mapper, MeterRegistry registry) {
+        this(redis, mapper, registry, Duration.ofSeconds(1));
+    }
+
+    /** retryDelay: 실패한 무효화를 다시 시도하는 첫 간격(두 배씩 30초까지) — 테스트는 짧게 */
+    JsonCache(StringRedisTemplate redis, ObjectMapper mapper, MeterRegistry registry, Duration retryDelay) {
         this.redis = redis;
         this.mapper = mapper;
         this.hits = counter(registry, "hit");
         this.misses = counter(registry, "miss");
         this.errors = counter(registry, "error");
+        this.retryDelay = retryDelay;
     }
 
     private static Counter counter(MeterRegistry registry, String result) {
@@ -71,7 +82,7 @@ public class JsonCache {
     }
 
     private <T> T get(String key, Duration ttl, JavaType type, Supplier<T> loader, Predicate<? super T> storeIf) {
-        if (invalidatePending) invalidateAll();
+        if (invalidatePending) tryInvalidate();
         String full;
         try {
             String gen = redis.opsForValue().get(GEN_KEY);
@@ -105,15 +116,48 @@ public class JsonCache {
 
     /** 새 calc_run 이 끝났을 때 호출 — 세대를 올리고 이전 세대 키는 뒤에서 지웁니다. */
     public void invalidateAll() {
+        if (!tryInvalidate()) retryInBackground();
+    }
+
+    /**
+     * 세대를 올림. Job 이 끝나는 순간 Redis 가 잠깐 끊기면 옛 값이 TTL 동안 나가므로 실패를 표시해 두고 다시 함 —
+     * 조회(api)는 다음 조회 전에(138), 조회가 없는 worker 는 뒤에서(154)
+     */
+    private boolean tryInvalidate() {
         try {
             Long gen = redis.opsForValue().increment(GEN_KEY);
             invalidatePending = false;
             if (gen != null && gen > 1) Thread.ofVirtual().name("cache-purge").start(() -> purge(gen - 1));
+            return true;
         } catch (RuntimeException e) {
-            // Job 이 끝나는 순간 Redis 가 잠깐 끊기면 옛 값이 TTL 동안 나감 — 다음 조회 때 다시 올림 (VERIFICATION 138)
             invalidatePending = true;
             warn(e);
+            return false;
         }
+    }
+
+    /** 실패한 무효화를 뒤에서 다시 (간격 두 배씩 30초까지). 가장 긴 TTL(30분)이 지나면 옛 값도 사라지므로 그때 멈춤 */
+    private void retryInBackground() {
+        if (!retrying.compareAndSet(false, true)) return;
+        Thread.ofVirtual().name("cache-invalidate-retry").start(() -> {
+            boolean gaveUp = false;
+            try {
+                long deadline = System.nanoTime() + Duration.ofMinutes(30).toNanos();
+                long delay = retryDelay.toMillis();
+                while (invalidatePending && System.nanoTime() < deadline) {
+                    Thread.sleep(delay);
+                    if (invalidatePending) tryInvalidate();
+                    delay = Math.min(delay * 2, 30_000);
+                }
+                gaveUp = invalidatePending;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                gaveUp = true;
+            } finally {
+                retrying.set(false);
+            }
+            if (!gaveUp && invalidatePending) retryInBackground();               // 성공한 직후 새로 실패했으면
+        });
     }
 
     /**
