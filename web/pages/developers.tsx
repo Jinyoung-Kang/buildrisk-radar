@@ -97,11 +97,11 @@ export default function Developers() {
         <div className="grid lg:grid-cols-2 gap-5">
           <Card title="근거(evidence) 필드" sub="GET /alerts/{alertId} 의 evidence" pad={false}>
             <table className="data-table"><tbody>{EVIDENCE.map(([k, d]) => (
-              <tr key={k}><td className="whitespace-nowrap font-medium tabular align-top w-[1%]">{k}</td><td className="text-ink2">{d}</td></tr>))}</tbody></table>
+              <tr key={k}><td className="whitespace-nowrap font-medium tabular align-middle w-[1%]">{k}</td><td className="text-ink2">{d}</td></tr>))}</tbody></table>
           </Card>
           <Card title="근거 계보(lineage) 필드" sub="GET /alerts/{alertId}/lineage" pad={false}>
             <table className="data-table"><tbody>{LINEAGE.map(([k, d]) => (
-              <tr key={k}><td className="whitespace-nowrap font-medium tabular align-top w-[1%]">{k}</td><td className="text-ink2">{d}</td></tr>))}</tbody></table>
+              <tr key={k}><td className="whitespace-nowrap font-medium tabular align-middle w-[1%]">{k}</td><td className="text-ink2">{d}</td></tr>))}</tbody></table>
           </Card>
         </div>
         <Card title="CSV 규칙">
