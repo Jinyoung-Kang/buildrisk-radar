@@ -17,7 +17,14 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = app) THEN
         EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION', app, pw);
     ELSE
-        EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION', app, pw);
+        -- 속성은 만들 때 NO… 로 정했으므로 비밀번호만 맞춘다. PG16+ 는 superuser 가 아니면(RDS 등 — 소유자에게 CREATEROLE 만)
+        -- NOSUPERUSER · NOCREATEDB · NOREPLICATION 을 '적는 것'만으로 거절해 두 번째 기동부터 실패했다 (VERIFICATION 169).
+        EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', app, pw);
+        -- 누가 속성을 올려 두었으면 내린다 — superuser 가 아니면 여기서 실패해 기동이 멈춘다(최소 권한이 깨진 채 뜨지 않게)
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = app
+                   AND (rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls)) THEN
+            EXECUTE format('ALTER ROLE %I NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS', app);
+        END IF;
     END IF;
     EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), app);
     EXECUTE format('GRANT USAGE ON SCHEMA public TO %I', app);                 -- PostGIS 타입·함수

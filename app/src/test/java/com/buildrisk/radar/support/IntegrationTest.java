@@ -70,6 +70,16 @@ public abstract class IntegrationTest {
 
     protected static String jdbcUrl() { return PG.getJdbcUrl(); }
 
+    /** 같은 컨테이너의 다른 데이터베이스 주소 */
+    protected static String jdbcUrl(String database) {
+        return PG.getJdbcUrl().replaceFirst("/[^/?]+(\\?|$)", "/" + database + "$1");
+    }
+
+    /** 컨테이너 superuser 로 다른 데이터베이스에 접속 — RDS 마스터만 할 수 있는 일(확장 설치)을 흉내 낼 때 */
+    protected static java.sql.Connection superuserConnection(String database) throws java.sql.SQLException {
+        return java.sql.DriverManager.getConnection(jdbcUrl(database), PG.getUsername(), PG.getPassword());
+    }
+
     /** 테스트 사이 데이터 초기화 (seed 테이블·배치 메타는 유지) */
     @BeforeEach
     void cleanData() {
