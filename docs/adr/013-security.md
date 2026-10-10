@@ -30,3 +30,10 @@ GitHub Code Security 라이선스가 필요하고 개인 계정(Free · Pro)은 
 CodeQL 라이선스는 공개(오픈소스) 코드베이스 분석과 학술 연구만 허용하고, 그 밖의 CI 분석은 유료 Advanced Security 고객 라이선스가 있어야 한다.
 남는 자동 검사: gitleaks(전체 이력) · Trivy(이미지) · Dependabot. 소스 정적 분석(SAST)은 빠진다 — 지난 CodeQL 경고는 모두 고쳐 두었다(VERIFICATION 38~40 · 96 · 168).
 저장소를 다시 공개하면 `.github/workflows/codeql.yml`(git 이력)을 되살린다. (VERIFICATION 170)
+
+**덧붙임 (2026-10-10) — braces 경고(GHSA-vfj7-8cjw-p6xm, high)를 위험 수용으로 닫음**
+`web` 의 braces 3.0.3 은 tailwindcss 3.4.19(v3 최신) → chokidar · micromatch 가 끌어오는 개발 의존성이다(`npm ls braces --omit=dev` 0건 — 운영 이미지에 없음).
+취약 범위가 `<= 3.0.3`(공개된 모든 판)이라 수정판이 없고, 상류는 "사용자 glob 을 넘기지 말라 · 길이 제한이면 충분"이라며 고칠 계획이 없다고 답했다(micromatch/braces#70, 잠김).
+braces 가 펼치는 패턴은 Tailwind 설정의 content glob 뿐이라 외부 입력이 닿지 않는다 → Dependabot 경고 #6 을 `tolerable_risk` 로 닫았다.
+Tailwind 4 로 옮기면 이 의존성째 사라진다(그때 다시 확인). 같은 날 비공개로 돌린 뒤 다시 열린 경고다.
+
