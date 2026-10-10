@@ -3,20 +3,22 @@ import { useRouter } from "next/router";
 import type { ReactNode } from "react";
 import type { Role } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { roleNotice, showLoginLink } from "@/lib/domain/demo";
+import { useDemo } from "@/lib/hooks/useSiteConfig";
 
-const ROLE_LABEL: Record<Role, string> = { ADMIN: "관리자", ANALYST: "분석가" };
-
-/** 역할이 있으면 children, 없으면 안내 한 줄 (조회는 누구나 — 버튼만 숨김) */
+/** 역할이 있으면 children, 없으면 안내 한 줄 (조회는 누구나 — 버튼만 숨김). 공개 데모는 로그인 링크 대신 조회 전용 안내 */
 export default function RequireRole({ role, children, inline = false }: { role: Role; children: ReactNode; inline?: boolean }) {
   const { has, loading, me } = useAuth();
+  const demo = useDemo();
   const { asPath } = useRouter();
   if (loading) return null;
   if (has(role)) return <>{children}</>;
-  const text = me?.authenticated ? `${ROLE_LABEL[role]} 권한이 필요합니다` : `${ROLE_LABEL[role]} 로그인 후 변경할 수 있습니다`;
+  const authenticated = !!me?.authenticated;
+  if (!authenticated && demo === null) return null;
   return (
     <span className={`text-xs text-muted ${inline ? "" : "inline-flex items-center gap-2"}`}>
-      🔒 {text}
-      {!me?.authenticated && (
+      🔒 {roleNotice(role, authenticated, !!demo)}
+      {showLoginLink(authenticated, demo) && (
         <Link href={`/login?next=${encodeURIComponent(asPath)}`} className="text-accent hover:underline focus-ring rounded">로그인</Link>
       )}
     </span>

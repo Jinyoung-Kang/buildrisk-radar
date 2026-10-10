@@ -27,6 +27,19 @@ test("익명: 규칙 화면은 보이지만 수정 버튼 대신 로그인 안�
   await expect(page.getByRole("button", { name: "파라미터 수정" })).toHaveCount(0);
 });
 
+test("공개 데모: 로그인 링크 · 로그인 안내 대신 조회 전용 안내 (VERIFICATION 171)", async ({ page }) => {
+  // AWS 는 앞단 프록시가 /api/ 의 GET · HEAD 가 아닌 요청(로그인 포함)을 막음 — 화면 설정만 데모로 바꿔 재현
+  await page.route("**/api/config", (route) => route.fulfill({ json: { kakaoJsKey: "", demo: true } }));
+  await page.goto("/admin/rules");
+  await expect(page.getByRole("heading", { name: "규칙 관리" })).toBeVisible();
+  await expect(page.getByText("데모에서는 조회만 가능합니다")).toBeVisible();
+  await expect(page.getByText(/로그인 후 변경할 수 있습니다/)).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "로그인" })).toHaveCount(0);
+  await page.goto("/notifications");
+  await expect(page.getByText(/로그인한 사용자별로 받습니다\. 데모에서는 조회만 가능합니다/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "로그인" })).toHaveCount(0);
+});
+
 test("잘못된 비밀번호는 같은 메시지로 거절", async ({ page }) => {
   await page.goto("/login");
   await page.getByLabel("아이디").fill("e2e-nobody");

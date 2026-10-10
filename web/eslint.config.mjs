@@ -21,7 +21,7 @@ const config = [
     files: ["lib/domain/**/*.ts"],
     rules: {
       "@typescript-eslint/no-restricted-imports": ["error", { patterns: [
-        { group: ["react", "react-dom", "next", "next/*", "@/components/*", "@/lib/hooks/*", "@/lib/api/client", "@/lib/api/company", "@/lib/api/region", "@/lib/api/alert", "@/lib/api/insight", "@/lib/api/notify", "@/lib/api/ops", "@/lib/api/session"],
+        { group: ["react", "react-dom", "next", "next/*", "@/components/*", "@/lib/hooks/*", "@/lib/api/client", "@/lib/api/company", "@/lib/api/region", "@/lib/api/alert", "@/lib/api/insight", "@/lib/api/notify", "@/lib/api/ops", "@/lib/api/session", "@/lib/api/config"],
           message: "lib/domain 은 순수 함수만 — React · 화면 · 네트워크를 모름 (ADR-030)" },
         { group: ["@/lib/api"], allowTypeImports: true, message: "lib/domain 은 API 응답 타입만 import type 으로 (ADR-030)" },
       ] }],

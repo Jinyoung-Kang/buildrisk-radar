@@ -8,6 +8,7 @@
 #   · Flyway 소유자 비밀번호는 기본값 없이 POSTGRES_PASSWORD 필수 (로컬의 'buildrisk' 기본값을 쓰지 않음)
 #   · edge 가 앞단 Caddy 의 X-Forwarded-For 를 믿음(ops/nginx/realip.aws.conf) → 레이트리밋 · 로그인 잠금이 방문자별
 #   · 공개 데모라 끄는 것: 웹훅(NOTIFY_SECRET_KEY 비움), 배치 스케줄(새벽 일정 — 운영 시간 09–18 밖)
+#   · 화면은 로그인 링크 · 로그인 안내를 숨김(BUILDRISK_PUBLIC_DEMO) — 앞단이 GET 이 아닌 /api/ 요청을 막아 로그인할 수 없음
 #   · DB 연결 수를 줄임(RDS db.t4g.micro 한 대를 세 프로젝트가 나눠 씀): Hikari 12 → 4
 # 필요한 값(.env, 이름은 .env.aws.example): RDS_HOST · PUBLIC_ORIGIN · POSTGRES_PASSWORD 외 기존 값
 # =============================================================================
@@ -42,6 +43,10 @@ services:
       <<: *aws-db
       FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 필요}
       VWORLD_DOMAIN: ${PUBLIC_ORIGIN}
+
+  web:
+    environment:
+      BUILDRISK_PUBLIC_DEMO: "true"   # /api/config 의 demo — 로그인 링크 대신 '데모에서는 조회만 가능합니다' (ADR-031 덧붙임)
 
   edge:
     volumes:

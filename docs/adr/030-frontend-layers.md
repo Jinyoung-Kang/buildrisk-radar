@@ -11,8 +11,8 @@
    | 층 | 하는 일 |
    |---|---|
    | `pages` · `components` | 그리기와 화면 상태(탭 · 펼침 · 입력값) |
-   | `lib/hooks` | 상태 · 부수효과 — `useApi`(조회) · `useAction`(변경 요청) · `usePolling`(주기 호출) · `useEventNames` |
-   | `lib/api` | 기능별 모듈(`company` · `region` · `alert` · `insight` · `notify` · `ops` · `session`)이 경로 · 메서드 · 응답 타입을 한 곳에, `client` 가 fetch · CSRF · 경로 검사 |
+   | `lib/hooks` | 상태 · 부수효과 — `useApi`(조회) · `useAction`(변경 요청) · `usePolling`(주기 호출) · `useEventNames` · `useSiteConfig`(화면 설정) |
+   | `lib/api` | 기능별 모듈(`company` · `region` · `alert` · `insight` · `notify` · `ops` · `session`)이 경로 · 메서드 · 응답 타입을 한 곳에, `client` 가 fetch · CSRF · 경로 검사. `config` 는 Next 의 `/api/config`(런타임 화면 설정) |
    | `lib/domain` | React 없는 순수 함수 — 표기 · 색 기준 · 변환 · 판정 (단위 테스트) |
 
 2. **경계는 ESLint 로**: 화면은 `lib/api/client` · `fetch` 금지(기능 모듈만). `lib/domain` 은 React · next · 화면 · 네트워크 · 브라우저 전역

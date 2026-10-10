@@ -4,6 +4,7 @@ import { afterEach, describe, it } from "node:test";
 import { api, ApiError, qs } from "@/lib/api/client";
 import * as alertApi from "@/lib/api/alert";
 import * as companyApi from "@/lib/api/company";
+import * as configApi from "@/lib/api/config";
 import * as insightApi from "@/lib/api/insight";
 import * as notifyApi from "@/lib/api/notify";
 import * as opsApi from "@/lib/api/ops";
@@ -61,5 +62,29 @@ describe("client", () => {
   it("오류 본문의 code · message · traceId 를 ApiError 로", async () => {
     globalThis.fetch = (async () => new Response(JSON.stringify({ code: "ALERT_NOT_FOUND", message: "경보 9", traceId: "t1" }), { status: 404 })) as typeof fetch;
     await assert.rejects(api("/alerts/9"), (e: unknown) => e instanceof ApiError && e.status === 404 && e.code === "ALERT_NOT_FOUND" && e.traceId === "t1");
+  });
+});
+
+describe("화면 설정 /api/config", () => {
+  const real = globalThis.fetch;
+  afterEach(() => { globalThis.fetch = real; });
+
+  it("머리말 · 권한 안내 · 지도가 함께 불러도 한 번만 받고, 실패하면 다음에 다시 받음", async () => {
+    let calls = 0;
+    let status = 500;
+    globalThis.fetch = (async (url: string) => {
+      calls++;
+      assert.equal(url, "/api/config");
+      return new Response(JSON.stringify({ kakaoJsKey: "k", demo: true }), { status });
+    }) as typeof fetch;
+    await assert.rejects(configApi.siteConfig());
+    assert.equal(configApi.loadedSiteConfig(), null);
+    status = 200;
+    const [a, b] = await Promise.all([configApi.siteConfig(), configApi.siteConfig()]);
+    assert.deepEqual(a, { kakaoJsKey: "k", demo: true });
+    assert.equal(a, b);
+    assert.deepEqual(await configApi.siteConfig(), a);
+    assert.equal(configApi.loadedSiteConfig(), a);
+    assert.equal(calls, 2);   // 실패 1 + 성공 1
   });
 });

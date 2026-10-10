@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useAuth } from "@/lib/auth";
+import { showLoginLink } from "@/lib/domain/demo";
+import { useDemo } from "@/lib/hooks/useSiteConfig";
 
 export default function AuthMenu() {
   const { me, loading, logout } = useAuth();
+  const demo = useDemo();
   const router = useRouter();
   if (loading) return <span className="w-16" aria-hidden />;
   if (!me?.authenticated) {
+    // 공개 데모는 로그인할 수 없으므로 아무것도 그리지 않음 (ADR-031 덧붙임, VERIFICATION 171)
+    if (demo === null) return <span className="w-16" aria-hidden />;
+    if (!showLoginLink(false, demo)) return null;
     return (
       <Link href={`/login?next=${encodeURIComponent(router.asPath)}`}
         className="text-sm px-3 py-1.5 rounded-md border border-line hover:bg-line/60 focus-ring whitespace-nowrap">로그인</Link>

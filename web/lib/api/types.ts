@@ -87,6 +87,8 @@ export type Meta = {
 // ---- 인증 · 감사 (ADR-013)
 export type Role = "ADMIN" | "ANALYST";
 export type Me = { authenticated: boolean; username?: string; roles: Role[]; authType?: "SESSION" | "TOKEN" };
+/** 화면 설정 /api/config — Next 서버가 런타임 환경변수로 만듦(백엔드 아님). demo = 공개 데모(로그인 불가, ADR-031) */
+export type SiteConfig = { kakaoJsKey: string; demo: boolean };
 export type AuditEntry = { auditId: number; at: string; actor: string; authType: string; action: string; target?: string; status?: number; detail?: Record<string, unknown>; ip?: string; traceId?: string };
 
 // ---- 수주·보증 노출 · 주가 · 백테스트 (ADR-016 · 017)

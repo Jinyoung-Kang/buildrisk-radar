@@ -5,12 +5,14 @@ import Layout from "@/components/Layout";
 import { Card, Empty, ErrorBox, Loading, Pager, PageTitle, Prose, Segmented, SeverityBadge } from "@/components/ui";
 import { type RuleView, type Severity, type Subscription, type SubscriptionInput, type Watch, type Webhook } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { DEMO_READ_ONLY, showLoginLink } from "@/lib/domain/demo";
 import { dt } from "@/lib/domain/format";
 import { targetHref } from "@/lib/domain/nav";
 import { describeSubscription, EMPTY_SUBSCRIPTION, subscriptionBody, toggleCode } from "@/lib/domain/notify";
 import { notifyChanged } from "@/lib/notify";
 import { useAction } from "@/lib/hooks/useAction";
 import { useApi } from "@/lib/hooks/useApi";
+import { useDemo } from "@/lib/hooks/useSiteConfig";
 import * as alertApi from "@/lib/api/alert";
 import * as notifyApi from "@/lib/api/notify";
 
@@ -336,12 +338,14 @@ function WebhooksCard() {
 
 export default function NotificationsPage() {
   const { me, has, loading } = useAuth();
+  const demo = useDemo();
   const { asPath } = useRouter();
   return (
     <Layout title="알림">
       <PageTitle title="알림" sub="구독한 경보가 새로 생기거나 다시 열리면 알림함과 웹훅으로 받습니다. 본인의 알림 · 구독만 보입니다." />
       {loading ? <Loading /> : !me?.authenticated ? (
-        <Card><p className="text-sm">알림은 로그인한 사용자별로 받습니다. <Link href={`/login?next=${encodeURIComponent(asPath)}`} className="text-accent hover:underline">로그인</Link></p></Card>
+        <Card><p className="text-sm">알림은 로그인한 사용자별로 받습니다. {demo && `${DEMO_READ_ONLY}.`}
+          {showLoginLink(false, demo) && <Link href={`/login?next=${encodeURIComponent(asPath)}`} className="text-accent hover:underline">로그인</Link>}</p></Card>
       ) : (
         <>
           <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] gap-5 items-start">

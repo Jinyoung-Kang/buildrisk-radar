@@ -1,5 +1,7 @@
 // 카카오 지도 SDK 로더 — 키는 런타임에 /api/config 에서 받습니다(.env 변경 시 재빌드 불필요).
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { siteConfig } from "./api/config";
+
 declare global {
   interface Window { kakao: any }
 }
@@ -12,7 +14,7 @@ export function loadKakao(): Promise<any> {
   if (window.kakao?.maps?.LatLng) return Promise.resolve(window.kakao);
   if (loading) return loading;
   loading = (async () => {
-    const cfg = await fetch("/api/config").then((r) => r.json());
+    const cfg = await siteConfig();   // 머리말 · 권한 안내와 같은 응답을 나눠 씀
     if (!cfg.kakaoJsKey) throw new Error("NEXT_PUBLIC_KAKAO_JS_KEY 가 .env 에 없습니다.");
     await new Promise<void>((resolve, reject) => {
       // 실패한 스크립트는 지우고 다시 넣음 — 남겨 두면 다시 시도할 때마다 겹쳐 쌓임 (VERIFICATION 149)

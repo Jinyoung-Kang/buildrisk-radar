@@ -67,7 +67,7 @@ k6 로 잰 **성능과 메모리 안정성**(50 VU 약 4,000 req/s · API p95 �
 | **경보 성적표** ([ADR-023](docs/adr/023-alert-scorecard.md)) | 재무 규칙을 전체 기간에 대해 그 당시 알 수 있던 공시로만 다시 평가해 실제 부실 사건(회생 · 워크아웃 · 부도 · 감사의견 비적정)과 맞춤 — 규칙별 정밀도 · 재현율(Wilson 95% 구간) · 선행 기간 · 기준선 대비 lift, 사건 목록과 빗나간 경보까지 공개 | `ScorecardTest` · `ScorecardIT` · `SeedDictionaryTest` — 실데이터: 사건 5건 모두 사건 전에 경보(중앙값 12개월 전) |
 | **경보의 사후 검증 (주가)** ([ADR-017](docs/adr/017-stock-backtest.md)) | 경보 근거 공시가 공개된 날 다음 거래일부터 20·60·120거래일 업종 대비 초과수익률. 수정주가가 아닌 원천 종가 → 주식수 변동 구간 제외, 겹침 제외, 비교 기준 분포 · t 값 · 한계 표시 | `EventStudyTest` |
 | **성능 · 메모리 · 관측** ([ADR-018](docs/adr/018-observability.md) · [020](docs/adr/020-map-boundaries-cache.md) · [021](docs/adr/021-container-memory.md) · [022](docs/adr/022-read-cache.md)) | 외부 API Step 청크 안 가상 스레드 동시 처리(호출 간격·일일 상한은 스레드 안전하게 유지), 실거래 월 파티션. **조회 캐시**(Redis, 세대 번호로 일괄 무효화 — 모든 Job 이 끝나는 한 곳에서), **지도 경계는 버전 URL + 1년 immutable + 프로세스 안에 미리 압축한 바이트**, **컨테이너 메모리 예산**(서비스별 한도 · 힙 60% · G1 명시). Prometheus 지표 · ECS 로그 · Grafana | k6 50 VU · 90초 3회: **약 4,050 req/s · API p95 약 20 ms · 오류 0**, api 최대 610 MiB / 1 GiB (3차 점검 전 504 req/s · 307 ms, 오래 걸면 OOM 킬) |
-| **실데이터 검증** | 8개 출처 실데이터로 전체 배치를 돌리고 문제 170건을 재현 → 수정 → 회귀 테스트로 고정 (재시작 누락, 좀비 실행, 순액·액면 이중 공시, 공시 오탐, 동시 시작 직렬화 충돌, 자율공시 서식, **부하 중 OOM 킬**, **계정이 바뀐 누적 차분이 만든 오경보**, 종료 순서 때문에 실패하던 캐시 무효화, **코드 리뷰로 찾은 보안 · 데이터 손실 · 경합** …) | [docs/VERIFICATION.md](docs/VERIFICATION.md) |
+| **실데이터 검증** | 8개 출처 실데이터로 전체 배치를 돌리고 문제 171건을 재현 → 수정 → 회귀 테스트로 고정 (재시작 누락, 좀비 실행, 순액·액면 이중 공시, 공시 오탐, 동시 시작 직렬화 충돌, 자율공시 서식, **부하 중 OOM 킬**, **계정이 바뀐 누적 차분이 만든 오경보**, 종료 순서 때문에 실패하던 캐시 무효화, **코드 리뷰로 찾은 보안 · 데이터 손실 · 경합** …) | [docs/VERIFICATION.md](docs/VERIFICATION.md) |
 
 ---
 
@@ -122,7 +122,7 @@ docker compose -f docker-compose.yml -f compose.aws.yml --env-file .env up -d --
 ```
 
 - DB는 db 컨테이너 대신 RDS(`RDS_HOST`, TLS)입니다. PostGIS는 RDS 마스터가 미리 설치하고, 데이터는 로컬 DB를 덤프해 복원합니다.
-- edge는 앞단 프록시가 넘긴 클라이언트 IP를 믿습니다(`ops/nginx/realip.aws.conf`). 공개 주소는 조회 전용이고, 웹훅과 배치 스케줄은 꺼 둡니다.
+- edge는 앞단 프록시가 넘긴 클라이언트 IP를 믿습니다(`ops/nginx/realip.aws.conf`). 공개 주소는 조회 전용이고(화면도 로그인 링크 · 안내를 숨김 — web 의 `BUILDRISK_PUBLIC_DEMO`), 웹훅과 배치 스케줄은 꺼 둡니다.
 - 추가로 필요한 값은 [.env.aws.example](.env.aws.example)에 이름만 있습니다.
 
 ---
@@ -194,7 +194,7 @@ sequenceDiagram
 | 캐시 · 세션 | Redis 7 · 프로세스 안 캐시 | 목록 · 상세 read-through(세대 키 `br:gen` 일괄 무효화) · 세션 · 레이트리밋 · 로그인 잠금 / 지도 경계는 버전별 gzip 바이트 ([ADR-022](docs/adr/022-read-cache.md)) |
 | 화면 | Next.js 16 (Pages Router, 운영 빌드 webpack — [ADR-028](docs/adr/028-nextjs16-bundler.md)) · React 18 · TypeScript · Tailwind · Recharts 3 · 카카오 지도 | 접근성 탭 · 좁은 화면 메뉴 · 역할에 따른 버튼 · CSP · 차트 지연 로드 · 페이지 넘김 · 1·2·5 눈금 |
 | 관측 | Micrometer → Prometheus · Grafana · ECS 구조화 로그 | 관리 포트 8411 분리, 조회 캐시 적중률 지표 ([ADR-018](docs/adr/018-observability.md)) |
-| 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright · **k6** | 백엔드 313개 · 웹 단위 39개 · E2E 47개 · 부하 · 레이트리밋 |
+| 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright · **k6** | 백엔드 313개 · 웹 단위 44개 · E2E 48개 · 부하 · 레이트리밋 |
 | 도구 | Python 3.11 (표준 라이브러리) | 외부 API 키 스모크 · 골든 fixture 캡처 (`tools/smoke.py`) |
 | 운영 · CI | Docker Compose(읽기 전용 · cap_drop · no-new-privileges · **서비스별 메모리 한도** · healthcheck) · nginx(edge) · Makefile · GitHub Actions | 테스트 · gitleaks · **Trivy** · Dependabot ([ADR-021](docs/adr/021-container-memory.md)) |
 | 도입하지 않음 | Kafka/CDC · ClickHouse · Kubernetes | 이유와 도입 조건: [ADR-011](docs/adr/011-out-of-scope-infra.md) |
@@ -308,8 +308,8 @@ R-R01 의 `minUnsoldUnits` 는 구현 중 추가한 파라미터입니다 — �
 ## 7. 테스트 · 측정값
 
 ```bash
-make test        # 백엔드 313개 (단위 · 골든 · 구조 + Testcontainers 통합, javac 경고 = 오류) + 웹 타입 검사 · ESLint · 단위 39개
-make e2e         # Playwright 47개 (스택이 떠 있어야 함, 관리자 로그인 · XFF 위조 시나리오 포함) — 실패하면 트레이스 · 스크린샷이 web/e2e-failures/ 에 남음
+make test        # 백엔드 313개 (단위 · 골든 · 구조 + Testcontainers 통합, javac 경고 = 오류) + 웹 타입 검사 · ESLint · 단위 44개
+make e2e         # Playwright 48개 (스택이 떠 있어야 함, 관리자 로그인 · XFF 위조 시나리오 포함) — 실패하면 트레이스 · 스크린샷이 web/e2e-failures/ 에 남음
 make load        # k6 부하 (50 VU · 90초, edge 경유)
 make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 ```
@@ -329,8 +329,8 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 | 사업장 위치 | `SiteLocationIT` · `SiteAddressResolverTest` | 일반구 실거래와 법정동 · 지번 대조 → 저장 → 카드 API 의 동 시장 값(거래 · 전년 대비 · 해제율 · ㎡당 중위가)을 손 계산과 대조 / 구간 공사 · 읍면 · 리 · 숫자+가 · 건물 번호 |
 | PF 우발채무 | `PfExposureJobIT` · `PfExposureParserTest` · `SectionScannerTest` | Zip 스트리밍 구간 추출(청크 경계 표지) · 정정본만 수집 · 지표 SQL 실제 실행 · 다시 계산하면 갱신 · R-C06 · API 404 / 실제 보고서 11건의 표 모양별 기대값(원문 값과 대조) |
 | 구조 | `ArchitectureTest` · `RuleApiIT` | 기능 모듈 의존 방향(api → app → domain ← data) · domain 이 프레임워크에 기대지 않음 · 모듈 순환 없음 · 쓰기 SQL 은 기능 data 에만 · 검사기 자체가 우회 모양(패키지 이름 통째 · 별칭 · MERGE)을 잡는지 ([ADR-029](docs/adr/029-backend-feature-modules.md)) / 규칙 목록의 버전별 열린 경보 수(OPEN · ACK — 한 번의 조회로 바꾸기 전 동작 고정) |
-| 웹 단위 | node:test (`lib/**/*.test.ts`, `TZ=UTC`) | 순수 함수(표기 · 색 기준 · 눈금 · 변환 · 판정 · 로그인 뒤 이동 주소) · 조회 상태 전이(경로에 묶인 응답 · 이전 값 · 오류) ([ADR-030](docs/adr/030-frontend-layers.md)) |
-| E2E | Playwright | 대시보드 고지 · **사용자별 진입점(찾기 → 상세)** · 지도 · 경보 근거 · **근거 계보 · CSV 내려받기 · API 안내** · **경보 페이지 넘김** · **경보 성적표** · **PF 우발채무** · **사업장 카드** · **알림(종 · 구독 · 내부망 웹훅 거부)** · 배치 모니터 · 테마(다른 탭 포함) · 보안 헤더 · 로그인/권한 · 노출 · 경보 검증 · 탭 키보드 · 좁은 화면 메뉴 · **조회 경합 · 실패 표시**(응답을 붙잡거나 실패시켜 재현 — 옛 숫자에 새 이름표 · 무한 로딩 · 늦은 응답 덮어쓰기) · 카카오 SDK 대역으로 지도 툴팁 |
+| 웹 단위 | node:test (`lib/**/*.test.ts`, `TZ=UTC`) | 순수 함수(표기 · 색 기준 · 눈금 · 변환 · 판정 · 로그인 뒤 이동 주소 · 공개 데모 설정) · 조회 상태 전이(경로에 묶인 응답 · 이전 값 · 오류) ([ADR-030](docs/adr/030-frontend-layers.md)) |
+| E2E | Playwright | 대시보드 고지 · **사용자별 진입점(찾기 → 상세)** · 지도 · 경보 근거 · **근거 계보 · CSV 내려받기 · API 안내** · **경보 페이지 넘김** · **경보 성적표** · **PF 우발채무** · **사업장 카드** · **알림(종 · 구독 · 내부망 웹훅 거부)** · 배치 모니터 · 테마(다른 탭 포함) · 보안 헤더 · 로그인/권한(공개 데모의 조회 전용 안내 포함) · 노출 · 경보 검증 · 탭 키보드 · 좁은 화면 메뉴 · **조회 경합 · 실패 표시**(응답을 붙잡거나 실패시켜 재현 — 옛 숫자에 새 이름표 · 무한 로딩 · 늦은 응답 덮어쓰기) · 카카오 SDK 대역으로 지도 툴팁 |
 
 | 측정 (NFR-06, 로컬 M 시리즈 맥, 실데이터 2026-09-24) | 결과 | 목표 |
 |---|---|---|
@@ -361,7 +361,7 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 | 공시 원문 1,313건 수집·구조화 | 263 s (DART 호출 간격 200 ms 가 천장) · **파서 개정 후 재파싱 3.8 s · 호출 0** | — |
 | 주가 43종목 × 3년 (31,138행) | 27 s (43 호출) | — |
 
-데이터 품질·적재 결과와 실데이터·정적 분석·부하 시험·코드 리뷰 · 배포 리허설로 찾은 문제 170건은 [docs/VERIFICATION.md](docs/VERIFICATION.md).
+데이터 품질·적재 결과와 실데이터·정적 분석·부하 시험·코드 리뷰 · 배포 리허설로 찾은 문제 171건은 [docs/VERIFICATION.md](docs/VERIFICATION.md).
 부하 수치는 다른 프로젝트의 스택이 함께 도는 개발용 맥에서 잰 값이라 절대값은 흔들립니다 — 비교는 같은 날 연달아 잰 값끼리입니다.
 
 ## 8. 설계서 미결정 사항 → 결과
@@ -412,7 +412,7 @@ buildrisk-radar/
 ├─ seed/                     표준계정 · 매핑 규칙 · 업종코드 · 이벤트 사전 · 규칙 · 통계 시리즈 · 지역 별칭
 ├─ tools/smoke.py            외부 API 키 스모크 · 골든 fixture 캡처
 ├─ docs/adr/                 설계 결정 기록 31건
-├─ docs/VERIFICATION.md      실데이터 검증 기록 (적재 결과 · 품질 · 찾아서 고친 문제 170건 · 부하 · 보안 확인)
+├─ docs/VERIFICATION.md      실데이터 검증 기록 (적재 결과 · 품질 · 찾아서 고친 문제 171건 · 부하 · 보안 확인)
 ├─ docker-compose.yml · Makefile · .env.example · .github/ (ci · dependabot)
 ├─ CLAUDE.md · .claude/settings.json   AI 코딩 도구(Claude Code) 작업 안내 · 명령 허용/금지 목록 (.env 읽기 금지)
 ```
