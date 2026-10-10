@@ -6,7 +6,7 @@
 - **4차 (2026-09-27)** — 화면 자동 점검(19개 화면 × 데스크톱·라이트 / 모바일·다크), 실제 스택에서 worker 종료 · 재개, DB 순차 스캔 통계로 점검 (문제 62~75, [아래](#4차-검증-2026-09-27))
 - **5차 (2026-10-08~)** — 경보 성적표 · 우발채무 추적 · 알림을 만들며 실데이터로 점검 (문제 76~104, [아래](#5차-검증-2026-10-08))
 - **6차 (2026-10-09)** — 전체 코드 리뷰(보안 · 데이터 손실 · 구조 · 화면)로 찾은 문제를 심각도 순으로, 끝으로 별도 에이전트의 독립 검토 (문제 105~168, [아래](#6차-검증-2026-10-09-코드-리뷰), 계획 [docs/review](review/2026-10-09-improvement-plan.md))
-- **7차 (2026-10-10)** — AWS 데모 배포(RDS · 앞단 프록시) 로컬 리허설: RDS 흉내(PG 18.6, superuser 아닌 소유자, TLS 강제)에 붙여 재기동 (문제 169, [아래](#7차-검증-2026-10-10-aws-배포-리허설), [ADR-031](adr/031-aws-demo-deployment.md))
+- **7차 (2026-10-10)** — AWS 데모 배포(RDS · 앞단 프록시) 로컬 리허설: RDS 흉내(PG 18.6, superuser 아닌 소유자, TLS 강제)에 붙여 재기동 · 비공개 전환 뒤 CI (문제 169~170, [아래](#7차-검증-2026-10-10-aws-배포-리허설), [ADR-031](adr/031-aws-demo-deployment.md))
 
 각 항목은 가능하면 **재현 테스트를 먼저 쓰고(실패 확인) → 고친 뒤 → 통과**시키는 순서로 처리했습니다.
 
@@ -350,3 +350,4 @@ RDS 처럼 소유자가 superuser 가 아닌 DB(CREATEROLE 만, PostGIS 는 마�
 | # | 증상 | 원인 | 해결 | 고정 · 확인 |
 |---|---|---|---|---|
 | 169 | RDS(소유자가 superuser 아님)에서 api 가 첫 기동은 되고 **두 번째 기동부터 뜨지 않음** — Flyway `afterMigrate` 가 `permission denied to alter role — Only roles with the SUPERUSER attribute may change the SUPERUSER attribute` | 런타임 계정이 이미 있으면 기동마다 `ALTER ROLE … NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION` 을 실행. PG16+ 는 superuser 가 아니면 이 속성을 값과 상관없이 적는 것만으로 거절(REPLICATION · CREATEDB 도 각각 그 속성이 있어야 함). 로컬 · 테스트는 소유자가 컨테이너 superuser 라 드러나지 않음 | 이미 있으면 `LOGIN PASSWORD` 만 맞추고, 속성이 올라가 있을 때만 `NO…` 로 내림(superuser 가 아니면 그 문장에서 실패해 기동이 멈춤 — 최소 권한이 깨진 채 뜨지 않게) | `NonSuperuserOwnerMigrationIT` 1개(CREATEROLE 소유자로 Flyway 두 번 — 수정 전 두 번째에서 위 오류). 리허설: 같은 구성에서 api 재기동 2회 모두 healthy, 런타임 계정 속성 모두 false |
+| 170 | 저장소를 비공개로 돌린 뒤 push 마다 `codeql` 워크플로가 실패(빨간 CI) — 분석은 끝나고 결과 업로드에서 `Resource not accessible by integration` | 비공개 저장소의 code scanning 은 GitHub Code Security 라이선스가 있어야 하는데 개인 계정은 살 수 없음(Team · Enterprise 전용). 업로드만 끄는 우회는 CodeQL 라이선스(오픈소스 코드베이스 · 학술 연구만, 그 밖의 CI 분석은 유료 Advanced Security)에 어긋남 | `codeql.yml` 을 지움. 남는 자동 검사는 gitleaks · Trivy · Dependabot — [ADR-013](adr/013-security.md) 덧붙임 | push 뒤 CI 전부 통과 확인(아래 커밋의 Actions). 다시 공개하면 git 이력에서 워크플로를 되살림 |

@@ -52,7 +52,7 @@ cd web && CAPTURE=1 E2E_CHANNEL=chrome npx playwright test capture   # README �
   CI 는 전체 이력을 보므로 한 번 커밋된 더미는 지문 등록 말고는 지울 수 없음(VERIFICATION 94).
 - 커밋 메시지는 `type(scope): 요약`, **요약은 한국어**. 여러 문제를 한 번에 고친 점검은 VERIFICATION 번호 범위를 적는다
   (예: `fix+perf: 4차 전수 점검 — … (문제 62~75)`). 끝에는 세션이 안내하는 `Co-Authored-By` 줄.
-- **push 는 사용자가 요청할 때.** push 뒤 CI · CodeQL 결과와 열린 보안 경고를 확인한다.
+- **push 는 사용자가 요청할 때.** push 뒤 CI 결과와 열린 보안 경고(Dependabot)를 확인한다. CodeQL 은 저장소를 비공개로 돌리며 뺐다(라이선스 — ADR-013 덧붙임, VERIFICATION 170).
 - Dependabot PR 은 CI 통과를 확인한 뒤 squash 병합. 같은 파일을 고치는 PR 은 하나씩 병합하고, Dependabot 이 다시 맞춘 뒤 다음 것을 병합한다.
 
 ## 알아 둘 함정 (실제로 겪은 것)

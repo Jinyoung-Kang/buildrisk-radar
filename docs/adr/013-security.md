@@ -23,3 +23,10 @@
 레이트리밋 429 · 잘못된 토큰·익명 변경 시도가 감사에 남음 · 감사 로그에 비밀번호 없음.
 
 **하지 않은 것** OAuth2/OIDC(외부 IdP 가 없는 로컬 데모) · MFA · 계정 관리 화면. 운영이면 IdP 연동 + HTTPS 종단(COOKIE_SECURE=true)이 먼저다.
+
+**덧붙임 (2026-10-10) — CI 의 CodeQL 을 뺌**
+저장소를 비공개로 돌린 뒤 CodeQL 이 분석은 끝내고 결과 업로드에서 실패했다(`Resource not accessible by integration`). 비공개 저장소의 code scanning 은
+GitHub Code Security 라이선스가 필요하고 개인 계정(Free · Pro)은 살 수 없다(Team · Enterprise 전용). 업로드만 끄고 분석을 돌리는 방법도 버렸다 —
+CodeQL 라이선스는 공개(오픈소스) 코드베이스 분석과 학술 연구만 허용하고, 그 밖의 CI 분석은 유료 Advanced Security 고객 라이선스가 있어야 한다.
+남는 자동 검사: gitleaks(전체 이력) · Trivy(이미지) · Dependabot. 소스 정적 분석(SAST)은 빠진다 — 지난 CodeQL 경고는 모두 고쳐 두었다(VERIFICATION 38~40 · 96 · 168).
+저장소를 다시 공개하면 `.github/workflows/codeql.yml`(git 이력)을 되살린다. (VERIFICATION 170)
