@@ -1,0 +1,50 @@
+# =============================================================================
+# compose.aws.yml — AWS 데모 배포용 덧붙임 (ADR-031). 로컬 실행에는 쓰지 않습니다.
+#
+#   docker compose -f docker-compose.yml -f compose.aws.yml --env-file .env up -d --build --wait
+#
+# 바뀌는 것
+#   · db 컨테이너 대신 RDS(PostgreSQL 18 + PostGIS 3.6, TLS) — RDS_HOST. PostGIS 는 RDS 마스터가 미리 설치
+#   · Flyway 소유자 비밀번호는 기본값 없이 POSTGRES_PASSWORD 필수 (로컬의 'buildrisk' 기본값을 쓰지 않음)
+#   · edge 가 앞단 Caddy 의 X-Forwarded-For 를 믿음(ops/nginx/realip.aws.conf) → 레이트리밋 · 로그인 잠금이 방문자별
+#   · 공개 데모라 끄는 것: 웹훅(NOTIFY_SECRET_KEY 비움), 배치 스케줄(새벽 일정 — 운영 시간 09–18 밖)
+#   · DB 연결 수를 줄임(RDS db.t4g.micro 한 대를 세 프로젝트가 나눠 씀): Hikari 12 → 4
+# 필요한 값(.env, 이름은 .env.aws.example): RDS_HOST · PUBLIC_ORIGIN · POSTGRES_PASSWORD 외 기존 값
+# =============================================================================
+x-aws-db: &aws-db
+  DATABASE_URL: jdbc:postgresql://${RDS_HOST:?RDS_HOST 필요}:${RDS_PORT:-5432}/buildrisk?sslmode=require
+  SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE: "4"
+  PUBLIC_BASE_URL: ${PUBLIC_ORIGIN:?PUBLIC_ORIGIN 필요 (예 https://dxxxx.cloudfront.net)}
+  NOTIFY_SECRET_KEY: ""
+
+services:
+  db:
+    profiles: ["local-db"]          # RDS를 쓰므로 띄우지 않음
+
+  api:
+    depends_on: !override
+      redis: { condition: service_healthy }
+    environment:
+      <<: *aws-db
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 필요}
+      COOKIE_SECURE: "${COOKIE_SECURE:-true}"
+
+  worker:
+    environment:
+      <<: *aws-db
+      BATCH_SCHEDULING_ENABLED: "false"
+      VWORLD_DOMAIN: ${PUBLIC_ORIGIN}
+
+  batch:
+    depends_on: !override
+      redis: { condition: service_healthy }
+    environment:
+      <<: *aws-db
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 필요}
+      VWORLD_DOMAIN: ${PUBLIC_ORIGIN}
+
+  edge:
+    volumes:
+      - ./ops/nginx/realip.aws.conf:/etc/nginx/edge.d/realip.conf:ro
+    ports: !override
+      - "127.0.0.1:${EDGE_PORT:-3400}:8080"

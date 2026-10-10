@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.aws.example
 web/.env.local
 
 # 빌드 산출물
