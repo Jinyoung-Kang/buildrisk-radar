@@ -12,13 +12,14 @@ java {
 
 repositories { mavenCentral() }
 
-// Trivy 가 찾은 Tomcat 11.0.24 CRITICAL 3건(CVE-2026-65182 · 65905 · 68525) — 고친 버전으로.
-// Boot BOM 이 Gradle platform 이라 버전 속성 대신 해석 규칙으로 올림 (Boot 가 따라오면 이 블록 삭제)
+// Tomcat 11.0.25 까지의 Important 4건(CVE-2026-86350 요청 헤더 뒤섞임 · 76183 · 77791 · 78383, tomcat.apache.org/security-11.html)
+// — 고친 버전으로. Boot BOM 이 Gradle platform 이라 버전 속성 대신 해석 규칙으로 올림 (Boot 가 따라오면 이 블록 삭제,
+// 아래로 내려가면 DependencyFloorTest 가 실패)
 configurations.all {
     resolutionStrategy.eachDependency {
         if (requested.group == "org.apache.tomcat.embed") {
-            useVersion("11.0.25")
-            because("CVE-2026-65182 · CVE-2026-65905 · CVE-2026-68525")
+            useVersion("11.0.26")
+            because("CVE-2026-86350 · CVE-2026-76183 · CVE-2026-77791 · CVE-2026-78383")
         }
     }
 }
