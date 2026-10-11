@@ -65,4 +65,11 @@ class JobRequestRecoveryIT extends IntegrationTest {
         assertThat(String.valueOf(queue.get(noRun).get("message"))).contains("결과를 기록하지 못");
         assertThat(worker.reconcile()).isZero();
     }
+
+    /** 실행 행이 없으면 기다리지 않고 끝남 — 일시적인 DB 오류를 기다리게 하면서(182) '없음'까지 같이 잡아 끝없이 돌았음 (VERIFICATION 211) */
+    @Test
+    void 없는_실행을_기다리면_곧바로_끝난다() {
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(10),
+                () -> assertThat(launcher.awaitFinished(987_654_321L)).isNull());
+    }
 }

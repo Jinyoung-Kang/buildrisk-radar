@@ -411,6 +411,9 @@ public class BatchLauncher {
                 je = repository.getJobExecution(executionId);
                 read = true;
                 failing = false;
+            } catch (EmptyResultDataAccessException e) {
+                je = null;                                   // 실행 행이 없음 — 기다릴 것이 없음 (VERIFICATION 211)
+                read = true;
             } catch (DataAccessException e) {
                 // DB 가 잠깐 끊김 — 실행은 그대로 돌고 있을 수 있으므로 끝난 것으로 보지 않고 계속 기다림 (VERIFICATION 182)
                 if (!failing) log.warn("실행 #{} 상태를 읽지 못해 다시 기다림: {}", executionId, e.getMessage());
