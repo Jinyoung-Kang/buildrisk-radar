@@ -10,6 +10,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.List;
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -76,5 +79,39 @@ class PublicViewIT extends IntegrationTest {
         assertThat(adminRequests.get(0).get("requestedBy").asString()).isEqualTo("admin");
         assertThat(adminRequests.get(0).get("claimedBy").asString()).isEqualTo("worker-1@0123456789ab");
         assertThat(adminRequests.get(0).get("message").asString()).contains("\tat org.postgresql");
+    }
+
+    @Autowired
+    com.buildrisk.radar.batch.support.BatchLauncher launcher;
+
+    /** JSON 의 모든 키 경로 (배열 원소는 []) */
+    private static java.util.Set<String> keys(JsonNode n, String at) {
+        java.util.Set<String> out = new java.util.TreeSet<>();
+        if (n.isObject()) n.properties().forEach(e -> { out.add(at + e.getKey()); out.addAll(keys(e.getValue(), at + e.getKey() + ".")); });
+        else if (n.isArray()) n.forEach(x -> out.addAll(keys(x, at + "[].")));
+        return out;
+    }
+
+    /**
+     * 배치 화면 응답의 모양 고정 — 익명과 관리자의 키가 같고 요청자(requestedBy)만 빠짐. 익명 가림을 허용 목록(fail-closed)으로 바꿔도
+     * 지금 보이는 키는 그대로여야 함 (VERIFICATION 192)
+     */
+    @Test
+    void 익명_배치_응답은_관리자와_같은_키에서_요청자만_빠진다() throws Exception {
+        long exec = launcher.runAndWait("ruleEvalJob", Map.of("restart", false)).getId();
+        jdbc.update("DELETE FROM ops.job_request");
+        jdbc.update("""
+                INSERT INTO ops.job_request (job_name, params, requested_by, status, claimed_by, job_execution_id, batch_status, finished_at, message)
+                VALUES ('ruleEvalJob', '{}', 'admin', 'FAILED', 'worker-1@0123456789ab', ?, 'FAILED', now(), 'x')""", exec);
+        jdbc.update("""
+                INSERT INTO ops.skip_log (job_execution_id, job_name, step_name, item_key, reason_code, message)
+                VALUES (?, 'ruleEvalJob', 'ruleEvalStep', 'k', 'PARSE_ERROR', 'm')""", exec);
+        for (String path : List.of("/api/v1/batch/jobs", "/api/v1/batch/executions", "/api/v1/batch/executions/" + exec, "/api/v1/batch/requests")) {
+            var anon = keys(json(get(path)), "");
+            var admin = keys(json(get(path).header("X-Admin-Token", ADMIN)), "");
+            var expected = new java.util.TreeSet<>(admin);
+            expected.removeIf(k -> k.endsWith("requestedBy"));
+            assertThat(anon).as(path).isEqualTo(expected);
+        }
     }
 }

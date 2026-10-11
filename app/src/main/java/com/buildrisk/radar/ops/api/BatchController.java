@@ -22,6 +22,7 @@ import java.security.Principal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @ApiRole
@@ -80,26 +81,43 @@ public class BatchController {
     public Map<String, Object> request(@PathVariable long id) { return queue.get(id); }
 
     /**
-     * 익명 응답 — 요청한 사람은 빼고, worker 는 별칭(호스트 = 컨테이너 ID 를 숨김), 실패 메시지는 첫 줄만 (VERIFICATION 110).
-     * 실행 요청의 결과 메시지(message)도 같은 규칙 — worker 예외의 스택이 그대로 나갔음 (VERIFICATION 177)
+     * 익명에게 그대로 보이는 키 — 여기 없는 키는 익명 응답에서 빠짐(fail-closed). 사람 · 호스트 · 오류 원문 키는 아래에서 바꿔 보임.
+     * 예전에는 가릴 키만 적어 두어(fail-open) 새 열을 빠뜨리면 그대로 노출됐음(요청 결과 message — VERIFICATION 177).
+     * 새 열을 익명에게 보이려면 여기에 적음 (VERIFICATION 110 · 192)
      */
+    static final Set<String> PUBLIC_KEYS = Set.of(
+            // /jobs
+            "jobs", "workers", "quota", "dartDailyLimit", "schedulingEnabled", "name", "title", "source", "schedule", "requirement",
+            "keyConfigured", "envKey", "running", "queued", "heartbeat", "stale", "last", "provider", "calls",
+            // /executions · /executions/{id}
+            "jobExecutionId", "jobName", "status", "exitCode", "createTime", "startTime", "endTime", "durationSec", "params", "readCount",
+            "writeCount", "filterCount", "commitCount", "skipLogCount", "jobInstanceId", "resolvedBy", "steps", "skips", "runStats",
+            "sameInstance", "stepName", "rollbackCount", "skipCount", "itemKey", "reasonCode", "createdAt",
+            // /requests
+            "requestId", "requestedAt", "batchStatus", "finishedAt");
+
+    /** 익명 응답 — 요청한 사람은 빼고, worker 는 별칭(호스트 = 컨테이너 ID 를 숨김), 실패 메시지는 첫 줄만, 모르는 키는 뺌 */
     @SuppressWarnings("unchecked")
     private static <T> T anonymize(T body) {
-        return Viewer.signedIn() ? body : (T) mask(body);
+        return Viewer.signedIn() ? body : (T) anonymous(body);
     }
 
-    private static Object mask(Object node) {
+    static Object anonymous(Object node) {
         if (node instanceof Map<?, ?> m) {
             Map<String, Object> out = new LinkedHashMap<>();
-            m.forEach((k, v) -> out.put(String.valueOf(k), switch (String.valueOf(k)) {
-                case "requestedBy" -> null;
-                case "claimedBy", "workerId" -> Viewer.alias((String) v);
-                case "exitMessage", "message" -> Viewer.firstLine((String) v);
-                default -> mask(v);
-            }));
+            m.forEach((k, v) -> {
+                String key = String.valueOf(k);
+                switch (key) {
+                    case "claimedBy", "workerId" -> out.put(key, Viewer.alias((String) v));
+                    case "exitMessage", "message" -> out.put(key, Viewer.firstLine((String) v));
+                    default -> {
+                        if (PUBLIC_KEYS.contains(key)) out.put(key, anonymous(v));
+                    }
+                }
+            });
             return out;
         }
-        if (node instanceof List<?> l) return l.stream().map(BatchController::mask).toList();
+        if (node instanceof List<?> l) return l.stream().map(BatchController::anonymous).toList();
         if (node instanceof WorkerRegistry.Worker w) {
             return new WorkerRegistry.Worker(Viewer.alias(w.workerId()), w.startedAt(), w.lastSeenAt(), w.configuredKeys(),
                     w.inFlight(), w.maxConcurrent(), w.live());
