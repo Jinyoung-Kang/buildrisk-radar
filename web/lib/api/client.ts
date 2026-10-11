@@ -39,9 +39,20 @@ export async function api<T>(path: string, init?: RequestInit, retried = false):
       await fetch("/api/v1/auth/me", { credentials: "same-origin" });
       return api<T>(path, init, true);
     }
-    throw new ApiError(res.status, body?.code ?? "ERROR", body?.message ?? res.statusText, body?.traceId);
+    throw new ApiError(res.status, body?.code ?? "ERROR", errorMessage(res.status, res.statusText, body), body?.traceId);
   }
   return body as T;
+}
+
+/**
+ * 오류 메시지 — 앱의 {message} → 앞단(프록시)의 {error} → 상태 문구 → 'HTTP 상태'. 비면 화면이 아무 안내 없이 지나감:
+ * 공개 데모 앞단은 {"error": …} 403 을 주고, HTTP/2(CloudFront)는 statusText 가 비어 있음 (VERIFICATION 195)
+ */
+function errorMessage(status: number, statusText: string, body: any): string { // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (typeof body?.message === "string" && body.message) return body.message;
+  if (typeof body?.error === "string" && body.error) return body.error;
+  if (statusText) return `${statusText} (HTTP ${status})`;
+  return status >= 500 ? `서버에 잠시 닿지 못했습니다 (HTTP ${status})` : `요청을 처리하지 못했습니다 (HTTP ${status})`;
 }
 
 /** 변경 요청 (POST · PUT · PATCH · DELETE) — 로그인 세션 + CSRF */

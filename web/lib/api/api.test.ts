@@ -48,6 +48,16 @@ describe("client", () => {
     assert.equal(called, 0);
   });
 
+  it("오류 본문에 message 가 없어도 빈 메시지가 아님 — 앞단의 {error} · HTTP/2 의 빈 statusText (VERIFICATION 195)", async () => {
+    // 공개 데모 앞단(Caddy)은 로그인 POST 에 {"error":"조회 전용 데모입니다"} 403 을 주고, CloudFront(HTTP/2)는 statusText 가 비어 있음
+    globalThis.fetch = (async () => new Response(JSON.stringify({ error: "조회 전용 데모입니다" }), { status: 403, statusText: "" })) as typeof fetch;
+    await assert.rejects(api("/auth/login", { method: "POST" }), (e: unknown) => e instanceof ApiError && e.status === 403 && e.message === "조회 전용 데모입니다");
+    globalThis.fetch = (async () => new Response("<html>bad gateway</html>", { status: 502, statusText: "" })) as typeof fetch;
+    await assert.rejects(api("/alerts"), (e: unknown) => e instanceof ApiError && e.status === 502 && e.message.includes("502") && e.code === "ERROR");
+    globalThis.fetch = (async () => new Response(JSON.stringify({ code: "FORBIDDEN", message: "권한 없음" }), { status: 403 })) as typeof fetch;
+    await assert.rejects(api("/rules/R-C01", { method: "PUT" }), (e: unknown) => e instanceof ApiError && e.code === "FORBIDDEN" && e.message === "권한 없음");
+  });
+
   it("CSRF 토큰이 만료되면(403 CSRF_INVALID) 새로 받아 한 번만 다시 보냄", async () => {
     const calls: string[] = [];
     globalThis.fetch = (async (url: string, init?: RequestInit) => {

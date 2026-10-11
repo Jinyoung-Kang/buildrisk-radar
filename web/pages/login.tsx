@@ -5,6 +5,7 @@ import { Card, Prose } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { safeNext } from "@/lib/domain/nav";
 import { useAuth } from "@/lib/auth";
+import { useDemo } from "@/lib/hooks/useSiteConfig";
 
 export default function Login() {
   const { login } = useAuth();
@@ -13,6 +14,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const demo = useDemo();
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -22,7 +24,7 @@ export default function Login() {
       await login(username.trim(), password);
       router.replace(safeNext(router.query.next, window.location.origin));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "로그인하지 못했습니다.");
+      setError(err instanceof ApiError && err.message ? err.message : "로그인하지 못했습니다.");
       setPassword("");
     } finally {
       setBusy(false);
@@ -45,6 +47,7 @@ export default function Login() {
                 required maxLength={200} className="mt-1 w-full bg-raised border border-line rounded-md px-3 py-2 focus-ring" />
             </label>
             {error && <p role="alert" className="text-sm text-bad">{error}</p>}
+            {demo && <p className="text-xs text-muted"><Prose text="공개 데모 주소에서는 조회만 됩니다(로그인 요청은 앞단에서 막힘). 로그인은 관리 주소에서만 됩니다." /></p>}
             <button disabled={busy || !username || !password}
               className="w-full py-2 rounded-md bg-accent text-white disabled:opacity-50 focus-ring">{busy ? "확인 중…" : "로그인"}</button>
             <p className="text-xs text-muted leading-relaxed">
