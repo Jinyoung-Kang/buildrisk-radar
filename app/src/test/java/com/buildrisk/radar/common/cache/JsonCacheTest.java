@@ -8,8 +8,10 @@ import org.springframework.data.redis.core.ValueOperations;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -56,5 +58,57 @@ class JsonCacheTest {
         verify(ops, timeout(3_000).times(3)).increment("br:gen");                // 뒤에서 다시 시도해 성공
         verify(ops, after(300).times(3)).increment("br:gen");                    // 성공한 뒤에는 멈춤
     }
-}
 
+    /**
+     * 같은 키를 동시에 부르면 프로세스 안에서 한 번만 계산하고 나머지는 그 결과를 받음 — 무효화 직후 성적표(0.4~0.7초)를 동시 요청이
+     * 각자 다시 계산해 연결 풀(AWS 4)을 나눠 먹었음(동시 20요청 = 계산 20번) (VERIFICATION 194). 실패하면 기다리던 쪽도 같은 예외
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void 같은_키의_동시_계산은_한_번만_하고_결과와_실패를_나눠_받는다() throws Exception {
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> ops = mock(ValueOperations.class);
+        when(redis.opsForValue()).thenReturn(ops);
+        when(ops.get(anyString())).thenReturn(null);
+        JsonCache cache = new JsonCache(redis, JsonMapper.builder().build(), new SimpleMeterRegistry());
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        var release = new java.util.concurrent.CountDownLatch(1);
+        java.util.function.Supplier<String> slow = () -> {
+            calls.incrementAndGet();
+            try {
+                release.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return "v";
+        };
+        try (var pool = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var futures = new java.util.ArrayList<java.util.concurrent.Future<String>>();
+            for (int i = 0; i < 8; i++) futures.add(pool.submit(() -> cache.get("same", Duration.ofMinutes(1), String.class, slow)));
+            Thread.sleep(200);                                                   // 모두 계산 중인 첫 요청을 기다리는 상태
+            release.countDown();
+            for (var f : futures) assertThat(f.get()).isEqualTo("v");
+        }
+        assertThat(calls.get()).isEqualTo(1);
+
+        var failing = new java.util.concurrent.CountDownLatch(1);
+        java.util.function.Supplier<String> boom = () -> {
+            try {
+                failing.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            throw new IllegalStateException("계산 실패");
+        };
+        try (var pool = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var a = pool.submit(() -> cache.get("bad", Duration.ofMinutes(1), String.class, boom));
+            var b = pool.submit(() -> cache.get("bad", Duration.ofMinutes(1), String.class, boom));
+            Thread.sleep(200);
+            failing.countDown();
+            for (var f : List.of(a, b)) {
+                assertThatThrownBy(f::get).hasCauseInstanceOf(IllegalStateException.class).hasMessageContaining("계산 실패");
+            }
+        }
+        assertThat(cache.get("bad", Duration.ofMinutes(1), String.class, () -> "다시")).isEqualTo("다시");   // 실패는 남지 않음
+    }
+}

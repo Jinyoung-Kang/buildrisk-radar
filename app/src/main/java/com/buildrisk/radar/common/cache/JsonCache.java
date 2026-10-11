@@ -18,6 +18,9 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -35,6 +38,9 @@ public class JsonCache {
     private final ObjectMapper mapper;
     private final Counter hits;
     private final Counter misses;
+    private final Counter shared;
+    /** 계산 중인 키 → 그 결과 (같은 키의 동시 계산을 하나로) */
+    private final ConcurrentHashMap<String, CompletableFuture<Object>> inflight = new ConcurrentHashMap<>();
     private final Counter errors;
     private volatile long lastWarn;
     /** 세대를 올리지 못한 무효화 — Redis 가 돌아온 뒤 첫 조회 전에 다시 올림 */
@@ -54,13 +60,15 @@ public class JsonCache {
         this.mapper = mapper;
         this.hits = counter(registry, "hit");
         this.misses = counter(registry, "miss");
+        this.shared = counter(registry, "shared");
         this.errors = counter(registry, "error");
         this.retryDelay = retryDelay;
     }
 
     private static Counter counter(MeterRegistry registry, String result) {
         return Counter.builder("buildrisk.cache.requests").tag("cache", "redis").tag("result", result)
-                .description("조회 캐시 요청 (hit · miss · error = Redis 불가로 캐시 없이 조회)").register(registry);
+                .description("조회 캐시 요청 (hit · miss · shared = 같은 키를 계산 중인 요청의 결과를 받음 · error = Redis 불가로 캐시 없이 조회)")
+                .register(registry);
     }
 
     public <T> T get(String key, Duration ttl, Class<T> type, Supplier<T> loader) {
@@ -97,14 +105,41 @@ public class JsonCache {
             warn(e);
             return loader.get();
         }
-        misses.increment();
-        T value = loader.get();
-        try {
-            if (value != null && storeIf.test(value)) redis.opsForValue().set(full, mapper.writeValueAsString(value), ttl);
-        } catch (RuntimeException e) {
-            warn(e);
+        // 같은 키를 이미 계산 중이면 그 결과를 기다림 — 무효화 직후 무거운 조회(성적표 0.4~0.7초)를 동시 요청이 각자 다시 계산해
+        // 연결 풀(AWS 4)을 나눠 먹었음: 동시 20요청 = 계산 20번 (VERIFICATION 194). 프로세스 안에서만(다른 인스턴스와는 나누지 않음)
+        CompletableFuture<Object> mine = new CompletableFuture<>();
+        CompletableFuture<Object> running = inflight.putIfAbsent(full, mine);
+        if (running != null) {
+            shared.increment();
+            return join(running);
         }
-        return value;
+        misses.increment();
+        try {
+            T value = loader.get();
+            try {
+                if (value != null && storeIf.test(value)) redis.opsForValue().set(full, mapper.writeValueAsString(value), ttl);
+            } catch (RuntimeException e) {
+                warn(e);
+            }
+            mine.complete(value);
+            return value;
+        } catch (RuntimeException | Error e) {
+            mine.completeExceptionally(e);
+            throw e;
+        } finally {
+            inflight.remove(full, mine);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T join(CompletableFuture<Object> running) {
+        try {
+            return (T) running.join();
+        } catch (CompletionException e) {
+            if (e.getCause() instanceof RuntimeException re) throw re;
+            if (e.getCause() instanceof Error err) throw err;
+            throw e;
+        }
     }
 
     /**
