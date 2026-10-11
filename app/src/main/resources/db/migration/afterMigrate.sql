@@ -14,6 +14,9 @@ BEGIN
         RAISE NOTICE 'approle 미설정 — 최소 권한 계정 생략';
         RETURN;
     END IF;
+    -- 동시에 기동한 프로세스(api · 단독 batch)를 줄 세움 — Flyway 는 이 콜백을 마이그레이션 잠금 밖에서 돌려, 같은 역할 · 권한을
+    -- 동시에 고치다 'tuple concurrently updated' 로 진 쪽이 뜨지 않았음 (VERIFICATION 188). 트랜잭션이 끝나면 풀림
+    PERFORM pg_advisory_xact_lock(hashtext('buildrisk:afterMigrate'));
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = app) THEN
         EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION', app, pw);
     ELSE

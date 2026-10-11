@@ -58,5 +58,24 @@ class NonSuperuserOwnerMigrationIT extends IntegrationTest {
         try (Connection app = DriverManager.getConnection(jdbcUrl(DB), APP, APP_PASSWORD); var st = app.createStatement()) {
             st.execute("SELECT count(*) FROM ref.company");                // 권한도 그대로
         }
+
+        // api 와 단독 batch 가 동시에 기동해도 afterMigrate 가 서로 막지 않음 — Flyway 는 콜백을 잠금 밖에서 돌려, 같은 역할 · 권한을
+        // 동시에 고치다 'tuple concurrently updated' 로 진 쪽이 뜨지 않았음(PG18 실험 120회 중 50회) (VERIFICATION 188)
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(3);
+        try {
+            for (int round = 0; round < 8; round++) {
+                var runs = new java.util.ArrayList<java.util.concurrent.Future<?>>();
+                for (int i = 0; i < 3; i++) runs.add(pool.submit(() -> { flyway.migrate(); return null; }));
+                for (var f : runs) {
+                    try {
+                        f.get();
+                    } catch (Exception e) {
+                        throw new AssertionError("동시 migrate " + (round + 1) + "회차 실패: " + e.getCause(), e);
+                    }
+                }
+            }
+        } finally {
+            pool.shutdownNow();
+        }
     }
 }
