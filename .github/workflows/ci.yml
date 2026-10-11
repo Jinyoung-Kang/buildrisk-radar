@@ -3,6 +3,10 @@ on:
   push:
   pull_request:
 
+# 기본은 읽기만 — 쓰기가 필요한 잡(의존성 그래프 제출)만 따로 올림
+permissions:
+  contents: read
+
 jobs:
   app:
     name: Spring Boot · 단위·통합 테스트 (Testcontainers)
@@ -12,7 +16,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
         with: { distribution: temurin, java-version: "25" }
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6  # v6.4.0
       - name: 테스트 (PostGIS·Redis 컨테이너 + WireMock)
         run: ./gradlew test --no-daemon
       - name: 테스트 리포트
@@ -21,6 +25,21 @@ jobs:
         with: { name: app-test-report, path: app/build/reports/tests/test }
       - name: bootJar
         run: ./gradlew bootJar -x test --no-daemon
+
+  # Gradle 은 GitHub 가 정적으로 읽지 못해, 제출하지 않으면 JVM 의존성에 Dependabot 취약점 경고가 오지 않음
+  # (의존성 그래프에 maven 0개 — Tomcat · Jackson High 가 경고 없이 남았음, VERIFICATION 180). main 에 push 할 때만
+  dependency-graph:
+    name: Gradle 의존성 그래프 제출 (Dependabot 경고)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with: { distribution: temurin, java-version: "25" }
+      - uses: gradle/actions/dependency-submission@3f5f9adaf7d9fecd50b5935e54106014257a94e6  # v6.4.0
+        with: { build-root-directory: app }
 
   web:
     name: Next.js · 타입 검사·빌드
@@ -52,7 +71,8 @@ jobs:
       - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - name: gitleaks
-        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest git /repo --no-banner --redact -v --gitleaks-ignore-path /repo/.gitleaksignore
+        # 버전 고정 — 저장소 전체 이력을 마운트해 돌리므로 바뀌는 태그(latest)를 쓰지 않음
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --no-banner --redact -v --gitleaks-ignore-path /repo/.gitleaksignore
 
   images:
     name: Docker 이미지 빌드 · 취약점 검사 (Trivy)
@@ -65,7 +85,7 @@ jobs:
       GRAFANA_ADMIN_PASSWORD: ci-only
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4.4.1
       - run: docker compose build api web
       - name: Trivy — app 이미지 (고칠 수 있는 CRITICAL 이 있으면 실패)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
