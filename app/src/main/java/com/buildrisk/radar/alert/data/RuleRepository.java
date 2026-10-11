@@ -70,4 +70,14 @@ public class RuleRepository {
                 rs.getString(4), rs.getString(5), mapper.readValue(rs.getString(6), MAP), rs.getString(7), rs.getBoolean(8));
         return new Version(d, rs.getString(9), rs.getString(10), rs.getObject(11, OffsetDateTime.class));
     }
+
+    /** seed/rules.yml 의 규칙 — 그 코드가 DB 에 없을 때만 버전 1 로 (이후 변경은 API → 새 버전). 넣었으면 1. paramsJson: jsonb 로 넣을 JSON */
+    public int insertSeedRuleIfMissing(String code, String targetType, String nameKo, String description, String paramsJson, String severity) {
+        return jdbc.sql("""
+                        INSERT INTO risk.rule (rule_code, version, target_type, name_ko, description, params, severity, enabled, change_note)
+                        SELECT :code, 1, :target, :name, :descr, cast(:params AS jsonb), :sev, true, 'seed/rules.yml 초기값'
+                        WHERE NOT EXISTS (SELECT 1 FROM risk.rule WHERE rule_code = :code)""")
+                .param("code", code).param("target", targetType).param("name", nameKo).param("descr", description)
+                .param("sev", severity).param("params", paramsJson).update();
+    }
 }

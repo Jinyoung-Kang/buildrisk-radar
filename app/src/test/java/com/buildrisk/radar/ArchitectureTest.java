@@ -159,6 +159,27 @@ class ArchitectureTest {
         assertThat(found).as("기능의 api · app · domain 에 쓰기 SQL").isEmpty();
     }
 
+    /** 쓰기 SQL 의 대상 테이블(스키마.테이블) */
+    static final Pattern WRITE_TARGET = Pattern.compile(
+            "(?i)\\b(?:INSERT\\s+INTO|UPDATE|DELETE\\s+FROM|MERGE\\s+INTO|TRUNCATE\\s+(?:TABLE\\s+)?)\\s+([a-z_]+\\.[a-z_]+)");
+
+    /**
+     * 바깥 계층(adapters · batch · common)은 운영 기반 테이블(ops.* — 실행 큐 · 실행 기록 · 감사 · 호출 수)에만 씀. 기능 테이블은 그 기능의
+     * data 저장소로 — 바깥 계층을 검사하지 않아 seed 적재가 기능 테이블 5개에 직접 썼고, 같은 테이블의 쓰기가 두 곳에서 달리 동작했음
+     * (계정 매핑 규칙: VERIFICATION 185 · 191)
+     */
+    @Test
+    void 바깥_계층은_ops_테이블에만_쓴다() throws IOException {
+        List<String> found = new ArrayList<>();
+        for (Source s : sources()) {
+            if (!OUTER.contains(where(s.pkg())[0])) continue;
+            String code = s.code().replaceAll("(?s)/\\*.*?\\*/", " ").replaceAll("//[^\\n]*", " ");
+            Matcher m = WRITE_TARGET.matcher(code);
+            while (m.find()) if (!m.group(1).toLowerCase(java.util.Locale.ROOT).startsWith("ops.")) found.add(s.pkg() + "." + s.cls() + " → " + m.group(1));
+        }
+        assertThat(found).as("바깥 계층이 기능 테이블에 씀 — 그 기능의 data 저장소로").isEmpty();
+    }
+
     @Test
     void 기능_모듈_사이에_순환이_없다() throws IOException {
         // 기능 → 기능 의존 그래프에서 순환을 찾음

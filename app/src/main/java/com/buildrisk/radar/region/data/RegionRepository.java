@@ -195,4 +195,18 @@ public class RegionRepository {
     }
 
     public int count() { return jdbc.sql("SELECT count(*) FROM ref.region").query(Integer.class).single(); }
+
+    /** 통계 시리즈 정의(seed/stat_series.yml) — 파일 기준으로 UPSERT. paramsJson: jsonb 로 넣을 JSON 문자열 */
+    public int upsertStatSeries(String seriesId, String source, String sourceTable, String sourceItem, String statCode, String nameKo,
+                                String unit, String cycle, String agg, String paramsJson) {
+        return jdbc.sql("""
+                        INSERT INTO mkt.stat_series (series_id, source, source_table, source_item, stat_code, name_ko, unit, cycle, agg, params)
+                        VALUES (:id, :src, :tbl, :itm, :stat, :name, :unit, :cycle, :agg, cast(:params AS jsonb))
+                        ON CONFLICT (series_id) DO UPDATE SET source = EXCLUDED.source, source_table = EXCLUDED.source_table,
+                          source_item = EXCLUDED.source_item, stat_code = EXCLUDED.stat_code, name_ko = EXCLUDED.name_ko,
+                          unit = EXCLUDED.unit, cycle = EXCLUDED.cycle, agg = EXCLUDED.agg, params = EXCLUDED.params""")
+                .param("id", seriesId).param("src", source).param("tbl", sourceTable).param("itm", sourceItem).param("stat", statCode)
+                .param("name", nameKo).param("unit", unit).param("cycle", cycle).param("agg", agg).param("params", paramsJson)
+                .update();
+    }
 }

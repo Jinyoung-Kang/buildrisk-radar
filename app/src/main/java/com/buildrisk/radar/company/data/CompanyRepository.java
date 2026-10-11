@@ -97,4 +97,12 @@ public class CompanyRepository {
                        count(*) FILTER (WHERE is_target AND induty_code IS NULL) AS targets_without_induty
                 FROM ref.company""").query().singleRow();
     }
+
+    /** 유니버스 수동 포함 · 제외(seed/universe_overrides.yml) — 파일 기준으로 통째로 바꿈 */
+    public void replaceUniverseOverrides(Map<String, Boolean> overrides) {
+        jdbc.sql("DELETE FROM ref.universe_override").update();
+        overrides.forEach((corp, include) -> jdbc.sql(
+                        "INSERT INTO ref.universe_override (corp_code, include, note) VALUES (:c, :i, 'seed/universe_overrides.yml')")
+                .param("c", corp).param("i", include).update());
+    }
 }

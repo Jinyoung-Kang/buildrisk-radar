@@ -216,4 +216,40 @@ public class FsRepository {
                         rs.getString(5), rs.getBigDecimal(6), rs.getString(7), rs.getString(8), rs.getString(9),
                         rs.getString(10))).list();
     }
+
+    // ---------------------------------------------------------------- seed 동기화 (ops.app.SeedLoader)
+
+    public int upsertStdAccount(String stdCode, String nameKo, String sjDiv, String flowType, String agg, int sortOrder) {
+        return jdbc.sql("""
+                        INSERT INTO ref.std_account (std_code, name_ko, sj_div, flow_type, agg, sort_order)
+                        VALUES (:c, :n, :s, :f, :a, :o)
+                        ON CONFLICT (std_code) DO UPDATE SET name_ko = EXCLUDED.name_ko, sj_div = EXCLUDED.sj_div,
+                          flow_type = EXCLUDED.flow_type, agg = EXCLUDED.agg, sort_order = EXCLUDED.sort_order""")
+                .param("c", stdCode).param("n", nameKo).param("s", sjDiv).param("f", flowType).param("a", agg)
+                .param("o", sortOrder).update();
+    }
+
+    /** seed 파일의 매핑 규칙 — 같은 키(sj_div NULL 포함)가 있으면 우선순위 · 부호 · 메모 · 구간을 맞추고, 없으면 SEED 로 추가. 추가했으면 1 */
+    public int syncSeedMapRule(String stdCode, String sjDiv, String matchType, String pattern, int priority, boolean absValue,
+                               String note, String section) {
+        int updated = jdbc.sql("""
+                        UPDATE ref.account_map SET priority = :p, abs_value = :abs, note = :note, section = :sec
+                        WHERE std_code = :c AND match_type = :t AND pattern = :pat AND sj_div IS NOT DISTINCT FROM :sj""")
+                .param("c", stdCode).param("sj", sjDiv).param("t", matchType).param("pat", pattern).param("p", priority)
+                .param("abs", absValue).param("note", note).param("sec", section).update();
+        if (updated > 0) return 0;
+        return jdbc.sql("""
+                        INSERT INTO ref.account_map (std_code, sj_div, match_type, pattern, priority, abs_value, origin, note, section)
+                        VALUES (:c, :sj, :t, :pat, :p, :abs, 'SEED', :note, :sec)""")
+                .param("c", stdCode).param("sj", sjDiv).param("t", matchType).param("pat", pattern).param("p", priority)
+                .param("abs", absValue).param("note", note).param("sec", section).update();
+    }
+
+    public record SeedMapKey(int mapId, String stdCode, String sjDiv, String matchType, String pattern) {}
+
+    public List<SeedMapKey> seedMapRules() {
+        return jdbc.sql("SELECT map_id, std_code, sj_div, match_type, pattern FROM ref.account_map WHERE origin = 'SEED'")
+                .query((rs, i) -> new SeedMapKey(rs.getInt(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5)))
+                .list();
+    }
 }
