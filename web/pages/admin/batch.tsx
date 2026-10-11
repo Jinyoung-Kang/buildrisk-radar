@@ -11,9 +11,9 @@ import { useApi } from "@/lib/hooks/useApi";
 import { usePolling } from "@/lib/hooks/usePolling";
 import * as opsApi from "@/lib/api/ops";
 
-function ExecutionDetail({ id }: { id: number }) {
-  const { data, error } = useApi(opsApi.batchExecution(id));
-  if (error) return <ErrorBox error={error} />;
+/** 실행 상세 — 조회는 페이지가 가짐(폴링에 같이 넣으려고). 표시만 */
+function ExecutionDetail({ data, error }: { data: Row | null; error: Error | null }) {
+  if (error && !data) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
   const changed = changedRows(data.runStats);
   return (
@@ -101,11 +101,14 @@ export default function Batch() {
   const [filter, setFilter] = useState("");
   const execs = useApi(opsApi.batchExecutions(filter));
   const [sel, setSel] = useState<number | null>(null);
+  const detail = useApi(sel ? opsApi.batchExecution(sel) : null);
+  // 고른 실행이 아직 도는 중이면 상세도 같이 다시 부름 — 목록만 갱신되고 상세는 처음 값에 멈춰 있었음 (VERIFICATION 198)
+  const detailRunning = ["STARTING", "STARTED", "STOPPING"].includes(String(detail.data?.status));
   const action = useAction();
   const [msg, setMsg] = useState<string | null>(null);
   const anyRunning = (jobs.data?.jobs as Row[] | undefined)?.some((j) => j.running || j.queued);
   // 실행 중이거나 대기 중인 Job 이 있으면 3초마다, 탭이 보일 때만
-  usePolling(() => { jobs.reload(); execs.reload(); requests.reload(); }, 3000, !!anyRunning);
+  usePolling(() => { jobs.reload(); execs.reload(); requests.reload(); if (detailRunning) detail.reload(); }, 3000, !!anyRunning || detailRunning);
   const launch = (name: string, fresh = false) => {
     setMsg(null);
     return action.run(() => opsApi.launchJob(name, fresh), (r) => {
@@ -192,7 +195,7 @@ export default function Batch() {
           )}
         </Card>
         <div className="space-y-4">
-          <Card title="실행 상세">{sel ? <ExecutionDetail key={sel} id={sel} /> : <Empty>실행을 고르면 Step·스킵 목록이 보입니다.</Empty>}</Card>
+          <Card title="실행 상세">{sel ? <ExecutionDetail data={detail.data} error={detail.error} /> : <Empty>실행을 고르면 Step·스킵 목록이 보입니다.</Empty>}</Card>
           <Card title="실행 요청 큐" sub="요청자 · 가져간 worker · 결과 (스케줄러 · 체인 요청 포함)" pad={false}>
             <ErrorBox error={requests.error} />
             {requests.error ? null : !requests.data ? <Loading /> : requests.data.length === 0 ? <Empty>요청이 없습니다.</Empty> : (

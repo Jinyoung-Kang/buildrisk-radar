@@ -121,6 +121,25 @@ test("규칙 · 매핑 · 성적표 · 주가 반응 · 감사 · 알림 화면�
   }
 });
 
+test("실행 중인 Job 의 상세를 열어 두면 상세도 폴링으로 갱신 (VERIFICATION 198)", async ({ page }) => {
+  // 목록은 3초마다 다시 부르는데 상세는 처음 값(실행 중 · 그때 건수)에 멈춰 있었음
+  const job = { name: "ruleEvalJob", title: "규칙 평가", source: "DB", schedule: "-", requirement: "-", keyConfigured: true,
+    running: true, heartbeat: "2026-10-11T12:00:00", stale: false, last: { jobExecutionId: 999, status: "STARTED", startTime: "2026-10-11T11:59:00", endTime: "null" } };
+  await page.route("**/api/v1/batch/jobs", (route) => route.fulfill({ json: { jobs: [job], workers: [], quota: [], dartDailyLimit: 15000, schedulingEnabled: false } }));
+  await page.route("**/api/v1/batch/executions?*", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/batch/requests?*", (route) => route.fulfill({ json: [] }));
+  let detail = 0;
+  await page.route("**/api/v1/batch/executions/999", (route) => {
+    detail++;
+    return route.fulfill({ json: { jobExecutionId: 999, jobName: "ruleEvalJob", status: "STARTED", durationSec: 60, params: "", steps: [], skips: [], sameInstance: [] } });
+  });
+  await page.goto("/admin/batch");
+  await page.getByRole("button", { name: /실행 중|STARTED/ }).first().click();
+  await expect.poll(() => detail, { timeout: 3_000 }).toBeGreaterThanOrEqual(1);
+  await page.waitForTimeout(7_000);                                   // 폴링 3초 × 2
+  expect(detail).toBeGreaterThanOrEqual(2);
+});
+
 test("경보 확인 뒤 목록을 다시 불러오다 실패해도 보이던 목록은 남음 (VERIFICATION 167)", async ({ page }) => {
   // 163 에서 오류면 목록을 숨기게 해, 같은 조건을 다시 부르다 실패하면(이전 값은 남겨 둠) 행 없이 쪽 넘김만 남았음
   await page.route("**/api/v1/auth/me", (route) => route.fulfill({ json: { authenticated: true, username: "e2e", roles: ["ANALYST"] } }));
