@@ -181,6 +181,21 @@ class CacheKeyIT extends IntegrationTest {
         assertThat(gen.get()).as("매핑 규칙 삭제").isNotEqualTo(g2);
     }
 
+    /**
+     * 종목코드가 없는(비상장) 기업의 주가는 빈 결과 — 종목코드가 NULL 인 행을 '행 없음'으로 읽어 404 '기업을 찾을 수 없습니다'가 났음.
+     * 없는 기업은 그대로 404 (VERIFICATION 190)
+     */
+    @Test
+    void 비상장_기업의_주가는_404_가_아니라_빈_결과() throws Exception {
+        jdbc.update("""
+                INSERT INTO ref.company (corp_code, corp_name, stock_code, corp_cls, induty_code, is_target, target_reason)
+                VALUES ('00000107', '비상장건설', NULL, 'E', '41221', false, NULL)""");
+        mvc.perform(get("/api/v1/companies/00000107/prices")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.bars").isEmpty()).andExpect(jsonPath("$.stockCode").doesNotExist());
+        mvc.perform(get("/api/v1/companies/09999999/prices")).andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("COMPANY_NOT_FOUND"));
+    }
+
     @Test
     void 무효화하면_지난_세대의_키를_지운다() throws Exception {
         company("00000104", "캐시건설");

@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** 수주·보증 노출(기업 × 지역 교차) · 주가 조회 (ADR-016 · 017) */
 @Service
@@ -198,9 +199,11 @@ public class ExposureService {
     }
 
     public Prices prices(String corpCode, int days) {
+        // 행 없음(404)과 종목코드 없음(비상장 — 빈 결과)을 구별: query(String.class).optional() 은 NULL 값도 '없음'으로 봐 비상장 기업이 404 였음 (VERIFICATION 190)
         String stock = jdbc.sql("SELECT stock_code FROM ref.company WHERE corp_code = :c").param("c", corpCode)
-                .query(String.class).optional()
-                .orElseThrow(() -> ApiException.notFound(ErrorCode.COMPANY_NOT_FOUND, "기업 " + corpCode));
+                .query((rs, i) -> Optional.ofNullable(rs.getString(1))).optional()
+                .orElseThrow(() -> ApiException.notFound(ErrorCode.COMPANY_NOT_FOUND, "기업 " + corpCode))
+                .orElse(null);
         if (stock == null) return new Prices(corpCode, null, List.of(), List.of(), null);
         LocalDate from = LocalDate.now(Kst.ZONE).minusDays(days);
         var bars = stocks.bars(stock, from).stream()
