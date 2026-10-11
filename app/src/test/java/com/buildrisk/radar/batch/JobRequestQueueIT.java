@@ -77,6 +77,18 @@ class JobRequestQueueIT extends IntegrationTest {
         jdbc.update("DELETE FROM ops.worker WHERE worker_id <> ?", self);
     }
 
+    /** 실패 메시지(worker 의 예외 메시지 원문)도 저장할 때 인증키를 가림 — 공개 조회에 그대로 나갔음 (VERIFICATION 177) */
+    @Test
+    void 요청_결과_메시지는_인증키를_가려_저장한다() {
+        long id = jdbc.queryForObject("""
+                INSERT INTO ops.job_request (job_name, params, requested_by, status, claimed_by)
+                VALUES ('pfExposureJob', '{}', 't', 'RUNNING', 'gone') RETURNING request_id""", Long.class);
+        queue.finished(new JobRequestService.Request(id, "pfExposureJob", Map.of(), "t", "RUNNING", null, null, null), "FAILED", null,
+                "I/O error on GET request for \"https://opendart.fss.or.kr/api/list.json?crtfc_key=abcd1234efgh&corp_code=1\"");
+        assertThat(jdbc.queryForObject("SELECT message FROM ops.job_request WHERE request_id = ?", String.class, id))
+                .contains("crtfc_key=****").doesNotContain("abcd1234efgh");
+    }
+
     @Test
     void 같은_Job_은_대기_중에_한_번만_들어가고_worker_가_실행해_결과를_남긴다() throws Exception {
         var r = queue.enqueue("ruleEvalJob", Map.of("restart", false), "test");

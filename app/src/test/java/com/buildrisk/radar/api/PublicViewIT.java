@@ -45,8 +45,9 @@ class PublicViewIT extends IntegrationTest {
                 .content("{\"params\":{\"threshold\":0.9},\"changeNote\":\"공개 범위\"}")).andExpect(status().isOk());
         jdbc.update("DELETE FROM ops.job_request");
         jdbc.update("""
-                INSERT INTO ops.job_request (job_name, params, requested_by, status, claimed_by)
-                VALUES ('ruleEvalJob', '{}', 'admin', 'DONE', 'worker-1@0123456789ab')""");
+                INSERT INTO ops.job_request (job_name, params, requested_by, status, claimed_by, message)
+                VALUES ('ruleEvalJob', '{}', 'admin', 'FAILED', 'worker-1@0123456789ab',
+                        E'실행 정리 잠금 실패: Connection to db:5432 refused\n\tat org.postgresql.Driver.connect(Driver.java:1)')""");
         jdbc.update("""
                 INSERT INTO ops.worker (worker_id, configured_keys, in_flight, max_concurrent)
                 VALUES ('worker-1@0123456789ab', '{}', 0, 2) ON CONFLICT (worker_id) DO UPDATE SET last_seen_at = now()""");
@@ -62,6 +63,8 @@ class PublicViewIT extends IntegrationTest {
         assertThat(hidden(anonRequests.get(0), "requestedBy")).isTrue();
         String alias = anonRequests.get(0).get("claimedBy").asString();
         assertThat(alias).doesNotContain("0123456789ab").startsWith("worker-");
+        // 실패 메시지는 exitMessage 처럼 첫 줄만 — 스택 · 내부 경로를 익명에게 보이지 않음 (VERIFICATION 177)
+        assertThat(anonRequests.get(0).get("message").asString()).isEqualTo("실행 정리 잠금 실패: Connection to db:5432 refused");
         // 같은 worker 는 실행 요청 · worker 목록에서 같은 별칭 — 화면이 둘을 이어 볼 수 있게
         assertThat(anonJobs.get("workers").findValuesAsString("workerId")).contains(alias).noneMatch(w -> w.contains("@"));
 
@@ -72,5 +75,6 @@ class PublicViewIT extends IntegrationTest {
                 .contains("service-token");
         assertThat(adminRequests.get(0).get("requestedBy").asString()).isEqualTo("admin");
         assertThat(adminRequests.get(0).get("claimedBy").asString()).isEqualTo("worker-1@0123456789ab");
+        assertThat(adminRequests.get(0).get("message").asString()).contains("\tat org.postgresql");
     }
 }

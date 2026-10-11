@@ -2,6 +2,7 @@ package com.buildrisk.radar.batch.queue;
 
 import com.buildrisk.radar.batch.support.BatchKeys;
 import com.buildrisk.radar.batch.support.BatchLauncher;
+import com.buildrisk.radar.common.KeyMasker;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,7 +91,7 @@ public class JobRequestWorker {
             Thread.currentThread().interrupt();
             queue.finished(r, "FAILED", null, "worker 중단");
         } catch (RuntimeException e) {
-            log.warn("요청 #{} {} 실패: {}", r.requestId(), r.jobName(), e.getMessage());
+            log.warn("요청 #{} {} 실패: {}", r.requestId(), r.jobName(), KeyMasker.mask(e.getMessage()));
             queue.finished(r, "FAILED", null, e.getMessage());
         } finally {
             running.remove(r.requestId());

@@ -1,6 +1,7 @@
 package com.buildrisk.radar.batch.queue;
 
 import com.buildrisk.radar.batch.support.BatchLauncher;
+import com.buildrisk.radar.common.KeyMasker;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 
@@ -85,7 +86,8 @@ public class JobRequestService {
         jdbc.sql("""
                 UPDATE ops.job_request SET status = :s, batch_status = :b, message = :m, finished_at = now()
                 WHERE request_id = :id""")
-                .param("s", status).param("b", batchStatus).param("m", message).param("id", r.requestId()).update();
+                // worker 의 예외 메시지 원문이 들어올 수 있음 — 외부 API 주소의 인증키를 가려 저장 (VERIFICATION 177)
+                .param("s", status).param("b", batchStatus).param("m", KeyMasker.mask(message)).param("id", r.requestId()).update();
         if ("COMPLETED".equals(batchStatus) && r.params().get(NEXT) instanceof List<?> next && !next.isEmpty()) {
             Map<String, Object> rest = new LinkedHashMap<>();
             if (next.size() > 1) rest.put(NEXT, next.subList(1, next.size()));

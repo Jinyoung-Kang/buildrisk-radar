@@ -78,7 +78,10 @@ public class BatchController {
     @Operation(summary = "실행 요청 상태 — QUEUED → RUNNING(jobExecutionId) → DONE/FAILED")
     public Map<String, Object> request(@PathVariable long id) { return queue.get(id); }
 
-    /** 익명 응답 — 요청한 사람은 빼고, worker 는 별칭(호스트 = 컨테이너 ID 를 숨김), 실패 메시지는 첫 줄만 (VERIFICATION 110) */
+    /**
+     * 익명 응답 — 요청한 사람은 빼고, worker 는 별칭(호스트 = 컨테이너 ID 를 숨김), 실패 메시지는 첫 줄만 (VERIFICATION 110).
+     * 실행 요청의 결과 메시지(message)도 같은 규칙 — worker 예외의 스택이 그대로 나갔음 (VERIFICATION 177)
+     */
     @SuppressWarnings("unchecked")
     private static <T> T anonymize(T body) {
         return Viewer.signedIn() ? body : (T) mask(body);
@@ -90,7 +93,7 @@ public class BatchController {
             m.forEach((k, v) -> out.put(String.valueOf(k), switch (String.valueOf(k)) {
                 case "requestedBy" -> null;
                 case "claimedBy", "workerId" -> Viewer.alias((String) v);
-                case "exitMessage" -> Viewer.firstLine((String) v);
+                case "exitMessage", "message" -> Viewer.firstLine((String) v);
                 default -> mask(v);
             }));
             return out;
