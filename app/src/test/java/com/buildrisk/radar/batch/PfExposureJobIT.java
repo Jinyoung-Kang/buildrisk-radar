@@ -89,6 +89,30 @@ class PfExposureJobIT extends IntegrationTest {
                 BigDecimal.class, CORP, code);
     }
 
+    private String metricStatus(String code) {
+        return jdbc.queryForObject("SELECT status FROM risk.company_metric WHERE corp_code = ? AND period_key = '2026Q2' AND metric_code = ?",
+                String.class, CORP, code);
+    }
+
+    /**
+     * 자본총계가 0 이면 재무 지표(CompanyMetricCalculator)와 같이 ZERO_DENOM, 음수면 NEG_EQUITY — PF 지표 SQL 은 0 이하를 모두
+     * 자본잠식(NEG_EQUITY)으로 적어 같은 분기의 부채비율과 상태가 달랐음(화면 · CSV · 근거 계보) (VERIFICATION 189)
+     */
+    @Test
+    void 자본이_0_이면_ZERO_DENOM_음수면_NEG_EQUITY_로_재무_지표와_같게_분류한다() {
+        assertThat(launcher.runAndWait("pfExposureJob", Map.of()).getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        UUID run = UUID.randomUUID();
+        jdbc.update("INSERT INTO ops.calc_run (calc_run_id, kind) VALUES (?, 'METRIC')", run);
+        equity("2026Q2", "0");
+        metrics.insertPfMetrics(run);
+        assertThat(metricStatus("PF_GUARANTEE_TO_EQUITY")).isEqualTo("ZERO_DENOM");
+        assertThat(metricStatus("PF_DUE_12M_TO_EQUITY")).isEqualTo("ZERO_DENOM");
+        equity("2026Q2", "-5000000000");
+        metrics.insertPfMetrics(run);
+        assertThat(metricStatus("PF_GUARANTEE_TO_EQUITY")).isEqualTo("NEG_EQUITY");
+        assertThat(metricStatus("PF_BRIDGE_SHARE")).isEqualTo("OK");                       // 분모가 PF 보증이라 자본과 무관
+    }
+
     @Test
     void 정기보고서_구간을_구조화해_PF_지표와_R_C06_경보를_만들고_API_로_보여준다() throws Exception {
         assertThat(launcher.runAndWait("pfExposureJob", Map.of()).getStatus()).isEqualTo(BatchStatus.COMPLETED);

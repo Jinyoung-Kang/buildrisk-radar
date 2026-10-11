@@ -91,9 +91,11 @@ public class MetricRepository {
                            guarantee, '브릿지론 보증금액' FROM j)
                 SELECT corp_code, period_key, code, fs_div,
                        CASE WHEN num IS NULL OR den IS NULL OR den <= 0 THEN NULL ELSE round(coalesce(num, 0) * 100 / den, 4) END,
+                       -- 재무 지표(CompanyMetricCalculator.ratio)와 같은 분류: 분모 0 은 ZERO_DENOM, 자본이 음수면 NEG_EQUITY (VERIFICATION 189)
                        CASE WHEN den IS NULL OR num IS NULL THEN 'MISSING'
-                            WHEN den <= 0 AND code <> 'PF_BRIDGE_SHARE' THEN 'NEG_EQUITY'
-                            WHEN den <= 0 THEN 'ZERO_DENOM' ELSE 'OK' END,
+                            WHEN den = 0 THEN 'ZERO_DENOM'
+                            WHEN den < 0 AND code <> 'PF_BRIDGE_SHARE' THEN 'NEG_EQUITY'
+                            WHEN den < 0 THEN 'ZERO_DENOM' ELSE 'OK' END,
                        jsonb_build_object('rceptNo', rcept_no, 'reprtCode', '-', 'fsDiv', fs_div, 'reconciled', reconciled,
                            'statedTotal', stated_total, 'statedMatch', stated_match,
                            'numerator', jsonb_build_object('label', num_label, 'amount', num, 'source', 'PF 종합요약표(단독 + 컨소시엄 회사분)'),
