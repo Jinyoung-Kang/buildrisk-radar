@@ -93,12 +93,12 @@ e2e:
 # k6 부하 (compose 네트워크 안에서 web 프록시 경유). 레이트리밋은 IP 당이라 부하 측정 동안만 끔
 load:
 	RATE_LIMIT_PER_MINUTE=0 $(COMPOSE) up -d api && sleep 15
-	docker run --rm --network buildrisk-radar_default -v "$$PWD/ops/k6:/scripts:ro" grafana/k6:0.55.0 run /scripts/load.js; \
+	docker run --rm --network buildrisk-radar_default -v "$$PWD/ops/k6:/scripts:ro" grafana/k6:2.3.0 run /scripts/load.js; \
 	  status=$$?; $(COMPOSE) up -d api; exit $$status
 
 # 레이트리밋 동작 확인 (429 + Retry-After)
 ratelimit:
-	docker run --rm --network buildrisk-radar_default -v "$$PWD/ops/k6:/scripts:ro" grafana/k6:0.55.0 run /scripts/ratelimit.js
+	docker run --rm --network buildrisk-radar_default -v "$$PWD/ops/k6:/scripts:ro" grafana/k6:2.3.0 run /scripts/ratelimit.js
 
 status:
 	@curl -s localhost:3400/api/v1/batch/jobs | python3 -c "import json,sys;d=json.load(sys.stdin);[print(f\"{j['name']:<24}{(j['last'] or {}).get('status','-'):<11}{'실행 중' if j['running'] else ''}{'' if j['keyConfigured'] else '  (키 없음: '+j['envKey']+')'}\") for j in d['jobs']]"
