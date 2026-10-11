@@ -65,6 +65,8 @@ tasks.test {
     jvmArgs("-Duser.timezone=Asia/Seoul", "-Dfile.encoding=UTF-8")
     // 골든 스냅샷 갱신: ./gradlew test --tests '*Golden*' -Dgolden.update=true
     System.getProperty("golden.update")?.let { systemProperty("golden.update", it) }
+    // 테스트 DB 이미지 바꾸기: ./gradlew test -Dtest.pg.image=imresamu/postgis:16-3.6-bookworm (테스트 JVM 으로 넘겨야 들음)
+    System.getProperty("test.pg.image")?.let { systemProperty("test.pg.image", it) }
     testLogging {
         events("failed", "skipped")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

@@ -25,8 +25,12 @@ public abstract class IntegrationTest {
     public static final String ADMIN_PASSWORD = "test-admin-password";
     public static final String ANALYST_PASSWORD = "test-analyst-password";
     public static final String NOTIFY_KEY = "test-notify-secret-key-0123456789";
+    /**
+     * 운영(AWS RDS)과 같은 PostgreSQL 18 + PostGIS 3.6 — 16 에서는 GEOS 3.12+ 경로(ST_CoverageSimplify)가 돌지 않았음.
+     * arm64 · amd64 둘 다 있고 지금 갱신되는 태그. 다른 버전으로: ./gradlew test -Dtest.pg.image=…
+     */
     static final PostgreSQLContainer PG = new PostgreSQLContainer(
-            DockerImageName.parse(System.getProperty("test.pg.image", "imresamu/postgis:16-3.6-bookworm"))
+            DockerImageName.parse(System.getProperty("test.pg.image", "imresamu/postgis:18-3.6-alpine"))
                     .asCompatibleSubstituteFor("postgres"));
     static final GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
     protected static final WireMockServer WM = new WireMockServer(options().dynamicPort());
