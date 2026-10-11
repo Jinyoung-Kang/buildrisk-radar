@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * 고칠 수 있는 취약점이 있는 런타임 버전 아래로 내려가지 않게 — Boot BOM 이 따라오기 전에 올려 둔 버전이
  * 해석 규칙을 지우거나 BOM 이 바뀌어 조용히 되돌아가면 실패. Trivy 게이트는 CRITICAL 만 보고 Dependabot 은 Gradle 을 못 봐
- * High 가 경고 없이 남았음 (VERIFICATION 173)
+ * High 가 경고 없이 남았음 (VERIFICATION 173 · 174)
  */
 class DependencyFloorTest {
 
@@ -16,6 +16,15 @@ class DependencyFloorTest {
     void Tomcat_은_11_0_26_이상() {
         // CVE-2026-86350(요청 헤더 뒤섞임, 11.0.22~25) 등 Important 4건 — tomcat.apache.org/security-11.html
         assertThat(compare(ServerInfo.getServerNumber(), "11.0.26")).as(ServerInfo.getServerNumber()).isGreaterThanOrEqualTo(0);
+    }
+
+    @Test
+    void Jackson_2_와_3_은_DoS_수정판_이상() {
+        // GHSA-7hhh-6rmp-j9qf 등 — jackson-core 2.22.3 · 3.1.7 에서 수정
+        String v2 = com.fasterxml.jackson.core.json.PackageVersion.VERSION.toString();   // Version.compareTo 는 groupId 부터 비교 — 숫자로
+        assertThat(compare(v2, "2.22.3")).as(v2).isGreaterThanOrEqualTo(0);
+        String v3 = tools.jackson.core.json.PackageVersion.VERSION.toString();
+        assertThat(compare(v3, "3.1.7")).as(v3).isGreaterThanOrEqualTo(0);
     }
 
     /** '11.0.25.0' 처럼 점으로 나뉜 숫자 버전 비교 (뒤의 접미사는 무시) */
