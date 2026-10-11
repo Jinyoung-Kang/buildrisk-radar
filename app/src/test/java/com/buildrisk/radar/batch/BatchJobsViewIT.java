@@ -29,10 +29,18 @@ class BatchJobsViewIT extends IntegrationTest {
     @Autowired
     BatchLauncher launcher;
 
+    /**
+     * 정리 — 실행 중으로 만든 실행을 끝내고 ABANDONED 로 둠. FAILED 로 남기면 다음 테스트가 기본값(restart)으로 그 실행을 이어 돌려,
+     * 지워진 계산 실행 ID 를 다시 쓰다 외래 키로 실패했음(전체 실행에서 FinancialStatementJobIT)
+     */
     @AfterEach
     void cleanup() {
         launcher.recover("ruleEvalJob", true);
         launcher.recover("standardizeMetricJob", true);
+        jdbc.update("""
+                UPDATE ops.batch_job_execution SET status = 'ABANDONED'
+                 WHERE status = 'FAILED' AND job_instance_id IN (SELECT job_instance_id FROM ops.batch_job_instance
+                                                                 WHERE job_name IN ('ruleEvalJob', 'standardizeMetricJob'))""");
         jdbc.update("DELETE FROM ops.job_request");
     }
 
