@@ -136,14 +136,19 @@ public class FsRepository {
      * 잠금으로 줄 세움 — 유니크 제약은 NULL 을 서로 다르게 봐 sj_div 가 빈 같은 규칙이 중복으로 쌓였음 (VERIFICATION 185)
      */
     public Optional<MapRuleRef> lockAndFindMapRule(String stdCode, String sjDiv, String matchType, String pattern) {
-        jdbc.sql("SELECT pg_advisory_xact_lock(hashtext(:k))")
-                .param("k", "account_map|" + stdCode + "|" + sjDiv + "|" + matchType + "|" + pattern).query((rs, i) -> 1).list();
+        lockMapRuleKey(stdCode, sjDiv, matchType, pattern);
         return jdbc.sql("""
                         SELECT map_id, origin FROM ref.account_map
                         WHERE std_code = :c AND match_type = :t AND pattern = :p AND sj_div IS NOT DISTINCT FROM :sj
                         ORDER BY origin = 'SEED' DESC, map_id LIMIT 1""")
                 .param("c", stdCode).param("sj", sjDiv).param("t", matchType).param("p", pattern)
                 .query((rs, i) -> new MapRuleRef(rs.getInt(1), rs.getString(2))).optional();
+    }
+
+    /** 같은 매핑 규칙 키의 쓰기를 트랜잭션 끝까지 줄 세움 — 화면 추가와 seed 적재가 같은 키를 씀 */
+    private void lockMapRuleKey(String stdCode, String sjDiv, String matchType, String pattern) {
+        jdbc.sql("SELECT pg_advisory_xact_lock(hashtext(:k))")
+                .param("k", "account_map|" + stdCode + "|" + sjDiv + "|" + matchType + "|" + pattern).query((rs, i) -> 1).list();
     }
 
     /** 화면에서 추가하는 매핑 규칙(origin USER). map_id */
@@ -232,6 +237,8 @@ public class FsRepository {
     /** seed 파일의 매핑 규칙 — 같은 키(sj_div NULL 포함)가 있으면 우선순위 · 부호 · 메모 · 구간을 맞추고, 없으면 SEED 로 추가. 추가했으면 1 */
     public int syncSeedMapRule(String stdCode, String sjDiv, String matchType, String pattern, int priority, boolean absValue,
                                String note, String section) {
+        // api · worker 가 동시에 기동해 seed 적재가 겹쳐도 같은 키를 두 번 넣지 않게 — 화면 경로와 같은 잠금 (VERIFICATION 210)
+        lockMapRuleKey(stdCode, sjDiv, matchType, pattern);
         int updated = jdbc.sql("""
                         UPDATE ref.account_map SET priority = :p, abs_value = :abs, note = :note, section = :sec
                         WHERE std_code = :c AND match_type = :t AND pattern = :pat AND sj_div IS NOT DISTINCT FROM :sj""")

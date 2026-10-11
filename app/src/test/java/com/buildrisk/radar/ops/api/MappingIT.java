@@ -167,4 +167,38 @@ class MappingIT extends IntegrationTest {
                 .containsExactly("SEED:10", "USER:35");
         jdbc.update("DELETE FROM ref.account_map WHERE origin = 'USER'");
     }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    com.buildrisk.radar.company.data.FsRepository fsRepo;
+    @org.springframework.beans.factory.annotation.Autowired
+    org.springframework.transaction.PlatformTransactionManager txManager;
+
+    /**
+     * api · worker 가 동시에 기동해 seed 적재가 겹쳐도 sj_div 가 빈 새 seed 규칙이 하나만 생김 — 화면 경로(185)만 잠그고 seed 경로는
+     * 잠그지 않아, 한쪽이 넣고 커밋하기 전에 다른 쪽도 '없음'으로 보고 넣었음 (VERIFICATION 210)
+     */
+    @Test
+    void 겹친_seed_적재도_sj_div_가_빈_같은_규칙을_하나만_만든다() throws Exception {
+        var tx = new org.springframework.transaction.support.TransactionTemplate(txManager);
+        var inserted = new java.util.concurrent.CountDownLatch(1);
+        try (var pool = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var first = pool.submit(() -> tx.execute(st -> {
+                fsRepo.syncSeedMapRule("REVENUE", null, "NAME_EXACT", "매출(겹침 시험)", 45, false, null, null);
+                inserted.countDown();
+                try {
+                    Thread.sleep(500);                                       // 커밋 전 — 다른 적재가 끼어듦
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return null;
+            }));
+            inserted.await();
+            var second = pool.submit(() -> tx.execute(st ->
+                    fsRepo.syncSeedMapRule("REVENUE", null, "NAME_EXACT", "매출(겹침 시험)", 45, false, null, null)));
+            first.get();
+            second.get();
+        }
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ref.account_map WHERE pattern = '매출(겹침 시험)'", Integer.class)).isEqualTo(1);
+        jdbc.update("DELETE FROM ref.account_map WHERE pattern = '매출(겹침 시험)'");
+    }
 }
