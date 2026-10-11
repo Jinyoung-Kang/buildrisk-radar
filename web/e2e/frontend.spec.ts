@@ -140,6 +140,24 @@ test("실행 중인 Job 의 상세를 열어 두면 상세도 폴링으로 갱�
   expect(detail).toBeGreaterThanOrEqual(2);
 });
 
+test("검색어를 바꾸고 결과가 오기 전에 Enter 를 누르면 이전 검색어의 결과로 가지 않음 (VERIFICATION 199)", async ({ page }) => {
+  // 한글 IME 는 Enter 로 마지막 글자를 확정 — 입력이 멈춘 뒤(200 ms) 부르는 검색 결과가 이전 검색어의 것인 채로 Enter 가 첫 결과로 이동했음
+  await page.route("**/api/v1/search?*", async (route) => {
+    const q = new URL(route.request().url()).searchParams.get("q") ?? "";
+    const hit = q === "가" ? { key: "00000001", name: "가건설" } : { key: "00000002", name: "나건설" };
+    return route.fulfill({ json: { q, companies: [hit], regions: [] } });
+  });
+  await page.route(/\/api\/v1\/companies\/0000000[12]$/, (route) => route.fulfill({ status: 404, json: { code: "COMPANY_NOT_FOUND", message: "x" } }));
+  await page.goto("/");
+  const box = page.getByRole("searchbox", { name: "거래 건설사 찾기" });
+  await box.fill("가");
+  await expect(page.getByRole("link", { name: /가건설/ })).toBeVisible();
+  await box.fill("나");
+  await box.press("Enter");                                           // 200 ms 안 — 아직 '가'의 결과
+  await page.waitForTimeout(600);
+  expect(page.url()).not.toContain("/companies/00000001");
+});
+
 test("경보 확인 뒤 목록을 다시 불러오다 실패해도 보이던 목록은 남음 (VERIFICATION 167)", async ({ page }) => {
   // 163 에서 오류면 목록을 숨기게 해, 같은 조건을 다시 부르다 실패하면(이전 값은 남겨 둠) 행 없이 쪽 넘김만 남았음
   await page.route("**/api/v1/auth/me", (route) => route.fulfill({ json: { authenticated: true, username: "e2e", roles: ["ANALYST"] } }));

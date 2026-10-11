@@ -13,12 +13,18 @@ export default function EntitySearch({ id, label, placeholder, kinds }: { id: st
   const [dq, setDq] = useState("");
   useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 200); return () => clearTimeout(t); }, [q]);
   const { data } = useApi(dq ? insightApi.search(dq) : null);
-  const fresh = !!dq && data?.q === dq;
+  // 결과는 '지금 입력한 검색어'의 것일 때만 — 입력을 바꾼 뒤 200 ms 안에 Enter(한글 IME 는 Enter 로 확정)를 누르면
+  // 이전 검색어의 첫 결과로 이동했음 (VERIFICATION 199)
+  const fresh = !!dq && dq === q.trim() && data?.q === dq;
   const hits = !fresh || !data ? [] : kinds.flatMap((k) => k === "company"
     ? data.companies.map((c) => ({ href: `/companies/${c.key}`, name: c.name, kind: "기업" }))
     : data.regions.map((r) => ({ href: `/regions/${r.key}`, name: r.name, kind: "지역" })));
   return (
-    <form role="search" aria-label={label} onSubmit={(e) => { e.preventDefault(); if (hits[0]) router.push(hits[0].href); }}>
+    <form role="search" aria-label={label} onSubmit={(e) => {
+      e.preventDefault();
+      if (fresh) { if (hits[0]) router.push(hits[0].href); }
+      else setDq(q.trim());                                    // 결과가 아직이면 기다리지 않고 바로 찾음 — 다시 Enter 로 이동
+    }}>
       <label htmlFor={id} className="sr-only">{label}</label>
       <input id={id} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} maxLength={40} autoComplete="off"
         className="w-full rounded-lg border border-line bg-page px-3 py-1.5 text-sm placeholder:text-muted focus-ring" />
