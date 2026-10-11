@@ -1,5 +1,7 @@
 package com.buildrisk.radar.security;
 
+import com.buildrisk.radar.common.AppProperties;
+import com.buildrisk.radar.common.security.LoginThrottle;
 import com.buildrisk.radar.common.security.RateLimitFilter;
 import com.buildrisk.radar.common.security.RateLimiter;
 import com.buildrisk.radar.support.IntegrationTest;
@@ -41,6 +43,8 @@ class SecurityIT extends IntegrationTest {
     ObjectMapper mapper;
     @Autowired
     org.springframework.data.redis.core.StringRedisTemplate redis;
+    @Autowired
+    AppProperties props;
 
     /** 브라우저처럼 쿠키를 들고 다니는 클라이언트 */
     class Browser {
@@ -327,6 +331,35 @@ class SecurityIT extends IntegrationTest {
         var export = new RateLimitFilter(limiter, 0, 1, mapper);
         assertThat(hit.apply(export, "/api/v1/export/alerts.csv")).isEqualTo(200);
         assertThat(hit.apply(export, "/api/v1/%65xport/alerts.csv")).isEqualTo(429);
+    }
+
+    /**
+     * IPv6 는 /64 로 묶어 셈 — 가입자 하나가 보통 /64(주소 2^64개)를 받으므로 주소 전체로 세면 주소를 바꿔 가며 한도 ·
+     * 로그인 잠금을 비껴 가고 주소마다 Redis 키를 만들 수 있었음. CloudFront 는 IPv6 가 기본으로 켜져 있음 (VERIFICATION 176)
+     */
+    @Test
+    void IPv6_는_64_비트_접두사로_묶어_한도와_로그인_잠금을_센다() {
+        var filter = new RateLimitFilter(limiter, 3, 0, mapper);
+        List<Integer> statuses = new ArrayList<>();
+        for (String ip : List.of("2001:db8:1:2::1", "2001:db8:1:2::2", "2001:db8:1:2:a:b:c:d", "2001:0db8:0001:0002::ffff")) {
+            var req = new MockHttpServletRequest("GET", "/api/v1/rules");
+            req.setRemoteAddr(ip);
+            var res = new MockHttpServletResponse();
+            try {
+                filter.doFilter(req, res, new MockFilterChain());
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+            statuses.add(res.getStatus());
+        }
+        assertThat(statuses).containsExactly(200, 200, 200, 429);
+
+        var throttle = new LoginThrottle(limiter, props);
+        java.util.OptionalLong last = java.util.OptionalLong.empty();
+        for (int i = 1; i <= props.security().loginMaxFailures() + 1; i++) {
+            last = throttle.attempt("admin", "2001:db8:9:9::" + Integer.toHexString(i));
+        }
+        assertThat(last).as("같은 /64 의 다른 주소도 같은 (아이디, 클라이언트) 실패로 셈").isPresent();
     }
 
     /** 인코딩한 경로의 변경 시도도 감사 로그에 남고, 조회 응답에 API CSP 가 붙고, 로그인은 CSRF 를 요구함 (VERIFICATION 172) */

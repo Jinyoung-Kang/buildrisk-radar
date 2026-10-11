@@ -36,12 +36,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
         long minute = System.currentTimeMillis() / 60_000;
-        if (limitPerMinute > 0 && limiter.hit("br:rl:" + req.getRemoteAddr() + ":" + minute, Duration.ofSeconds(70)) > limitPerMinute) {
+        String client = ClientKey.of(req.getRemoteAddr());       // IPv6 는 /64 로 (VERIFICATION 176)
+        if (limitPerMinute > 0 && limiter.hit("br:rl:" + client + ":" + minute, Duration.ofSeconds(70)) > limitPerMinute) {
             reject(res, "요청이 너무 많습니다. 잠시 후 다시 시도하세요.");
             return;
         }
         if (exportPerMinute > 0 && ApiPaths.EXPORT.matches(req)
-                && limiter.hit("br:rl:x:" + req.getRemoteAddr() + ":" + minute, Duration.ofSeconds(70)) > exportPerMinute) {
+                && limiter.hit("br:rl:x:" + client + ":" + minute, Duration.ofSeconds(70)) > exportPerMinute) {
             reject(res, "내려받기 요청이 너무 많습니다 (IP 당 분당 " + exportPerMinute + "회). 잠시 후 다시 시도하세요.");
             return;
         }

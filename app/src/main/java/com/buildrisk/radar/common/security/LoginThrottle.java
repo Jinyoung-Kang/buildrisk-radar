@@ -41,9 +41,10 @@ public class LoginThrottle {
         limiter.release(ipKey(ip));
     }
 
+    /** 클라이언트 단위는 ClientKey — IPv6 는 /64 로 묶음 (VERIFICATION 176) */
     private static String userKey(String username, String ip) {
-        return "br:login:fail:" + ip + ":" + username.toLowerCase(Locale.ROOT);
+        return "br:login:fail:" + ClientKey.of(ip) + ":" + username.toLowerCase(Locale.ROOT);
     }
 
-    private static String ipKey(String ip) { return "br:login:ip:" + ip; }
+    private static String ipKey(String ip) { return "br:login:ip:" + ClientKey.of(ip); }
 }
