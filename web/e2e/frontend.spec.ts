@@ -360,6 +360,19 @@ test("접근성: 경보 목록의 행은 버튼으로 고르고 선택 상태를
   await expect(pick).toHaveAttribute("aria-pressed", "true");
 });
 
+test("규칙 편집기를 연 채 로그아웃하면 편집기가 사라짐 (VERIFICATION 202)", async ({ page }) => {
+  // 같은 화면이 다시 마운트되지 않아(router.replace) 열린 편집기가 익명에게 남았고, '새 버전으로 저장'을 누르면 401 이었음
+  let admin = true;
+  await page.route("**/api/v1/auth/me", (route) => route.fulfill({ json: admin
+    ? { authenticated: true, username: "e2e", roles: ["ADMIN"], authType: "SESSION" } : { authenticated: false, roles: [] } }));
+  await page.route("**/api/v1/auth/logout", (route) => { admin = false; return route.fulfill({ status: 204, body: "" }); });
+  await page.goto("/admin/rules");
+  await page.getByRole("button", { name: "파라미터 수정" }).first().click();
+  await expect(page.getByRole("button", { name: "새 버전으로 저장" })).toBeVisible();
+  await page.getByRole("button", { name: "로그아웃" }).click();
+  await expect(page.getByRole("button", { name: "새 버전으로 저장" })).toHaveCount(0);
+});
+
 test("다른 기업으로 옮기면 앞 기업에서 고른 연결/별도가 남지 않음 (VERIFICATION 148)", async ({ page, request }) => {
   const items = (await (await request.get("/api/v1/companies?size=50")).json()).items;
   const [a, b] = [items[0].corpCode as string, items[1].corpCode as string];

@@ -101,6 +101,8 @@ export default function Rules() {
   const { has } = useAuth();
   const { data, error, reload } = useApi(alertApi.rules());
   const [open, setOpen] = useState<string | null>(null);
+  // 편집기는 관리자일 때만 — 연 채 로그아웃해도 같은 화면이 다시 마운트되지 않아 익명에게 '새 버전으로 저장'이 남았음 (VERIFICATION 202)
+  const editing = has("ADMIN") ? open : null;
   return (
     <Layout title="규칙">
       <PageTitle title="규칙 관리" sub="로직은 코드(Java 클래스), 임계값·심각도는 DB 버전. 파라미터를 바꾸면 새 버전이 생기고 이전 경보는 이전 버전 번호를 유지합니다."
@@ -113,7 +115,7 @@ export default function Rules() {
               <th className="num">열린 경보</th><th></th></tr></thead>
             <tbody>{data.map((r) => (
               <Fragment key={r.ruleCode}>
-                <tr className={open === r.ruleCode ? "selected" : ""}>
+                <tr className={editing === r.ruleCode ? "selected" : ""}>
                   <td className="whitespace-nowrap"><b className="tabular">{r.ruleCode}</b><span className="sub">{r.nameKo}</span></td>
                   <td className="whitespace-nowrap">{r.targetType === "COMPANY" ? "기업" : "지역"}</td>
                   <td><SeverityBadge s={r.severity} />{!r.enabled && <span className="sub">중지됨</span>}</td>
@@ -121,12 +123,12 @@ export default function Rules() {
                   <td className="num">v{r.version}{r.createdBy && r.createdBy !== "seed" && <span className="sub">{r.createdBy}</span>}</td>
                   <td className="num">{r.openAlerts}</td>
                   <td className="whitespace-nowrap text-right">
-                    {has("ADMIN") && <button onClick={() => setOpen(open === r.ruleCode ? null : r.ruleCode)}
+                    {has("ADMIN") && <button onClick={() => setOpen(editing === r.ruleCode ? null : r.ruleCode)}
                       className="text-xs px-2.5 py-1 rounded-md border border-line hover:bg-page focus-ring">
-                      {open === r.ruleCode ? "닫기" : "파라미터 수정"}</button>}
+                      {editing === r.ruleCode ? "닫기" : "파라미터 수정"}</button>}
                   </td>
                 </tr>
-                {open === r.ruleCode && (
+                {editing === r.ruleCode && (
                   <tr><td colSpan={7} className="!bg-raised"><div className="py-2"><RuleEditor rule={r} onSaved={reload} /></div></td></tr>
                 )}
               </Fragment>
