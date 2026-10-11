@@ -31,7 +31,25 @@ class StaleExecutionIT extends IntegrationTest {
         long id = zombie("1 minute");
         assertThatThrownBy(() -> launcher.launch("ruleEvalJob", Map.of()))
                 .isInstanceOf(ApiException.class).hasMessageContaining("이미 실행 중");
-        launcher.recoverExecution(id);   // 정리 (다음 테스트 영향 없게)
+        launcher.recover("ruleEvalJob", true);   // 정리 (다음 테스트 영향 없게)
+    }
+
+    /**
+     * 하트비트가 살아 있는 실행은 관리자의 수동 정리도 거절 — FAILED 로 바꾸면 '이어서 실행'이 같은 JobInstance 를 restart 해,
+     * 아직 도는 첫 스레드와 겹쳐 돎(VERIFICATION 102 와 같은 위험). 멈춘 실행(하트비트 끊김)만 정리 (VERIFICATION 184, 결정 D1)
+     */
+    @Test
+    void 하트비트가_살아_있는_실행은_수동_정리도_409_이고_멈춘_실행만_정리한다() {
+        long live = zombie("1 minute");
+        assertThatThrownBy(() -> launcher.recoverExecution(live))
+                .isInstanceOf(ApiException.class).hasMessageContaining("하트비트가 살아 있는");
+        assertThat(jdbc.queryForObject("SELECT status FROM ops.batch_job_execution WHERE job_execution_id = ?", String.class, live))
+                .isEqualTo("STARTED");
+        jdbc.update("UPDATE ops.batch_job_execution SET last_updated = now() - interval '30 minutes' WHERE job_execution_id = ?", live);
+        jdbc.update("UPDATE ops.batch_step_execution SET last_updated = now() - interval '30 minutes' WHERE job_execution_id = ?", live);
+        assertThat(launcher.recoverExecution(live)).containsExactly(live);
+        assertThat(jdbc.queryForObject("SELECT status FROM ops.batch_job_execution WHERE job_execution_id = ?", String.class, live))
+                .isEqualTo("FAILED");
     }
 
     @Test

@@ -146,11 +146,14 @@ export default function Batch() {
               ) : <button className="text-left" onClick={() => j.last && setSel(j.last.jobExecutionId)}><JobStatus s={j.last?.status} /></button>}
               {!admin ? (j.queued ? <span className="text-[11px] text-muted">대기 #{j.queued}</span> : null)
               : j.queued ? <span className="text-[11px] text-muted" title="worker 가 가져가기를 기다리는 중">대기 중 #{j.queued}</span>
-              : j.running && j.last ? (
-                <button disabled={action.busy} onClick={() => recover(j.last.jobExecutionId)} title="프로세스가 죽어 STARTED 로 남은 실행을 FAILED 로 정리"
-                  className={`text-[11px] px-2 py-1 rounded border focus-ring ${j.stale ? "border-crit text-crit" : "border-line text-muted"}`}>
+              : j.running && j.last ? (j.stale ? (
+                <button disabled={action.busy} onClick={() => recover(j.last.jobExecutionId)} title="프로세스가 죽어 하트비트가 멈춘 실행을 FAILED 로 정리 — 다음 실행이 이어서 합니다"
+                  className="text-[11px] px-2 py-1 rounded border focus-ring border-crit text-crit">
                   멈춘 실행 정리</button>
-              ) : !j.keyConfigured ? <span className="text-[11px] text-serious" title={`.env 에 ${j.envKey} 필요`}>키 없음</span> : (
+              ) : (
+                // 하트비트가 살아 있는 실행은 정리하지 않음 — 이어서 실행하면 같은 실행이 겹쳐 돎 (VERIFICATION 184)
+                <span className="text-[11px] text-muted" title="하트비트가 살아 있는 실행은 정리할 수 없습니다 — 멈추면(하트비트 끊김) 정리 버튼이 나옵니다">실행 중</span>
+              )) : !j.keyConfigured ? <span className="text-[11px] text-serious" title={`.env 에 ${j.envKey} 필요`}>키 없음</span> : (
                 <span className="flex gap-1">
                   {(j.last?.status === "STOPPED" || j.last?.status === "FAILED") && (
                     <button disabled={j.running || action.busy} onClick={() => launch(j.name, true)} className="text-[11px] px-2 py-1 rounded border border-line focus-ring disabled:opacity-40">새로</button>)}

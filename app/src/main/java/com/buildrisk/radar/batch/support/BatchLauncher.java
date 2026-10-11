@@ -171,10 +171,19 @@ public class BatchLauncher {
         }
     }
 
+    /**
+     * 관리자의 수동 정리 — 하트비트가 멈춘 실행만. 살아 있는 실행을 FAILED 로 바꾸면 '이어서 실행'이 같은 JobInstance 를 restart 해
+     * 아직 도는 첫 스레드와 겹쳐 돌았음(VERIFICATION 102 와 같은 위험) — 409 로 거절 (VERIFICATION 184, 결정 D1)
+     */
     public List<Long> recoverExecution(long executionId) {
         JobExecution je = repository.getJobExecution(executionId);
         if (je == null) throw new ApiException(ErrorCode.NOT_FOUND, "실행 이력이 없습니다: " + executionId);
         if (!je.isRunning()) throw new ApiException(ErrorCode.VALIDATION_ERROR, "실행 중 상태가 아닙니다: " + je.getStatus());
+        if (!stale(je)) {
+            throw new ApiException(ErrorCode.JOB_ALREADY_RUNNING, "하트비트가 살아 있는 실행입니다(마지막 " + heartbeat(je)
+                    + ") — 정리하면 이어서 실행할 때 같은 실행이 겹쳐 돕니다. 하트비트가 " + props.batch().staleMinutes()
+                    + "분 동안 없으면 멈춘 실행으로 보고 정리할 수 있습니다.");
+        }
         operator.recover(je);
         noteRecovered(executionId, "관리자가 수동 정리 (마지막 하트비트 " + heartbeat(je) + ")");
         return List.of(executionId);

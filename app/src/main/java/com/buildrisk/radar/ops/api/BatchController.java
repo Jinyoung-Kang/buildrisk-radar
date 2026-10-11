@@ -54,7 +54,8 @@ public class BatchController {
     public Map<String, Object> execution(@PathVariable long id) { return anonymize(query.execution(id)); }
 
     @PostMapping("/executions/{id}/recover")
-    @Operation(summary = "죽은 실행 정리 (ADMIN)", description = "프로세스가 비정상 종료돼 STARTED 로 남은 실행을 FAILED 로 바꿔 다음 실행이 restart 할 수 있게 합니다.")
+    @Operation(summary = "죽은 실행 정리 (ADMIN)", description = "프로세스가 비정상 종료돼 STARTED 로 남은 실행을 FAILED 로 바꿔 다음 실행이 restart 할 수 있게 합니다. "
+            + "하트비트가 살아 있는 실행(stale 아님)은 409 — 정리하면 이어서 실행할 때 같은 실행이 겹쳐 돕니다(2026-10-11 부터).")
     public Map<String, Object> recover(@PathVariable long id) {
         return Map.of("recovered", launcher.recoverExecution(id));
     }
