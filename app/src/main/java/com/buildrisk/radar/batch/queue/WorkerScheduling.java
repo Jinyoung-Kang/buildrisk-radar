@@ -47,5 +47,6 @@ public class WorkerScheduling {
     void reapOrphans() {
         int n = registry.abandonOrphans("worker 하트비트가 끊겨 중단 — 같은 Job 을 다시 요청하면 restart 로 이어갑니다");
         if (n > 0) log.warn("하트비트가 끊긴 worker 의 실행 요청 {}건을 FAILED 로 정리했습니다", n);
+        worker.reconcile();                    // 이 worker 것인데 결과를 기록하지 못한 요청 (VERIFICATION 182)
     }
 }

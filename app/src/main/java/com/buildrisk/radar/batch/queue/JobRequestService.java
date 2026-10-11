@@ -83,11 +83,29 @@ public class JobRequestService {
     }
 
     public void finished(Request r, String status, String batchStatus, String message) {
-        jdbc.sql("""
+        finish(r, status, batchStatus, message, false);
+    }
+
+    /** 아직 RUNNING 일 때만 마무리 — 정리 주기(reconcile)가 그 사이 worker 가 기록한 결과를 덮어쓰지 않게. 마무리했으면 true */
+    public boolean finishedIfRunning(Request r, String status, String batchStatus, String message) {
+        return finish(r, status, batchStatus, message, true);
+    }
+
+    /** 이 worker 가 가져갔다고 적힌 RUNNING 요청 (VERIFICATION 182) */
+    public List<Request> runningClaimedBy(String workerId) {
+        return jdbc.sql("""
+                        SELECT request_id, job_name, params::text, requested_by, status, job_execution_id, batch_status, message
+                        FROM ops.job_request WHERE status = 'RUNNING' AND claimed_by = :w ORDER BY request_id""")
+                .param("w", workerId).query(this::row).list();
+    }
+
+    private boolean finish(Request r, String status, String batchStatus, String message, boolean onlyIfRunning) {
+        int n = jdbc.sql("""
                 UPDATE ops.job_request SET status = :s, batch_status = :b, message = :m, finished_at = now()
-                WHERE request_id = :id""")
+                WHERE request_id = :id""" + (onlyIfRunning ? " AND status = 'RUNNING'" : ""))
                 // worker 의 예외 메시지 원문이 들어올 수 있음 — 외부 API 주소의 인증키를 가려 저장 (VERIFICATION 177)
                 .param("s", status).param("b", batchStatus).param("m", KeyMasker.mask(message)).param("id", r.requestId()).update();
+        if (n == 0) return false;
         if ("COMPLETED".equals(batchStatus) && r.params().get(NEXT) instanceof List<?> next && !next.isEmpty()) {
             Map<String, Object> rest = new LinkedHashMap<>();
             if (next.size() > 1) rest.put(NEXT, next.subList(1, next.size()));
@@ -98,6 +116,7 @@ public class JobRequestService {
                 log.warn("요청 #{} 다음 Job {} 을 이어 넣지 못함: {}", r.requestId(), next.get(0), e.getMessage());
             }
         }
+        return true;
     }
 
     /** Worker 가 재시작되면 이전 프로세스가 가져간 채 끝나지 않은 요청을 FAILED 로 정리 (실행 자체는 하트비트 정리가 담당) */
@@ -125,8 +144,9 @@ public class JobRequestService {
     }
 
     private Request row(ResultSet rs, int i) throws SQLException {
-        long exec = rs.getLong(6);
+        // 실행 번호가 없으면 null — wasNull() 은 마지막에 읽은 열을 보므로 getLong 바로 뒤에서 (예전에는 status 를 봐 0 이 됐음)
+        Long exec = rs.getObject(6, Long.class);
         return new Request(rs.getLong(1), rs.getString(2), mapper.readValue(rs.getString(3), MAP), rs.getString(4),
-                rs.getString(5), rs.wasNull() ? null : exec, rs.getString(7), rs.getString(8));
+                rs.getString(5), exec, rs.getString(7), rs.getString(8));
     }
 }

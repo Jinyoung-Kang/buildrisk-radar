@@ -30,6 +30,8 @@ import org.springframework.batch.core.launch.JobExecutionAlreadyRunningException
 import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -390,13 +392,32 @@ public class BatchLauncher {
      * (예전에는 Job 5개의 리스너에서만 무효화 — 공시 · 미분양 · 가격지수 Job 뒤에는 캐시된 목록이 옛 값을 보여 줄 수 있었음)
      */
     public JobExecution awaitFinished(long executionId) throws InterruptedException {
-        JobExecution je;
+        JobExecution je = null;
+        boolean read = false, failing = false;
         do {
             Thread.sleep(1000);
-            je = repository.getJobExecution(executionId);
-        } while (je != null && je.isRunning());
+            try {
+                je = repository.getJobExecution(executionId);
+                read = true;
+                failing = false;
+            } catch (DataAccessException e) {
+                // DB 가 잠깐 끊김 — 실행은 그대로 돌고 있을 수 있으므로 끝난 것으로 보지 않고 계속 기다림 (VERIFICATION 182)
+                if (!failing) log.warn("실행 #{} 상태를 읽지 못해 다시 기다림: {}", executionId, e.getMessage());
+                read = false;
+                failing = true;
+            }
+        } while (!read || (je != null && je.isRunning()));
         cache.invalidateAll();
         return je;
+    }
+
+    /** 실행 하나 (없으면 null) */
+    public JobExecution execution(long executionId) {
+        try {
+            return repository.getJobExecution(executionId);
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
     }
 
     /** 정리된 실행의 종료 메시지에 사유를 남김 — 배치 모니터에서 '왜 FAILED 인지' 보이도록 */
