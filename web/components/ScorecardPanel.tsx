@@ -68,7 +68,7 @@ export default function ScorecardPanel() {
         <Segmented label="판정 기간" value={h} onChange={setH} options={[{ value: "6", label: "6개월" }, { value: "12", label: "12개월" }, { value: "24", label: "24개월" }]} />
       </div>
       <ErrorBox error={error} />
-      {!data ? <Loading /> : (
+      {!data ? (error ? null : <Loading />) : (
         <div className={`space-y-5 transition-opacity ${loadingNew ? "opacity-50" : ""}`} aria-busy={loadingNew}>
           <div className="grid sm:grid-cols-3 gap-3">
             <div className="bg-raised rounded-xl shadow-card px-4 py-3">

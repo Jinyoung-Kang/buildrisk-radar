@@ -43,7 +43,7 @@ export default function StockReaction() {
         <Segmented label="보유 기간" value={h} onChange={setH} options={[{ value: "20", label: "20거래일" }, { value: "60", label: "60거래일" }, { value: "120", label: "120거래일" }]} />
       </div>
       <ErrorBox error={error} />
-      {!data ? <Loading /> : (
+      {!data ? (error ? null : <Loading />) : (
         <div className="space-y-5">
           <div className="text-xs text-ink2">시세 {data.priceFrom ?? "–"} ~ {data.priceTo ?? "–"} · 종목 {data.stocks}개 (금융위원회 주식시세)</div>
           <div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-5 items-start">

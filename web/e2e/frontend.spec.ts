@@ -98,6 +98,29 @@ test("목록 화면도 조회가 실패하면 오류만 — 불러오는 중 · 
   }
 });
 
+test("규칙 · 매핑 · 성적표 · 주가 반응 · 감사 · 알림 화면도 조회가 실패하면 오류만 — 불러오는 중을 함께 보이지 않음 (VERIFICATION 197)", async ({ page }) => {
+  // [화면, 실패시킬 조회, 로그인 역할(가짜 세션)] — 163 이 다루지 않은 나머지
+  const cases: [string, string, string[]][] = [
+    ["/admin/rules", "**/api/v1/rules", []],
+    ["/admin/mapping", "**/api/v1/mapping/unmapped", []],
+    ["/backtest", "**/api/v1/scorecard?*", []],
+    ["/backtest?tab=price", "**/api/v1/backtest?*", []],
+    ["/admin/audit", "**/api/v1/admin/audit?*", ["ADMIN"]],
+    ["/notifications", "**/api/v1/me/notifications?*", ["ANALYST"]],
+    ["/notifications", "**/api/v1/me/subscriptions", ["ANALYST"]],
+    ["/notifications", "**/api/v1/me/watch", ["ANALYST"]],
+  ];
+  for (const [path, api, roles] of cases) {
+    await page.unrouteAll();
+    if (roles.length) await page.route("**/api/v1/auth/me", (route) => route.fulfill({ json: { authenticated: true, username: "e2e", roles } }));
+    await fail(page, api);
+    await page.goto(path);
+    await expect(page.getByRole("alert").filter({ hasText: "시험용 실패" }).first(), `${path} ${api}`).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(300);
+    await expect(page.getByText("불러오는 중…"), `${path} ${api}`).toHaveCount(0);
+  }
+});
+
 test("경보 확인 뒤 목록을 다시 불러오다 실패해도 보이던 목록은 남음 (VERIFICATION 167)", async ({ page }) => {
   // 163 에서 오류면 목록을 숨기게 해, 같은 조건을 다시 부르다 실패하면(이전 값은 남겨 둠) 행 없이 쪽 넘김만 남았음
   await page.route("**/api/v1/auth/me", (route) => route.fulfill({ json: { authenticated: true, username: "e2e", roles: ["ANALYST"] } }));

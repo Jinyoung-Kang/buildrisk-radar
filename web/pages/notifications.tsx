@@ -42,7 +42,7 @@ function InboxCard() {
       </div>}>
       <ErrorBox error={error} />
       {action.error && <p role="alert" className="text-xs text-crit px-4 py-2">{action.error.message}</p>}
-      {!data ? <Loading /> : data.items.length === 0 ? (
+      {!data ? (error ? null : <Loading />) : data.items.length === 0 ? (
         <Empty>{view === "unread" ? "읽지 않은 알림이 없습니다." : "알림이 없습니다. 구독을 만들면 새 경보가 여기에 쌓입니다."}</Empty>
       ) : (
         <>
@@ -169,7 +169,7 @@ function SubscriptionsCard({ admin }: { admin: boolean }) {
             admin={admin} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); subs.reload(); }} />
         </div>
       )}
-      {!subs.data ? <Loading /> : subs.data.length === 0 ? <Empty>구독이 없습니다.</Empty> : (
+      {!subs.data ? (subs.error ? null : <Loading />) : subs.data.length === 0 ? <Empty>구독이 없습니다.</Empty> : (
         <ul className="space-y-2">
           {subs.data.map((s) => (
             <li key={s.subscriptionId} className={`border border-line rounded-lg px-3 py-2 ${s.enabled ? "" : "opacity-60"}`}>
@@ -202,7 +202,7 @@ function WatchCard() {
     <Card title="관심 목록" sub="기업 · 지역 화면의 ☆ 버튼으로 넣습니다 — '관심 목록만' 구독이 이 목록으로 거릅니다">
       <ErrorBox error={error} />
       {action.error && <p role="alert" className="text-xs text-crit mb-2">{action.error.message}</p>}
-      {!data ? <Loading /> : data.length === 0 ? <Empty>비어 있습니다.</Empty> : (
+      {!data ? (error ? null : <Loading />) : data.length === 0 ? <Empty>비어 있습니다.</Empty> : (
         <ul className="flex flex-wrap gap-2">
           {data.map((w) => (
             <li key={`${w.targetType}:${w.targetKey}`} className="inline-flex items-center gap-1 border border-line rounded-full pl-3 pr-1 py-0.5 text-xs">
@@ -286,7 +286,7 @@ function WebhooksCard() {
           </div>
         </div>
       )}
-      {!data ? <Loading /> : data.items.length === 0 ? <Empty>등록한 웹훅이 없습니다.</Empty> : (
+      {!data ? (error ? null : <Loading />) : data.items.length === 0 ? <Empty>등록한 웹훅이 없습니다.</Empty> : (
         <div className="table-wrap mb-4">
           <table className="data-table">
             <thead><tr><th>이름</th><th>형식</th><th>주소</th><th>마지막 결과</th><th className="num">대기 · 포기</th><th className="num">구독</th><th>동작</th></tr></thead>

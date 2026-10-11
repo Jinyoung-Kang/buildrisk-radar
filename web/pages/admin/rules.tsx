@@ -106,7 +106,7 @@ export default function Rules() {
       <PageTitle title="규칙 관리" sub="로직은 코드(Java 클래스), 임계값·심각도는 DB 버전. 파라미터를 바꾸면 새 버전이 생기고 이전 경보는 이전 버전 번호를 유지합니다."
         right={<RequireRole role="ADMIN"><span className="text-xs text-good">✓ 관리자 — 파라미터 수정 가능</span></RequireRole>} />
       <ErrorBox error={error} />
-      {!data ? <Loading /> : (
+      {!data ? (error ? null : <Loading />) : (
         <div className="table-wrap bg-raised">
           <table className="data-table">
             <thead><tr><th>규칙</th><th>대상</th><th>심각도</th><th>조건 (현재 파라미터)</th><th className="num">버전</th>

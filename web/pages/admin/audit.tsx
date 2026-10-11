@@ -22,7 +22,7 @@ function AuditTable() {
         <button type="button" onClick={reload} className="px-3 py-1 rounded-md border border-line focus-ring">새로 고침</button>
       </form>
       <ErrorBox error={error} />
-      {!data ? <Loading /> : data.items.length === 0 ? <Empty>기록이 없습니다.</Empty> : (
+      {!data ? (error ? null : <Loading />) : data.items.length === 0 ? <Empty>기록이 없습니다.</Empty> : (
         <Card pad={false}>
           <div className="table-wrap max-h-[70vh]">
             <table className="data-table compact">
