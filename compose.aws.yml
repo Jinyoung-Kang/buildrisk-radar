@@ -28,9 +28,7 @@ services:
     environment:
       <<: *aws-db
       FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 필요}
-      # 공개 주소는 HTTPS(CloudFront) — 고정. .env 를 make env(.env.example 복사)로 만들면 로컬 값 false 가 들어 있어
-      # ${COOKIE_SECURE:-true} 의 기본값이 쓰이지 않았음 (VERIFICATION 179)
-      COOKIE_SECURE: "true"
+      COOKIE_SECURE: "${COOKIE_SECURE:-true}"
 
   worker:
     environment:
