@@ -129,6 +129,31 @@ class CacheKeyIT extends IntegrationTest {
         assertThat(keys("prices:")).hasSize(1);
     }
 
+    /**
+     * 기업별 조회는 대상 기업(유니버스)만 캐시 — ref.company 에는 DART 의 모든 회사(약 12만)가 있어, 존재만 보고 저장하면
+     * 코드를 바꿔 가며 부르는 것만으로 키가 그만큼 쌓였음(실측 200곳 × 5개 조회 → 키 847개 · 849 KB) (VERIFICATION 175)
+     */
+    @Test
+    void 대상이_아닌_기업은_기업별_조회를_캐시하지_않는다() throws Exception {
+        jdbc.update("""
+                INSERT INTO ref.company (corp_code, corp_name, stock_code, corp_cls, induty_code, is_target, target_reason)
+                VALUES ('00000105', '비대상상사', '000105', 'Y', '46101', false, NULL)""");
+        for (String p : List.of("", "/filings", "/pf", "/prices", "/prices?days=1095", "/sites")) {
+            mvc.perform(get("/api/v1/companies/00000105" + p)).andExpect(status().isOk());
+        }
+        for (String prefix : List.of("company:", "filings:", "pf:", "prices:", "sites:c:")) {
+            assertThat(keys(prefix)).as(prefix).isEmpty();
+        }
+
+        company("00000106", "대상건설");
+        for (String p : List.of("", "/filings", "/pf", "/prices", "/sites")) {
+            mvc.perform(get("/api/v1/companies/00000106" + p)).andExpect(status().isOk());
+        }
+        for (String prefix : List.of("company:", "filings:", "pf:", "prices:", "sites:c:")) {
+            assertThat(keys(prefix)).as(prefix).hasSize(1);
+        }
+    }
+
     @Test
     void 무효화하면_지난_세대의_키를_지운다() throws Exception {
         company("00000104", "캐시건설");

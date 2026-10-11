@@ -60,7 +60,9 @@ public class CompanyController {
     @GetMapping("/{corpCode}")
     @Operation(summary = "② 기업 요약 (최신 지표 · 열린 경보)")
     public CompanySummary summary(@PathVariable @Pattern(regexp = CORP) String corpCode) {
-        return cache.get("company:" + corpCode, Duration.ofMinutes(10), CompanySummary.class, () -> svc.summary(corpCode));
+        // 대상 기업만 저장 — 존재만 보고 저장하면 DART 의 모든 회사 코드(약 12만)만큼 키가 쌓일 수 있음 (VERIFICATION 175)
+        return cache.get("company:" + corpCode, Duration.ofMinutes(10), CompanySummary.class, () -> svc.summary(corpCode),
+                CompanySummary::target);
     }
 
     @GetMapping("/{corpCode}/financials")

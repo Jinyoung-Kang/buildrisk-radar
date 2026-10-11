@@ -185,6 +185,15 @@ public class ExposureService {
         return new Prices(corpCode, stock, bars, alerts, "금융위원회 주식시세 (종가, 수정주가 아님)");
     }
 
+    /**
+     * 대상 기업(유니버스)인지 — 기업별 조회는 대상 기업만 캐시. ref.company 에는 DART 의 모든 회사(약 12만)가 있어 존재만 보고 저장하면
+     * 코드를 바꿔 가며 부르는 것만으로 세션과 같은 Redis 에 키가 쌓임 (VERIFICATION 175)
+     */
+    public boolean isTarget(String corpCode) {
+        return jdbc.sql("SELECT is_target FROM ref.company WHERE corp_code = :c").param("c", corpCode)
+                .query(Boolean.class).optional().orElse(false);
+    }
+
     private void exists(String corpCode) {
         if (jdbc.sql("SELECT count(*) FROM ref.company WHERE corp_code = :c").param("c", corpCode).query(Long.class).single() == 0) {
             throw ApiException.notFound(ErrorCode.COMPANY_NOT_FOUND, "기업 " + corpCode);

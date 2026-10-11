@@ -63,18 +63,21 @@ public class InsightController {
                 ExposureService.Exposure.class, () -> exposure.exposure(days, unsoldPer1kHh));
     }
 
+    // 기업별 조회(수주 · PF · 주가 · 사업장)는 대상 기업일 때만 저장 — 판단은 계산한 뒤(캐시에 없을 때)만 하므로 적중 경로에는 쿼리가 늘지 않음 (VERIFICATION 175)
+
     @GetMapping("/companies/{corpCode}/filings")
     @Operation(summary = "기업 수주 계약 · 채무보증 (공시 원문 구조화, 정정·해지 반영)")
     public ExposureService.CompanyFilings filings(@PathVariable @Pattern(regexp = "\\d{8}") String corpCode) {
         return cache.get("filings:" + corpCode, Duration.ofMinutes(10), ExposureService.CompanyFilings.class,
-                () -> exposure.companyFilings(corpCode));
+                () -> exposure.companyFilings(corpCode), r -> exposure.isTarget(corpCode));
     }
 
     @GetMapping("/companies/{corpCode}/pf")
     @Operation(summary = "기업 PF 우발채무 — 정기보고서 부동산 PF 종합요약표 · 사업장별 내역 (분기별 추이 · 만기 구간 · 지역 위험)",
             description = "회사 노출 = 단독 + 컨소시엄 회사분. 비율은 R-C06 과 같은 risk.company_metric 값 (ADR-024)")
     public PfExposureService.CompanyPf companyPf(@PathVariable @Pattern(regexp = "\\d{8}") String corpCode) {
-        return cache.get("pf:" + corpCode, Duration.ofMinutes(10), PfExposureService.CompanyPf.class, () -> pf.company(corpCode));
+        return cache.get("pf:" + corpCode, Duration.ofMinutes(10), PfExposureService.CompanyPf.class, () -> pf.company(corpCode),
+                r -> exposure.isTarget(corpCode));
     }
 
     @GetMapping("/companies/{corpCode}/prices")
@@ -83,13 +86,14 @@ public class InsightController {
                                          @RequestParam(defaultValue = "730") @Min(30) @Max(3650) int days) {
         if (!PRICE_DAYS.contains(days)) return exposure.prices(corpCode, days);
         return cache.get("prices:" + corpCode + ":" + days, Duration.ofMinutes(30), ExposureService.Prices.class,
-                () -> exposure.prices(corpCode, days));
+                () -> exposure.prices(corpCode, days), r -> exposure.isTarget(corpCode));
     }
 
     @GetMapping("/companies/{corpCode}/sites")
     @Operation(summary = "기업 사업장 카드 — 현재 공급계약 위치를 법정동 · 지번까지 풀어 그 동의 아파트 시장과 잇기 (ADR-026)")
     public SiteService.Sites companySites(@PathVariable @Pattern(regexp = "\\d{8}") String corpCode) {
-        return cache.get("sites:c:" + corpCode, Duration.ofMinutes(10), SiteService.Sites.class, () -> sites.company(corpCode));
+        return cache.get("sites:c:" + corpCode, Duration.ofMinutes(10), SiteService.Sites.class, () -> sites.company(corpCode),
+                r -> exposure.isTarget(corpCode));
     }
 
     @GetMapping("/regions/{regionCd}/sites")
