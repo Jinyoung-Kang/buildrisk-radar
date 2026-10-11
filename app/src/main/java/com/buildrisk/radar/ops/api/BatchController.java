@@ -3,6 +3,7 @@ package com.buildrisk.radar.ops.api;
 import com.buildrisk.radar.batch.queue.JobRequestService;
 import com.buildrisk.radar.batch.queue.WorkerRegistry;
 import com.buildrisk.radar.batch.support.BatchLauncher;
+import com.buildrisk.radar.common.KeyMasker;
 import com.buildrisk.radar.common.role.ApiRole;
 import com.buildrisk.radar.common.security.Viewer;
 import com.buildrisk.radar.ops.app.BatchQueryService;
@@ -78,7 +79,7 @@ public class BatchController {
 
     @GetMapping("/requests/{id}")
     @Operation(summary = "실행 요청 상태 — QUEUED → RUNNING(jobExecutionId) → DONE/FAILED")
-    public Map<String, Object> request(@PathVariable long id) { return queue.get(id); }
+    public Map<String, Object> request(@PathVariable long id) { return anonymize(queue.get(id)); }   // 목록과 같은 가림 (VERIFICATION 207)
 
     /**
      * 익명에게 그대로 보이는 키 — 여기 없는 키는 익명 응답에서 빠짐(fail-closed). 사람 · 호스트 · 오류 원문 키는 아래에서 바꿔 보임.
@@ -109,7 +110,8 @@ public class BatchController {
                 String key = String.valueOf(k);
                 switch (key) {
                     case "claimedBy", "workerId" -> out.put(key, Viewer.alias((String) v));
-                    case "exitMessage", "message" -> out.put(key, Viewer.firstLine((String) v));
+                    // 첫 줄만 · 인증키 가림 — 저장할 때 가리기(177) 전에 쌓인 행도 (VERIFICATION 207)
+                    case "exitMessage", "message" -> out.put(key, KeyMasker.mask(Viewer.firstLine((String) v)));
                     default -> {
                         if (PUBLIC_KEYS.contains(key)) out.put(key, anonymous(v));
                     }

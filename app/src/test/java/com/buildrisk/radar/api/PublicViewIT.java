@@ -68,6 +68,10 @@ class PublicViewIT extends IntegrationTest {
         assertThat(alias).doesNotContain("0123456789ab").startsWith("worker-");
         // 실패 메시지는 exitMessage 처럼 첫 줄만 — 스택 · 내부 경로를 익명에게 보이지 않음 (VERIFICATION 177)
         assertThat(anonRequests.get(0).get("message").asString()).isEqualTo("실행 정리 잠금 실패: Connection to db:5432 refused");
+        // 요청 하나의 상세도 같은 규칙 — 목록만 가리고 상세는 원문(스택)이 나갔음 (VERIFICATION 207)
+        long reqId = anonRequests.get(0).get("requestId").asLong();
+        assertThat(json(get("/api/v1/batch/requests/" + reqId)).get("message").asString())
+                .isEqualTo("실행 정리 잠금 실패: Connection to db:5432 refused");
         // 같은 worker 는 실행 요청 · worker 목록에서 같은 별칭 — 화면이 둘을 이어 볼 수 있게
         assertThat(anonJobs.get("workers").findValuesAsString("workerId")).contains(alias).noneMatch(w -> w.contains("@"));
 
