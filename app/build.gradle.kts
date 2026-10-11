@@ -1,3 +1,15 @@
+// 빌드 도구(Spring Boot Gradle 플러그인)의 classpath — 이미지에는 들어가지 않지만 Dependabot 이 경고하는 낡은 판을 올림
+// (jackson 3.1.5 · commons-lang3 3.16.0 → 수정판). 앱 classpath 는 아래 dependencies 에서 따로 관리 (VERIFICATION 212)
+buildscript {
+    dependencies {
+        constraints {
+            classpath("tools.jackson.core:jackson-core:3.1.7")
+            classpath("tools.jackson.core:jackson-databind:3.1.7")
+            classpath("org.apache.commons:commons-lang3:3.18.0")
+        }
+    }
+}
+
 plugins {
     java
     id("org.springframework.boot") version "4.1.1"
