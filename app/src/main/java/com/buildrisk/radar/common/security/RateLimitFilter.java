@@ -16,7 +16,6 @@ import java.time.Duration;
  */
 public class RateLimitFilter extends OncePerRequestFilter {
     private final RateLimiter limiter;
-    static final String EXPORT = "/api/v1/export/";
     private final int limitPerMinute;
     private final int exportPerMinute;
     private final ObjectMapper mapper;
@@ -30,7 +29,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest req) {
-        return (limitPerMinute <= 0 && exportPerMinute <= 0) || !req.getRequestURI().startsWith("/api/");
+        return (limitPerMinute <= 0 && exportPerMinute <= 0) || !ApiPaths.API.matches(req);
     }
 
     @Override
@@ -41,7 +40,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             reject(res, "요청이 너무 많습니다. 잠시 후 다시 시도하세요.");
             return;
         }
-        if (exportPerMinute > 0 && req.getRequestURI().startsWith(EXPORT)
+        if (exportPerMinute > 0 && ApiPaths.EXPORT.matches(req)
                 && limiter.hit("br:rl:x:" + req.getRemoteAddr() + ":" + minute, Duration.ofSeconds(70)) > exportPerMinute) {
             reject(res, "내려받기 요청이 너무 많습니다 (IP 당 분당 " + exportPerMinute + "회). 잠시 후 다시 시도하세요.");
             return;

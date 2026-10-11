@@ -48,9 +48,8 @@ public class AuditFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest req) {
         String m = req.getMethod();
-        String uri = req.getRequestURI();
         return "GET".equals(m) || "HEAD".equals(m) || "OPTIONS".equals(m) || "TRACE".equals(m)
-                || !uri.startsWith("/api/") || uri.startsWith("/api/v1/auth/");
+                || !ApiPaths.API.matches(req) || ApiPaths.AUTH.matches(req);
     }
 
     @Override

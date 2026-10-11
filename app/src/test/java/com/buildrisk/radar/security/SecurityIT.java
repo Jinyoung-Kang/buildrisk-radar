@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import tools.jackson.databind.ObjectMapper;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -301,5 +302,47 @@ class SecurityIT extends IntegrationTest {
         assertThat(third.getStatus()).isEqualTo(429);
         assertThat(third.getContentAsString()).contains("내려받기");
         assertThat(hit.apply("/api/v1/alerts").getStatus()).isEqualTo(200);        // 일반 조회는 영향 없음
+    }
+
+    /**
+     * 경로를 퍼센트 인코딩해도(/%61pi/…) 인가 · MVC 와 같은 경로로 판단 — 원래 문자열(getRequestURI)로 비교하던 레이트리밋 ·
+     * 내려받기 한도가 인코딩한 경로를 세지 않았음 (VERIFICATION 172)
+     */
+    @Test
+    void 인코딩한_경로도_요청_한도와_내려받기_한도에_잡힌다() {
+        java.util.function.BiFunction<RateLimitFilter, String, Integer> hit = (filter, uri) -> {
+            var req = new MockHttpServletRequest("GET", uri);
+            req.setRemoteAddr(uri.contains("xport") ? "10.9.9.12" : "10.9.9.11");
+            var res = new MockHttpServletResponse();
+            try {
+                filter.doFilter(req, res, new MockFilterChain());
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+            return res.getStatus();
+        };
+        var general = new RateLimitFilter(limiter, 3, 0, mapper);
+        assertThat(List.of("/api/v1/rules", "/%61pi/v1/rules", "/api/v1/%72ules", "/%61pi/v1/rules").stream()
+                .map(u -> hit.apply(general, u)).toList()).containsExactly(200, 200, 200, 429);
+        var export = new RateLimitFilter(limiter, 0, 1, mapper);
+        assertThat(hit.apply(export, "/api/v1/export/alerts.csv")).isEqualTo(200);
+        assertThat(hit.apply(export, "/api/v1/%65xport/alerts.csv")).isEqualTo(429);
+    }
+
+    /** 인코딩한 경로의 변경 시도도 감사 로그에 남고, 조회 응답에 API CSP 가 붙고, 로그인은 CSRF 를 요구함 (VERIFICATION 172) */
+    @Test
+    void 인코딩한_경로도_감사_CSP_로그인_CSRF_를_비껴가지_않는다() throws Exception {
+        jdbc.update("DELETE FROM ops.audit_log");
+        mvc.perform(post(URI.create("/%61pi/v1/batch/jobs/ruleEvalJob/launch"))).andExpect(status().isUnauthorized());
+        assertThat(jdbc.queryForList("SELECT action FROM ops.audit_log WHERE status = 401", String.class))
+                .containsExactly("POST /api/v1/batch/jobs/{jobName}/launch");
+
+        mvc.perform(get(URI.create("/%61pi/v1/rules"))).andExpect(status().isOk())
+                .andExpect(header().string("Content-Security-Policy", containsString("default-src 'none'")));
+
+        MvcResult login = new Browser("10.1.0.9").send(post(URI.create("/api/v1/auth/%6cogin")).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"analyst\",\"password\":\"" + ANALYST_PASSWORD + "\"}"));
+        assertThat(login.getResponse().getStatus()).isEqualTo(403);
+        assertThat(login.getResponse().getContentAsString()).contains("CSRF_INVALID");
     }
 }

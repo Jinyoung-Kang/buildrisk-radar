@@ -58,7 +58,6 @@ import java.util.List;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class SecurityConfig {
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
-    public static final String LOGIN_PATH = "/api/v1/auth/login";
 
     @Bean
     SecurityFilterChain api(HttpSecurity http, AppProperties props, ObjectMapper mapper, RateLimiter limiter,
@@ -82,7 +81,7 @@ public class SecurityConfig {
                 // 로그인은 세션 쿠키가 없어도 검사 (로그인 CSRF 방지).
                 .csrf(c -> c.spa().csrfTokenRepository(csrfRepository)
                         .ignoringRequestMatchers(req -> ServiceTokenFilter.hasToken(req)
-                                || (!hasCookie(req, sessionCookie) && !LOGIN_PATH.equals(req.getRequestURI()))))
+                                || (!hasCookie(req, sessionCookie) && !ApiPaths.LOGIN.matches(req))))
                 .securityContext(s -> s.securityContextRepository(contextRepository))
                 .formLogin(f -> f.disable())
                 .httpBasic(b -> b.disable())
@@ -107,7 +106,7 @@ public class SecurityConfig {
                         .referrerPolicy(r -> r.policy(ReferrerPolicy.NO_REFERRER))
                         .addHeaderWriter(new StaticHeadersWriter("Permissions-Policy", "camera=(), microphone=(), geolocation=()"))
                         // JSON API 는 어떤 리소스도 불러오지 않음 — 응답이 문서로 해석돼도 스크립트 실행 불가
-                        .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(req -> req.getRequestURI().startsWith("/api/"),
+                        .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(ApiPaths.API,
                                 new ContentSecurityPolicyHeaderWriter("default-src 'none'; frame-ancestors 'none'"))))
                 .addFilterBefore(new RateLimitFilter(limiter, props.security().rateLimitPerMinute(), props.security().exportLimitPerMinute(), mapper), DisableEncodeUrlFilter.class)
                 .addFilterBefore(new ServiceTokenFilter(props, mapper), CsrfFilter.class)
