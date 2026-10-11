@@ -15,7 +15,7 @@ const config = [
     files: ["pages/**/*.{ts,tsx}", "components/**/*.{ts,tsx}"],
     ignores: ["pages/api/**"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: [{ group: ["@/lib/api/client", "**/lib/api/client", "@/lib/api/types"],
+      "no-restricted-imports": ["error", { patterns: [{ group: ["@/lib/api/client", "**/lib/api/client", "@/lib/api/types", "**/lib/api/types"],
         message: "화면은 @/lib/api(타입) · 기능별 @/lib/api/<기능> 을 씁니다 (ADR-030)" }] }],
       "no-restricted-globals": ["error", { name: "fetch", message: "API 호출은 기능별 @/lib/api/<기능> 모듈로 (ADR-030)" }],
       "no-restricted-properties": ["error", ...FETCH_VIA_GLOBAL],
@@ -30,7 +30,7 @@ const config = [
           message: "lib/domain 은 순수 함수만 — React · 화면 · 네트워크를 모름 (ADR-030)" },
         { group: ["@/lib/api"], allowTypeImports: true, message: "lib/domain 은 API 응답 타입만 import type 으로 (ADR-030)" },
         // 상대 경로(../api/client 등)로 위 규칙을 비켜 가지 않게 — lib/domain 밖은 @/ 경로로만 (VERIFICATION 203)
-        { group: ["../**"], message: "lib/domain 밖은 @/ 경로로 — 상대 경로로 경계를 비켜 가지 않게 (ADR-030)" },
+        { group: ["../**", "./../**"], message: "lib/domain 밖은 @/ 경로로 — 상대 경로로 경계를 비켜 가지 않게 (ADR-030)" },
       ] }],
       "no-restricted-globals": ["error", "window", "document", "fetch", "localStorage", "sessionStorage", "navigator"],
       "no-restricted-properties": ["error", ...FETCH_VIA_GLOBAL],
