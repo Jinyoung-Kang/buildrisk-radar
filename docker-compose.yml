@@ -200,7 +200,7 @@ services:
   # 유일한 외부 진입점 — X-Forwarded-For 를 실제 접속 주소로 덮어쓰는 리버스 프록시
   edge:
     restart: unless-stopped
-    image: nginx:1.30-alpine                       # stable (1.27 mainline 은 지원 끝)
+    image: nginx:1.31-alpine                       # stable (1.27 mainline 은 지원 끝)
     mem_limit: 128m
     user: "101:101"
     command: ["nginx", "-g", "daemon off;"]
