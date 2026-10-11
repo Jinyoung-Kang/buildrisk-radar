@@ -19,6 +19,9 @@ describe("queries · downloads 경로", () => {
     assert.equal(companyApi.financials("00122694", "OFS").path, "/companies/00122694/financials?fsDiv=OFS");
     assert.equal(companyApi.financials("00122694").path, "/companies/00122694/financials");
     assert.equal(insightApi.exposure("365", "5").path, "/exposure?days=365&unsoldPer1kHh=5");
+    assert.equal(insightApi.exposure().path, "/exposure", "주지 않으면 서버 기본값(R-X01)");
+    assert.equal(insightApi.exposureCsv("365", "5"), "/api/v1/export/exposure.csv?days=365&unsoldPer1kHh=5");
+    assert.equal(insightApi.exposureCsv(), "/api/v1/export/exposure.csv");
     assert.equal(notifyApi.inbox({ unreadOnly: false, page: 0, size: 30 }).path, "/me/notifications?unreadOnly=false&page=0&size=30");
     assert.equal(opsApi.batchExecutions(undefined).path, "/batch/executions?limit=60");
     assert.equal(regionApi.boundaries("abc").path, "/regions/boundaries?v=abc");

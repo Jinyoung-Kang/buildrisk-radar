@@ -4,7 +4,8 @@ import type { Backtest, Exposure, Meta, Row, Scorecard, SearchResult } from "./t
 export const dashboard = () => query<Row>("/dashboard");
 export const meta = () => query<Meta>("/meta");
 export const search = (q: string) => query<SearchResult>(`/search${qs({ q })}`);
-export const exposure = (days: number | string, unsoldPer1kHh: string) => query<Exposure>(`/exposure${qs({ days, unsoldPer1kHh })}`);
+/** 기간 · 기준을 주지 않으면 서버가 경보 R-X01 의 최신 파라미터를 씀 (VERIFICATION 208) */
+export const exposure = (days?: number | string, unsoldPer1kHh?: string) => query<Exposure>(`/exposure${qs({ days, unsoldPer1kHh })}`);
 export const backtest = (horizon: number | string) => query<Backtest>(`/backtest?horizon=${horizon}`);
 export const scorecard = (horizonMonths: number | string) => query<Scorecard>(`/scorecard?horizonMonths=${horizonMonths}`);
-export const exposureCsv = (days: number | string, unsoldPer1kHh: string) => `${BASE}/export/exposure.csv?days=${days}&unsoldPer1kHh=${unsoldPer1kHh}`;
+export const exposureCsv = (days?: number | string, unsoldPer1kHh?: string) => `${BASE}/export/exposure.csv${qs({ days, unsoldPer1kHh })}`;

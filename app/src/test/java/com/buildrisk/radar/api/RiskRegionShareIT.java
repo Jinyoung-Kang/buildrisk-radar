@@ -14,6 +14,7 @@ import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -73,5 +74,8 @@ class RiskRegionShareIT extends IntegrationTest {
                 .andExpect(jsonPath("$.riskShare.contracts").value(3))
                 .andExpect(jsonPath("$.riskShare.sharePct").value(76.9231));
         mvc.perform(get("/api/v1/exposure")).andExpect(status().isOk()).andExpect(jsonPath("$.days").value(730));
+        // '/exposure 와 같은 계산'인 CSV 도 기본값은 R-X01 파라미터 — 365 · 5 고정이라 규칙을 바꾸면 화면과 갈라졌음 (VERIFICATION 208)
+        mvc.perform(get("/api/v1/export/exposure.csv")).andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("exposure-730d")));
     }
 }

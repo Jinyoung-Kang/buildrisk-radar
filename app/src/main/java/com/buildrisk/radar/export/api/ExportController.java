@@ -6,6 +6,7 @@ import com.buildrisk.radar.common.role.ApiRole;
 import com.buildrisk.radar.common.web.CsvWriter;
 import com.buildrisk.radar.common.web.QueryParams;
 import com.buildrisk.radar.export.app.ExportService;
+import com.buildrisk.radar.insight.app.ExposureService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
@@ -38,8 +39,12 @@ import java.util.function.Consumer;
 public class ExportController {
     private static final String CORP = "\\d{8}";
     private final ExportService exports;
+    private final ExposureService exposure;
 
-    public ExportController(ExportService exports) { this.exports = exports; }
+    public ExportController(ExportService exports, ExposureService exposure) {
+        this.exports = exports;
+        this.exposure = exposure;
+    }
 
     @GetMapping("/alerts.csv")
     @Operation(summary = "경보 목록 CSV — 목록 API 와 같은 조건, 최대 50,000행 (X-Total-Count · X-Truncated)")
@@ -67,10 +72,14 @@ public class ExportController {
 
     @GetMapping("/exposure.csv")
     @Operation(summary = "기업별 노출 요약 CSV — /exposure 와 같은 계산")
-    public void exposure(@RequestParam(defaultValue = "365") @Min(30) @Max(1095) int days,
-                         @RequestParam(defaultValue = "5") @DecimalMin("0.1") @DecimalMax("100") BigDecimal unsoldPer1kHh,
+    public void exposure(@RequestParam(required = false) @Min(30) @Max(1095) Integer days,
+                         @RequestParam(required = false) @DecimalMin("0.1") @DecimalMax("100") BigDecimal unsoldPer1kHh,
                          HttpServletResponse res) throws IOException {
-        write(res, "exposure-" + days + "d", w -> exports.exposure(days, unsoldPer1kHh, w));
+        // 기본값은 /exposure 와 같이 경보 R-X01 의 최신 파라미터 — 365 · 5 고정이면 규칙을 바꿨을 때 화면과 갈라졌음 (VERIFICATION 208)
+        var rx = days == null || unsoldPer1kHh == null ? exposure.rx01() : null;
+        int d = days != null ? days : rx.days();
+        BigDecimal th = unsoldPer1kHh != null ? unsoldPer1kHh : rx.unsoldPer1kHh();
+        write(res, "exposure-" + d + "d", w -> exports.exposure(d, th, w));
     }
 
     @GetMapping("/companies/{corpCode}/pf-sites.csv")

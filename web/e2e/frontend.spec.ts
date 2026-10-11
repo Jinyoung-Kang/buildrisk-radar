@@ -85,7 +85,7 @@ test("목록 화면도 조회가 실패하면 오류만 — 불러오는 중 · 
   const cases: [string, string, string][] = [
     ["/companies", "**/api/v1/companies?*", "대상 기업이 없습니다."],
     ["/alerts", "**/api/v1/alerts?*", "조건에 맞는 경보가 없습니다."],
-    ["/exposure", "**/api/v1/exposure?*", "기업이 없습니다."],
+    ["/exposure", "**/api/v1/exposure*", "기업이 없습니다."],   // 처음 요청은 쿼리 없음(서버 기본값 — VERIFICATION 208)
   ];
   for (const [path, api, empty] of cases) {
     await page.unrouteAll();
@@ -183,6 +183,17 @@ test("범위를 넘은 쪽은 '데이터 없음'이 아니라 빈 쪽 — 마지
   await expect(page.getByText("알림이 없습니다", { exact: false })).toHaveCount(0);
   await page.getByRole("button", { name: /마지막 쪽/ }).click();
   await expect(page.getByText("남은 알림")).toBeVisible();
+});
+
+test("노출 화면의 처음 기간 · 기준은 경보 R-X01 의 파라미터(서버 기본값)를 따름 (VERIFICATION 208)", async ({ page }) => {
+  // 화면이 365 · 5 를 늘 붙여 보내 규칙을 바꾸면 경보 · 기업 카드와 숫자가 다시 갈라졌음
+  const seen: string[] = [];
+  await page.route("**/api/v1/exposure*", async (route) => { seen.push(new URL(route.request().url()).search); return route.continue(); });
+  await page.goto("/exposure");
+  await expect.poll(() => seen.length).toBeGreaterThan(0);
+  expect(seen[0]).not.toContain("days=");
+  await expect(page.getByRole("radio", { name: "1년" })).toHaveAttribute("aria-checked", "true");   // 서버가 돌려준 기준으로 선택 표시
+  await expect(page.getByRole("link", { name: "CSV" })).toHaveAttribute("href", /days=365&unsoldPer1kHh=5/);
 });
 
 test("경보 확인 뒤 목록을 다시 불러오다 실패해도 보이던 목록은 남음 (VERIFICATION 167)", async ({ page }) => {

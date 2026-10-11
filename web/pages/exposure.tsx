@@ -20,11 +20,18 @@ function ShareBar({ pct, warn }: { pct?: number; warn: number }) {
   );
 }
 
+type Days = "180" | "365" | "730";
+type Th = "3" | "5" | "10";
+
 export default function ExposurePage() {
-  const [days, setDays] = useState<"180" | "365" | "730">("365");
-  const [th, setTh] = useState<"3" | "5" | "10">("5");
+  // 고르기 전에는 비워 두고 서버 기본값(경보 R-X01 의 최신 파라미터)을 받아 그 기준으로 표시 — 365 · 5 를 늘 붙여 보내
+  // 규칙을 바꾸면 경보 · 기업 카드와 숫자가 다시 갈라졌음 (VERIFICATION 208)
+  const [days, setDays] = useState<Days | null>(null);
+  const [th, setTh] = useState<Th | null>(null);
   const [sort, setSort] = useState<ExposureSort>("risk");
-  const { data, error } = useApi(insightApi.exposure(days, th));
+  const { data, error } = useApi(insightApi.exposure(days ?? undefined, th ?? undefined));
+  const shownDays = (days ?? (data ? String(data.days) : "")) as Days;
+  const shownTh = (th ?? (data ? String(data.unsoldPer1kHh) : "")) as Th;
   const rows = useMemo(() => sortExposure(data?.items ?? [], sort), [data, sort]);
   const withContracts = rows.filter((r) => r.contracts > 0).length;
   return (
@@ -32,10 +39,10 @@ export default function ExposurePage() {
       <PageTitle title="수주·보증 노출 — 기업 × 지역"
         sub="건설사가 공시한 공급계약 원문에서 공사 지역과 금액을 뽑아, 미분양이 많은 지역에 앞으로의 매출이 얼마나 걸려 있는지 봅니다. 채무보증 공시와 정기보고서의 부동산 PF 종합요약표로 우발채무도 함께 봅니다." />
       <div className="flex flex-wrap gap-3 mb-4 items-center">
-        <Segmented label="기간" value={days} onChange={setDays} options={[{ value: "180", label: "6개월" }, { value: "365", label: "1년" }, { value: "730", label: "2년" }]} />
-        <Segmented label="위험 지역 기준 (천 가구당 미분양)" value={th} onChange={setTh} options={[{ value: "3", label: "3호↑" }, { value: "5", label: "5호↑" }, { value: "10", label: "10호↑" }]} />
+        <Segmented label="기간" value={shownDays} onChange={setDays} options={[{ value: "180", label: "6개월" }, { value: "365", label: "1년" }, { value: "730", label: "2년" }]} />
+        <Segmented label="위험 지역 기준 (천 가구당 미분양)" value={shownTh} onChange={setTh} options={[{ value: "3", label: "3호↑" }, { value: "5", label: "5호↑" }, { value: "10", label: "10호↑" }]} />
         <Segmented label="정렬" value={sort} onChange={setSort} options={[{ value: "risk", label: "위험 지역 비중" }, { value: "guarantee", label: "보증/자기자본" }, { value: "pf", label: "PF/자기자본" }, { value: "amount", label: "수주 금액" }, { value: "name", label: "이름" }]} />
-        <DownloadLink href={insightApi.exposureCsv(days, th)}>CSV</DownloadLink>
+        <DownloadLink href={insightApi.exposureCsv(days ?? (data ? String(data.days) : undefined), th ?? (data ? String(data.unsoldPer1kHh) : undefined))}>CSV</DownloadLink>
       </div>
       <ErrorBox error={error} />
       {/* 값이 없을 때 실패하면 오류만 — 전에는 오류와 함께 '불러오는 중'이 끝나지 않았음 (VERIFICATION 163 · 167) */}
