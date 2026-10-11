@@ -47,5 +47,8 @@ describe("format", () => {
     assert.equal(dt("2026-10-09T01:30:00+09:00"), "10. 09. 01:30");
     assert.equal(dt("2026-10-08T16:30:00Z"), "10. 09. 01:30");
     assert.equal(dt("not a date"), "not a date");
+    // 시간대 없는 ISO 는 서버의 KST 지역 시각(배치 화면의 하트비트 · worker · 마지막 실행) — 브라우저 현지 시각으로 읽으면 9시간 어긋났음 (VERIFICATION 196)
+    assert.equal(dt("2026-10-11T12:48:08"), "10. 11. 12:48");
+    assert.equal(dt("2026-09-24T20:17:07.345172"), "09. 24. 20:17");
   });
 });

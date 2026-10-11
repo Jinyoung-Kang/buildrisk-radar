@@ -56,10 +56,16 @@ export function pk(p?: string | null): string {
   return m ? `${m[1].slice(2)}.${m[2]}Q` : p;
 }
 
-/** 시각 — 데이터의 시간대(KST)로. 브라우저 시간대를 따르면 해외에서 보는 실행 · 수집 시각이 어긋남 (VERIFICATION 143) */
+/** 시간대 표시가 없는 ISO 날짜 · 시각(예: 2026-10-11T12:48:08.345) — 서버가 보낸 KST 지역 시각 */
+const LOCAL_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/;
+
+/**
+ * 시각 — 데이터의 시간대(KST)로. 브라우저 시간대를 따르면 해외에서 보는 실행 · 수집 시각이 어긋남 (VERIFICATION 143).
+ * 시간대 없는 값(배치 화면의 하트비트 · worker · 마지막 실행)은 KST 로 읽음 — 브라우저 현지 시각으로 읽어 9시간 어긋났음 (VERIFICATION 196)
+ */
 export function dt(s?: string | null): string {
   if (!s) return "–";
-  const d = new Date(s);
+  const d = new Date(LOCAL_ISO.test(s) ? `${s}+09:00` : s);
   if (Number.isNaN(d.getTime())) return s;
   return d.toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" });
 }
