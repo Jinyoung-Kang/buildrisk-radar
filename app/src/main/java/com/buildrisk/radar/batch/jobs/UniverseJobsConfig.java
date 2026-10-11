@@ -76,23 +76,35 @@ public class UniverseJobsConfig {
         };
     }
 
+    /**
+     * restart 때도 돎(allowStartIfComplete) — 받아 둔 파일이 있으면 그대로 쓰고, 없으면(컨테이너가 바뀌어 tmpfs 가 비었음) 다시 받음.
+     * 완료된 Step 이라 건너뛰면 적재가 사라진 파일을 열다 매번 실패해 고유번호 동기화가 멈췄음 (VERIFICATION 183)
+     */
     @Bean
     Step corpCodeDownloadStep(JobRepository repo, PlatformTransactionManager tm, DartClient dart) {
         return new StepBuilder("corpCodeDownloadStep", repo).tasklet((contribution, chunk) -> {
             var je = chunk.getStepContext().getStepExecution().getJobExecution();
+            var ctx = je.getExecutionContext();
+            if (ctx.containsKey("corpCodeXml") && Files.isRegularFile(Path.of(ctx.getString("corpCodeXml")))) {
+                log.info("CORPCODE.xml 재사용: {}", ctx.getString("corpCodeXml"));
+                return RepeatStatus.FINISHED;
+            }
             // 소유자 전용 권한(rwx------)의 새 임시 디렉터리 — 예측 가능한 공유 경로를 쓰지 않음. 경로는 실행 컨텍스트에 남아 restart 때 재사용
             Path dir = Files.createTempDirectory("buildrisk-corp-" + je.getJobInstance().getInstanceId() + "-");
             Path xml = dart.downloadCorpCodeXml(dir);
-            je.getExecutionContext().putString("corpCodeXml", xml.toString());
+            ctx.putString("corpCodeXml", xml.toString());
             log.info("CORPCODE.xml 저장: {}", xml);
             return RepeatStatus.FINISHED;
-        }, tm).build();
+        }, tm).allowStartIfComplete(true).build();
     }
 
+    /** 읽은 위치를 저장하지 않음 — restart 때 다시 받은 파일은 이전 파일과 순서 · 건수가 다를 수 있음. 적재는 멱등 upsert 라 처음부터(약 5초) */
     @Bean
     @StepScope
     CorpCodeXmlReader corpCodeXmlReader(@Value("#{jobExecutionContext['corpCodeXml']}") String path) {
-        return new CorpCodeXmlReader(Path.of(path));
+        CorpCodeXmlReader reader = new CorpCodeXmlReader(Path.of(path));
+        reader.setSaveState(false);
+        return reader;
     }
 
     @Bean

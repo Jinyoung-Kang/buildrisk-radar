@@ -14,8 +14,7 @@ import javax.xml.stream.XMLStreamReader;
 
 /**
  * CORPCODE.xml 스트리밍 Reader (StAX). 약 10만 건을 메모리에 올리지 않고 &lt;list&gt; 단위로 읽습니다.
- * AbstractItemCountingItemStreamItemReader 가 읽은 건수를 ExecutionContext 에 저장하므로
- * 재시작 시 마지막 커밋 이후부터 이어 읽습니다.
+ * Job 구성은 읽은 위치를 저장하지 않으므로(saveState=false) 재시작하면 처음부터 — restart 때 파일을 다시 받을 수 있어서 (VERIFICATION 183)
  */
 public class CorpCodeXmlReader extends AbstractItemCountingItemStreamItemReader<CorpCode> {
     private final Path file;

@@ -49,4 +49,29 @@ class CorpCodeSyncJobIT extends IntegrationTest {
         assertThat(Files.exists(file)).as(file.toString()).isFalse();
         assertThat(Files.exists(file.getParent())).isFalse();
     }
+
+    /**
+     * 적재 Step 이 실패한 뒤 컨테이너가 바뀌면(AWS 는 매일 정지 · 일회성 batch 컨테이너) tmpfs 의 CORPCODE.xml 이 사라지는데, 완료된 다운로드
+     * Step 은 restart 때 다시 돌지 않아 적재가 NoSuchFileException 으로 매번 실패했음 — '새로' 실행 전까지 고유번호 동기화가 멈춤 (VERIFICATION 183)
+     */
+    @Test
+    void 임시_파일이_사라진_뒤의_restart_는_다시_받아_처음부터_적재한다() throws Exception {
+        StringBuilder bad = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?><result>");
+        for (int i = 0; i < 101; i++) bad.append("<list><corp_code>bad</corp_code><corp_name>깨진행</corp_name></list>");   // 건너뛰기 한도(100) 초과
+        WM.stubFor(get(urlPathEqualTo("/api/corpCode.xml")).willReturn(aResponse().withBody(zip(bad.append("</result>").toString()))));
+        var failed = launcher.runAndWait("corpCodeSyncJob", Map.of("restart", false));
+        assertThat(failed.getStatus()).isEqualTo(BatchStatus.FAILED);
+        Path file = Path.of(failed.getExecutionContext().getString("corpCodeXml"));
+        Files.deleteIfExists(file);                                       // 컨테이너가 바뀌어 tmpfs 가 비었음
+        Files.deleteIfExists(file.getParent());
+
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><result>"
+                + "<list><corp_code>00000903</corp_code><corp_name>다시건설</corp_name><corp_eng_name>Again</corp_eng_name>"
+                + "<stock_code>000903</stock_code><modify_date>20260101</modify_date></list></result>";
+        WM.stubFor(get(urlPathEqualTo("/api/corpCode.xml")).willReturn(aResponse().withBody(zip(xml))));
+        var restarted = launcher.runAndWait("corpCodeSyncJob", Map.of());
+        assertThat(restarted.getJobInstance().getInstanceId()).isEqualTo(failed.getJobInstance().getInstanceId());
+        assertThat(restarted.getStatus()).as(restarted.getExitStatus().getExitDescription()).isEqualTo(BatchStatus.COMPLETED);
+        assertThat(count("SELECT count(*) FROM ref.company WHERE corp_code = '00000903'")).isEqualTo(1);
+    }
 }
