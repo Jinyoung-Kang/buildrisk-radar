@@ -129,16 +129,35 @@ public class FsRepository {
         return jdbc.sql("SELECT count(*) FROM ref.std_account WHERE std_code = :c").param("c", stdCode).query(Integer.class).single() > 0;
     }
 
-    /** 화면에서 추가하는 매핑 규칙(origin USER) — 같은 규칙이 있으면 우선순위만 바꿈. map_id */
-    public int addUserMapRule(String stdCode, String sjDiv, String matchType, String pattern, int priority, boolean absValue,
-                              String note, String section) {
+    public record MapRuleRef(int mapId, String origin) {}
+
+    /**
+     * 같은 규칙(표준계정 · 방식 · 패턴 · sj_div — sj_div 가 빈 규칙끼리도 같은 것으로)을 찾음. 트랜잭션 안에서 부르면 같은 키의 동시 추가를
+     * 잠금으로 줄 세움 — 유니크 제약은 NULL 을 서로 다르게 봐 sj_div 가 빈 같은 규칙이 중복으로 쌓였음 (VERIFICATION 185)
+     */
+    public Optional<MapRuleRef> lockAndFindMapRule(String stdCode, String sjDiv, String matchType, String pattern) {
+        jdbc.sql("SELECT pg_advisory_xact_lock(hashtext(:k))")
+                .param("k", "account_map|" + stdCode + "|" + sjDiv + "|" + matchType + "|" + pattern).query((rs, i) -> 1).list();
+        return jdbc.sql("""
+                        SELECT map_id, origin FROM ref.account_map
+                        WHERE std_code = :c AND match_type = :t AND pattern = :p AND sj_div IS NOT DISTINCT FROM :sj
+                        ORDER BY origin = 'SEED' DESC, map_id LIMIT 1""")
+                .param("c", stdCode).param("sj", sjDiv).param("t", matchType).param("p", pattern)
+                .query((rs, i) -> new MapRuleRef(rs.getInt(1), rs.getString(2))).optional();
+    }
+
+    /** 화면에서 추가하는 매핑 규칙(origin USER). map_id */
+    public int insertUserMapRule(String stdCode, String sjDiv, String matchType, String pattern, int priority, boolean absValue,
+                                 String note, String section) {
         return jdbc.sql("""
                         INSERT INTO ref.account_map (std_code, sj_div, match_type, pattern, priority, abs_value, origin, note, section)
-                        VALUES (:c, :sj, :t, :p, :pr, :abs, 'USER', :note, :sec)
-                        ON CONFLICT (std_code, match_type, pattern, sj_div) DO UPDATE SET priority = EXCLUDED.priority
-                        RETURNING map_id""")
+                        VALUES (:c, :sj, :t, :p, :pr, :abs, 'USER', :note, :sec) RETURNING map_id""")
                 .param("c", stdCode).param("sj", sjDiv).param("t", matchType).param("p", pattern)
                 .param("pr", priority).param("abs", absValue).param("note", note).param("sec", section).query(Integer.class).single();
+    }
+
+    public void updateMapRulePriority(int mapId, int priority) {
+        jdbc.sql("UPDATE ref.account_map SET priority = :pr WHERE map_id = :id").param("pr", priority).param("id", mapId).update();
     }
 
     /** 규칙의 출처(USER · seed) — 없으면 빈 값 */

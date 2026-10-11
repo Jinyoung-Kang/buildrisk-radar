@@ -165,6 +165,11 @@ public class MappingService {
     public record AccountRuleRequest(String stdCode, String sjDiv, String matchType, String pattern, Integer priority,
                                      Boolean absValue, String note, String section) {}
 
+    /**
+     * 같은 규칙이 USER 면 우선순위만 바꾸고, seed 면 거절 — seed 행을 바꾸면 다음 기동에 seed 파일 값으로 조용히 되돌아가고 그 ID 는
+     * 지울 수도 없었음 (VERIFICATION 185)
+     */
+    @Transactional
     public Map<String, Object> addAccountRule(AccountRuleRequest r) {
         if (r.stdCode() == null || !fs.stdAccountExists(r.stdCode())) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "알 수 없는 표준계정: " + r.stdCode());
@@ -188,8 +193,20 @@ public class MappingService {
         if (r.section() != null && !Set.of("CURRENT", "NONCURRENT").contains(r.section())) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "section 은 CURRENT · NONCURRENT");
         }
-        Integer id = fs.addUserMapRule(r.stdCode(), r.sjDiv(), r.matchType(), r.pattern(), r.priority() == null ? 30 : r.priority(),
-                Boolean.TRUE.equals(r.absValue()), r.note(), r.section());
+        int priority = r.priority() == null ? 30 : r.priority();
+        var same = fs.lockAndFindMapRule(r.stdCode(), r.sjDiv(), r.matchType(), r.pattern());
+        if (same.isPresent() && !"USER".equals(same.get().origin())) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "같은 규칙이 seed 에 있습니다 (map_id " + same.get().mapId()
+                    + ") — 우선순위 · 부호는 seed/account_map.csv 에서 고치세요.");
+        }
+        int id;
+        if (same.isPresent()) {
+            id = same.get().mapId();
+            fs.updateMapRulePriority(id, priority);
+        } else {
+            id = fs.insertUserMapRule(r.stdCode(), r.sjDiv(), r.matchType(), r.pattern(), priority, Boolean.TRUE.equals(r.absValue()),
+                    r.note(), r.section());
+        }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("mapId", id);
         out.put("next", "standardizeMetricJob → ruleEvalJob 을 실행하면 반영됩니다 (POST /api/v1/batch/jobs/standardizeMetricJob/launch).");

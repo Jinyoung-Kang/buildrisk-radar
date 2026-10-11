@@ -139,4 +139,32 @@ class MappingIT extends IntegrationTest {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ref.account_map WHERE map_id = ?", Integer.class, id)).isZero();
         mvc.perform(delete("/api/v1/mapping/account-rules/" + id).header("X-Admin-Token", ADMIN)).andExpect(status().isNotFound());
     }
+
+    /**
+     * seed 규칙과 같은 규칙을 화면에서 추가하면 seed 행의 우선순위를 바꾸고 201 로 seed 행 ID 를 돌려줬음(지우면 400, 다음 기동에 조용히 되돌아감).
+     * sj_div 가 빈 규칙은 유니크 제약이 NULL 을 서로 다르게 봐 같은 규칙이 중복으로 쌓였음 (VERIFICATION 185)
+     */
+    @Test
+    void seed_와_같은_규칙은_거절하고_sj_div_가_빈_같은_규칙도_하나로_본다() throws Exception {
+        var seedBs = jdbc.queryForMap("SELECT map_id, priority FROM ref.account_map WHERE origin = 'SEED' AND std_code = 'TOTAL_ASSETS' "
+                + "AND match_type = 'NAME_EXACT' AND pattern = '자산총계' AND sj_div = 'BS'");
+        mvc.perform(post("/api/v1/mapping/account-rules").header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"stdCode\":\"TOTAL_ASSETS\",\"sjDiv\":\"BS\",\"matchType\":\"NAME_EXACT\",\"pattern\":\"자산총계\",\"priority\":5}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("seed")));
+        assertThat(jdbc.queryForObject("SELECT priority FROM ref.account_map WHERE map_id = ?", Integer.class, seedBs.get("map_id")))
+                .isEqualTo(((Number) seedBs.get("priority")).intValue());
+
+        String nullSeed = "{\"stdCode\":\"REVENUE\",\"matchType\":\"ACCOUNT_ID\",\"pattern\":\"ifrs-full_Revenue\",\"priority\":5}";
+        mvc.perform(post("/api/v1/mapping/account-rules").header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON)
+                .content(nullSeed)).andExpect(status().isBadRequest());
+        String userNull = "{\"stdCode\":\"REVENUE\",\"matchType\":\"NAME_EXACT\",\"pattern\":\"매출(시험)\",\"priority\":40}";
+        for (String body : List.of(userNull, userNull.replace("40", "35"))) {
+            mvc.perform(post("/api/v1/mapping/account-rules").header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON)
+                    .content(body)).andExpect(status().isCreated());
+        }
+        assertThat(jdbc.queryForList("SELECT origin || ':' || priority FROM ref.account_map WHERE std_code = 'REVENUE' "
+                + "AND (pattern = 'ifrs-full_Revenue' AND match_type = 'ACCOUNT_ID' OR pattern = '매출(시험)') ORDER BY origin", String.class))
+                .containsExactly("SEED:10", "USER:35");
+        jdbc.update("DELETE FROM ref.account_map WHERE origin = 'USER'");
+    }
 }
