@@ -87,13 +87,14 @@ export default function Alerts() {
               <table className="data-table">
                 <thead><tr><th>심각도</th><th>대상</th><th>내용</th><th className="hidden sm:table-cell">기준</th><th>상태</th></tr></thead>
                 <tbody>{list.data.items.map((a) => (
-                  <tr key={a.alertId} onClick={() => set({ id: String(a.alertId) })} tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === "Enter") set({ id: String(a.alertId) }); }}
-                    className={`clickable focus-ring ${q.id === String(a.alertId) ? "selected" : ""}`}>
+                  // 행 전체는 마우스로, 키보드 · 화면 읽기 프로그램은 제목 버튼으로 고름 — 선택 상태는 aria-pressed (147 과 같은 방식, VERIFICATION 201)
+                  <tr key={a.alertId} onClick={() => set({ id: String(a.alertId) })}
+                    className={`clickable ${q.id === String(a.alertId) ? "selected" : ""}`}>
                     <td className="whitespace-nowrap"><SeverityBadge s={a.severity} /></td>
                     <td className="whitespace-nowrap font-medium">{a.targetName ?? a.targetKey}
                       <span className="sub">{a.targetType === "COMPANY" ? "기업" : "지역"}</span></td>
-                    <td className="min-w-[10rem]">{a.title}<span className="sub">{a.ruleCode} {a.ruleName}<span className="sm:hidden"> · {asOfLabel(a.asOf)}</span></span></td>
+                    <td className="min-w-[10rem]"><button type="button" className="text-left hover:underline focus-ring rounded"
+                      aria-pressed={q.id === String(a.alertId)} onClick={(e) => { e.stopPropagation(); set({ id: String(a.alertId) }); }}>{a.title}</button><span className="sub">{a.ruleCode} {a.ruleName}<span className="sm:hidden"> · {asOfLabel(a.asOf)}</span></span></td>
                     <td className="whitespace-nowrap tabular text-ink2 hidden sm:table-cell">{asOfLabel(a.asOf)}</td>
                     <td className="whitespace-nowrap"><StatusPill status={a.status} reason={a.closeReason} /></td>
                   </tr>))}</tbody>

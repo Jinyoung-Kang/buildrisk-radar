@@ -349,6 +349,17 @@ test("접근성: 배치 실행은 키보드로 열고, 규칙 변경 사유 입�
   await expect(page.getByLabel("변경 사유")).toBeVisible();
 });
 
+test("접근성: 경보 목록의 행은 버튼으로 고르고 선택 상태를 알림 (VERIFICATION 201)", async ({ page }) => {
+  // 행이 tabIndex · onClick 뿐이라 화면 읽기 프로그램이 고를 수 있는 항목으로 알지 못하고 선택 상태도 없었음(147 과 같은 유형)
+  await page.goto("/alerts");
+  const pick = page.locator("table.data-table tbody tr").first().getByRole("button");
+  await expect(pick).toHaveAttribute("aria-pressed", "false");
+  await pick.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/[?&]id=\d+/);
+  await expect(pick).toHaveAttribute("aria-pressed", "true");
+});
+
 test("다른 기업으로 옮기면 앞 기업에서 고른 연결/별도가 남지 않음 (VERIFICATION 148)", async ({ page, request }) => {
   const items = (await (await request.get("/api/v1/companies?size=50")).json()).items;
   const [a, b] = [items[0].corpCode as string, items[1].corpCode as string];
