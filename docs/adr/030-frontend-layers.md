@@ -46,3 +46,8 @@
 
 조회 캐시 · 재시도 · 낙관적 갱신이 필요해지면 그때 라이브러리를 검토한다. 기능 모듈 하나가 여러 화면의 공통 묶음을 키우면 다시 나눈다
 (같은 측정으로 확인).
+
+**덧붙임 (2026-10-11, VERIFICATION 203) — 경계 규칙의 빈틈**
+lib/domain 규칙이 `@/` 경로만 봐서 `../api/client` 같은 상대 경로가 통과했고, 화면의 fetch 금지가 이름 `fetch` 만 봐서 `window.fetch` · `globalThis.fetch` 가 통과했다.
+lib/domain 은 상위 상대 경로를 금지하고, 세 객체(window · globalThis · self)의 `fetch` 속성을 금지한다. 우회 모양은 `lib/boundaries.test.ts` 가 ESLint 로 직접 검사해
+고정한다(백엔드 ArchitectureTest 의 '우회하기 쉬운 모양'과 같은 역할).

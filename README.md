@@ -67,7 +67,7 @@ k6 로 잰 **성능과 메모리 안정성**(50 VU 약 4,000 req/s · API p95 �
 | **경보 성적표** ([ADR-023](docs/adr/023-alert-scorecard.md)) | 재무 규칙을 전체 기간에 대해 그 당시 알 수 있던 공시로만 다시 평가해 실제 부실 사건(회생 · 워크아웃 · 부도 · 감사의견 비적정)과 맞춤 — 규칙별 정밀도 · 재현율(Wilson 95% 구간) · 선행 기간 · 기준선 대비 lift, 사건 목록과 빗나간 경보까지 공개 | `ScorecardTest` · `ScorecardIT` · `SeedDictionaryTest` — 실데이터: 사건 5건 모두 사건 전에 경보(중앙값 12개월 전) |
 | **경보의 사후 검증 (주가)** ([ADR-017](docs/adr/017-stock-backtest.md)) | 경보 근거 공시가 공개된 날 다음 거래일부터 20·60·120거래일 업종 대비 초과수익률. 수정주가가 아닌 원천 종가 → 주식수 변동 구간 제외, 겹침 제외, 비교 기준 분포 · t 값 · 한계 표시 | `EventStudyTest` |
 | **성능 · 메모리 · 관측** ([ADR-018](docs/adr/018-observability.md) · [020](docs/adr/020-map-boundaries-cache.md) · [021](docs/adr/021-container-memory.md) · [022](docs/adr/022-read-cache.md)) | 외부 API Step 청크 안 가상 스레드 동시 처리(호출 간격·일일 상한은 스레드 안전하게 유지), 실거래 월 파티션. **조회 캐시**(Redis, 세대 번호로 일괄 무효화 — 모든 Job 이 끝나는 한 곳에서), **지도 경계는 버전 URL + 1년 immutable + 프로세스 안에 미리 압축한 바이트**, **컨테이너 메모리 예산**(서비스별 한도 · 힙 60% · G1 명시). Prometheus 지표 · ECS 로그 · Grafana | k6 50 VU · 90초 3회: **약 4,050 req/s · API p95 약 20 ms · 오류 0**, api 최대 610 MiB / 1 GiB (3차 점검 전 504 req/s · 307 ms, 오래 걸면 OOM 킬) |
-| **실데이터 검증** | 8개 출처 실데이터로 전체 배치를 돌리고 문제 171건을 재현 → 수정 → 회귀 테스트로 고정 (재시작 누락, 좀비 실행, 순액·액면 이중 공시, 공시 오탐, 동시 시작 직렬화 충돌, 자율공시 서식, **부하 중 OOM 킬**, **계정이 바뀐 누적 차분이 만든 오경보**, 종료 순서 때문에 실패하던 캐시 무효화, **코드 리뷰로 찾은 보안 · 데이터 손실 · 경합** …) | [docs/VERIFICATION.md](docs/VERIFICATION.md) |
+| **실데이터 검증** | 8개 출처 실데이터로 전체 배치를 돌리고 문제 211건을 재현 → 수정 → 회귀 테스트로 고정 (재시작 누락, 좀비 실행, 순액·액면 이중 공시, 공시 오탐, 동시 시작 직렬화 충돌, 자율공시 서식, **부하 중 OOM 킬**, **계정이 바뀐 누적 차분이 만든 오경보**, 종료 순서 때문에 실패하던 캐시 무효화, **코드 리뷰로 찾은 보안 · 데이터 손실 · 경합** …) | [docs/VERIFICATION.md](docs/VERIFICATION.md) |
 
 ---
 
@@ -139,7 +139,7 @@ flowchart TB
     web["web · Next.js 16 (React 18 · Tailwind · Recharts · 카카오 지도)<br/>CSP"]
     api["api · Spring Boot 4.1 / Java 25 (G1 · 힙 60% · 1 GB 한도)<br/>REST · Spring Security(세션+CSRF · 역할 · 토큰)<br/>레이트리밋 · 감사 로그 · 조회 캐시 · 외부 API 키 없음"]
     worker["worker · 같은 이미지<br/>요청 큐 소비(SKIP LOCKED) · 스케줄러<br/>Spring Batch Job 14개 · 외부 API 호출<br/>알림 outbox 나누기 · 웹훅 전송(재시도)"]
-    pg[("PostgreSQL 16 + PostGIS<br/>ref · dart · mkt · risk · ops · notify + BATCH_*<br/>런타임 계정 buildrisk_app = DML 전용")]
+    pg[("PostgreSQL + PostGIS<br/>ref · dart · mkt · risk · ops · notify + BATCH_*<br/>런타임 계정 buildrisk_app = DML 전용")]
     redis[("Redis 7 (비밀번호)<br/>조회 캐시(세대 키 br:gen) · 세션 · 레이트리밋 · 로그인 잠금")]
     prom["Prometheus · Grafana (obs)"]
   end
@@ -190,11 +190,11 @@ sequenceDiagram
 |---|---|---|
 | 애플리케이션 | **Java 25** (가상 스레드) · **Spring Boot 4.1.1** · Spring Batch 6 · JdbcClient · Flyway · springdoc · jsoup | 3.4 는 OSS 지원 종료 → 4.1 (U-5, [ADR-009](docs/adr/009-boot41-jdbcclient.md)) |
 | 보안 | **Spring Security 7** (세션 + `csrf.spa()` · 역할 · 서비스 토큰) · **Spring Session Redis** · BCrypt | [ADR-013](docs/adr/013-security.md) |
-| 저장 | PostgreSQL 16 + PostGIS 3.6 | 경계 · 실거래 월 파티션 · 마이그레이션/런타임 계정 분리 ([ADR-014](docs/adr/014-db-least-privilege.md)) |
+| 저장 | PostgreSQL + PostGIS 3.6 (로컬 16 · 운영 RDS와 통합 테스트 18.6) | 경계 · 실거래 월 파티션 · 마이그레이션/런타임 계정 분리 ([ADR-014](docs/adr/014-db-least-privilege.md)) |
 | 캐시 · 세션 | Redis 7 · 프로세스 안 캐시 | 목록 · 상세 read-through(세대 키 `br:gen` 일괄 무효화) · 세션 · 레이트리밋 · 로그인 잠금 / 지도 경계는 버전별 gzip 바이트 ([ADR-022](docs/adr/022-read-cache.md)) |
 | 화면 | Next.js 16 (Pages Router, 운영 빌드 webpack — [ADR-028](docs/adr/028-nextjs16-bundler.md)) · React 18 · TypeScript · Tailwind · Recharts 3 · 카카오 지도 | 접근성 탭 · 좁은 화면 메뉴 · 역할에 따른 버튼 · CSP · 차트 지연 로드 · 페이지 넘김 · 1·2·5 눈금 |
 | 관측 | Micrometer → Prometheus · Grafana · ECS 구조화 로그 | 관리 포트 8411 분리, 조회 캐시 적중률 지표 ([ADR-018](docs/adr/018-observability.md)) |
-| 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright · **k6** | 백엔드 313개 · 웹 단위 44개 · E2E 48개 · 부하 · 레이트리밋 |
+| 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright · **k6** | 백엔드 344개 · 웹 단위 50개 · E2E 55개 · 부하 · 레이트리밋 |
 | 도구 | Python 3.11 (표준 라이브러리) | 외부 API 키 스모크 · 골든 fixture 캡처 (`tools/smoke.py`) |
 | 운영 · CI | Docker Compose(읽기 전용 · cap_drop · no-new-privileges · **서비스별 메모리 한도** · healthcheck) · nginx(edge) · Makefile · GitHub Actions | 테스트 · gitleaks · **Trivy** · Dependabot ([ADR-021](docs/adr/021-container-memory.md)) |
 | 도입하지 않음 | Kafka/CDC · ClickHouse · Kubernetes | 이유와 도입 조건: [ADR-011](docs/adr/011-out-of-scope-infra.md) |
@@ -308,8 +308,8 @@ R-R01 의 `minUnsoldUnits` 는 구현 중 추가한 파라미터입니다 — �
 ## 7. 테스트 · 측정값
 
 ```bash
-make test        # 백엔드 313개 (단위 · 골든 · 구조 + Testcontainers 통합, javac 경고 = 오류) + 웹 타입 검사 · ESLint · 단위 44개
-make e2e         # Playwright 48개 (스택이 떠 있어야 함, 관리자 로그인 · XFF 위조 시나리오 포함) — 실패하면 트레이스 · 스크린샷이 web/e2e-failures/ 에 남음
+make test        # 백엔드 344개 (단위 · 골든 · 구조 + Testcontainers 통합, javac 경고 = 오류) + 웹 타입 검사 · ESLint · 단위 50개
+make e2e         # Playwright 55개 (스택이 떠 있어야 함, 관리자 로그인 · XFF 위조 시나리오 포함) — 실패하면 트레이스 · 스크린샷이 web/e2e-failures/ 에 남음
 make load        # k6 부하 (50 VU · 90초, edge 경유)
 make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 ```
@@ -343,6 +343,10 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 | 빈 DB → `make up` → `make regions` | 49 s + 18 s | README 대로 첫 화면 (FR-701) |
 | **k6 50 VU · 90 s × 3회 (edge 경유, 화면 호출 비율대로 12종 혼합 — PF · 성적표 포함, 2026-10-08)** | **약 4,050 req/s (4,134 · 4,138 · 3,894) · 오류 0 / 약 110만 건 · API p95 19.7~22.4 ms · p99 35~40 ms · 경계 재검증 p95 15~17 ms**. 같은 날 PF · 성적표를 뺀 이전 10종 배합 4,112 req/s · p95 20.5 ms — 새 API 를 넣어도 잡음 범위. 조건: 이 스택만 실행(도커 VM 4 CPU), 9-26 측정(약 3,400 req/s · p95 30 ms)은 다른 프로젝트 스택이 함께 돌던 때라 직접 비교하지 않음 | API p95 < 300 ms |
 | 구조 개편 전후 k6 (같은 시간대에 옛 · 새 api 이미지를 번갈아 A · B · A · B, 2026-10-09) | 옛 2,502 · 3,162 req/s (p95 37.1 · 26.1 ms) / 새 2,513 · 3,034 req/s (p95 37.6 · 27.5 ms) · 오류 0 — 차이는 같은 이미지 두 번의 흔들림보다 작음. 이날은 도커 VM 상태가 달라 10-08 의 4,050 과 직접 비교하지 않음 | 회귀 없음 |
+| 2차 코드 리뷰 전후 k6 (같은 날, 다른 프로젝트 컨테이너 11개 함께, k6 0.55, 2026-10-11) | 2,566 → 2,750 req/s · p95 36.4 → 32.3 ms · p99 72.6 → 60.3 ms · 오류 0 → 0 ([VERIFICATION 8차](docs/VERIFICATION.md#8차-검증-2026-10-11-2차-코드-리뷰)) | 회귀 없음 |
+| 배치 Job 목록 `/batch/jobs` (Job 마다 → 한 번) | 호출당 테이블 스캔 약 220 → 3 · 중앙값 36~42 → 7.6 ms · p95 80~96 → 14~17 ms (100회 × 2) | — |
+| 캐시 무효화 직후 성적표 동시 20요청 (api 풀 4 — AWS 와 같게) | 계산 20번 → 1번 · 중앙값 650~1,042 → 165~216 ms · p95 732~1,125 → 194~236 ms (웜업된 2~5회차) | — |
+| 비대상 기업 코드 200곳 × 기업별 조회 5종 | 캐시 키 +847 · Redis +849 KB → +0 (대상 기업만 저장) | 세션과 같은 128 MB |
 | 규칙 목록 열린 경보 수 (N+1 → 한 번) | DB 왕복 11 → 2 · DB 시간 0.148 → 0.033 ms — 응답 시간은 4.0~4.6 ms 로 잡음 범위 | — |
 | api 메모리 (1 GiB 한도, 위 부하 4회 연속) | 최대 610 MiB · 재시작 0 (9-26: 최대 RSS 625 MiB · 힙 ≤ 251 MB · 힙 밖 137 MB) | 한도 안 |
 | 점검 전후 (3차 검증, 같은 날) | 504 req/s · p95 307 ms · 오래 걸면 api OOM 킬 → 약 3,400 req/s · p95 30 ms ([VERIFICATION 47~50](docs/VERIFICATION.md#3차-검증-2026-09-26)) | — |
@@ -361,7 +365,7 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 | 공시 원문 1,313건 수집·구조화 | 263 s (DART 호출 간격 200 ms 가 천장) · **파서 개정 후 재파싱 3.8 s · 호출 0** | — |
 | 주가 43종목 × 3년 (31,138행) | 27 s (43 호출) | — |
 
-데이터 품질·적재 결과와 실데이터·정적 분석·부하 시험·코드 리뷰 · 배포 리허설로 찾은 문제 171건은 [docs/VERIFICATION.md](docs/VERIFICATION.md).
+데이터 품질·적재 결과와 실데이터·정적 분석·부하 시험·코드 리뷰 · 배포 리허설 · 2차 코드 리뷰로 찾은 문제 211건(그중 1건은 검토 뒤 되돌림 — 179)은 [docs/VERIFICATION.md](docs/VERIFICATION.md).
 부하 수치는 다른 프로젝트의 스택이 함께 도는 개발용 맥에서 잰 값이라 절대값은 흔들립니다 — 비교는 같은 날 연달아 잰 값끼리입니다.
 
 ## 8. 설계서 미결정 사항 → 결과
@@ -412,7 +416,7 @@ buildrisk-radar/
 ├─ seed/                     표준계정 · 매핑 규칙 · 업종코드 · 이벤트 사전 · 규칙 · 통계 시리즈 · 지역 별칭
 ├─ tools/smoke.py            외부 API 키 스모크 · 골든 fixture 캡처
 ├─ docs/adr/                 설계 결정 기록 31건
-├─ docs/VERIFICATION.md      실데이터 검증 기록 (적재 결과 · 품질 · 찾아서 고친 문제 171건 · 부하 · 보안 확인)
+├─ docs/VERIFICATION.md      실데이터 검증 기록 (적재 결과 · 품질 · 찾아서 고친 문제 211건 · 부하 · 보안 확인)
 ├─ docker-compose.yml · Makefile · .env.example · .github/ (ci · dependabot)
 ├─ CLAUDE.md · .claude/settings.json   AI 코딩 도구(Claude Code) 작업 안내 · 명령 허용/금지 목록 (.env 읽기 금지)
 ```

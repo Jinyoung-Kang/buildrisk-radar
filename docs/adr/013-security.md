@@ -37,3 +37,10 @@ CodeQL 라이선스는 공개(오픈소스) 코드베이스 분석과 학술 연
 braces 가 펼치는 패턴은 Tailwind 설정의 content glob 뿐이라 외부 입력이 닿지 않는다 → Dependabot 경고 #6 을 `tolerable_risk` 로 닫았다.
 Tailwind 4 로 옮기면 이 의존성째 사라진다(그때 다시 확인). 같은 날 비공개로 돌린 뒤 다시 열린 경고다.
 
+**덧붙임 (2026-10-11, VERIFICATION 172 · 176 · 177 · 192 · 173 · 174 · 180) — 경로 판단 하나로 · IPv6 · 익명 가림 · 의존성 경고**
+- **보안 필터의 경로 판단은 인가와 같은 매처로**(`ApiPaths` — PathPattern). 원래 문자열(`getRequestURI`)을 비교하던 다섯 곳(레이트리밋 · 내려받기 한도 · 감사 · API CSP ·
+  로그인 CSRF 예외)은 `/%61pi/v1/…` 처럼 인코딩한 경로를 비껴 갔다(인가 · MVC 는 디코딩한 경로로 `/api/**` 로 처리).
+- **클라이언트 단위는 IPv4 주소 · IPv6 /64**(`ClientKey`) — 가입자 하나가 보통 /64 를 받아, 주소 전체로 세면 주소를 바꿔 가며 한도 · 잠금을 비켜 간다.
+- **익명 배치 응답은 '보일 키' 허용 목록(fail-closed)**. '가릴 키'를 적는 방식은 새 열(요청 결과 message)을 빠뜨려 원문이 나갔다. 저장할 때도 KeyMasker.
+- **취약점 경고가 JVM 의존성에도 오게** — Gradle 은 GitHub 가 정적으로 읽지 못해 main push 에서 의존성 그래프를 제출한다. Boot BOM 보다 먼저 올린 버전은
+  `DependencyFloorTest` 가 하한을 지킨다(Tomcat 11.0.26 · Jackson 2.22.3 · 3.1.7).

@@ -13,9 +13,9 @@
 | [009](009-boot41-jdbcclient.md) | Spring Boot 4.1 · JdbcClient (JPA 미사용) | 채택 (U-5, 구현 중 변경) |
 | [010](010-boundary-source.md) | 경계: V-World 우선, 없으면 SGIS 경계로 대체 | 채택 (U-3 대응) |
 | [011](011-out-of-scope-infra.md) | Kafka/CDC · ClickHouse · Kubernetes 미도입 | 채택 |
-| [012](012-api-worker-queue.md) | API · worker 분리, DB 실행 요청 큐 (SKIP LOCKED · 부분 유니크 · advisory lock · worker 등록부 · 정상 종료) | 채택 |
-| [013](013-security.md) | 세션 + CSRF · 역할 · 서비스 토큰 · 로그인 잠금 · 레이트리밋 · 감사 로그 · 단일 진입점 | 채택 |
-| [014](014-db-least-privilege.md) | DB 최소 권한 — 마이그레이션 계정과 DML 전용 런타임 계정, 감사 로그 추가 전용 | 채택 |
+| [012](012-api-worker-queue.md) | API · worker 분리, DB 실행 요청 큐 (SKIP LOCKED · 부분 유니크 · advisory lock · worker 등록부 · 정상 종료) — 결과 기록 재시도 · 정리 주기의 마무리, 수동 정리는 멈춘 실행만 | 채택 |
+| [013](013-security.md) | 세션 + CSRF · 역할 · 서비스 토큰 · 로그인 잠금 · 레이트리밋 · 감사 로그 · 단일 진입점 — 경로 판단은 인가와 같은 매처, IPv6 /64, 익명 가림은 허용 목록 | 채택 |
+| [014](014-db-least-privilege.md) | DB 최소 권한 — 마이그레이션 계정과 DML 전용 런타임 계정, 감사 로그 추가 전용 — 런타임 비밀번호는 SCRAM 검증값으로 | 채택 |
 | [015](015-apt-trade.md) | 아파트 매매 실거래 — 거래량 · 해제율 · ㎡당 중위가, 월 파티션, R-R03 | 채택 |
 | [016](016-filing-structuring.md) | 공시 원문 구조화 — 수주 지역 · 채무보증 · PF, 원문 보관 + 파서 버전, R-C05 · R-X01 | 채택 |
 | [017](017-stock-backtest.md) | 경보 백테스트 — point-in-time 사건 연구, 수정주가 아님 대응 | 채택 |
@@ -23,13 +23,13 @@
 | [019](019-api-selection.md) | 추가 공공 API 중 쓴 것과 쓰지 않은 것 | 채택 |
 | [020](020-map-boundaries-cache.md) | 지도 — 경계(버전 URL · immutable, 프로세스 안 gzip 바이트)와 지표 값 분리 | 채택 |
 | [021](021-container-memory.md) | 컨테이너 메모리 예산 · JVM 힙 60% · G1 명시 (부하 중 OOM 킬에서 발견) | 채택 |
-| [022](022-read-cache.md) | 조회 캐시를 목록까지, 무효화는 모든 Job 이 끝나는 한 곳에서 | 채택 |
+| [022](022-read-cache.md) | 조회 캐시를 목록까지, 무효화는 모든 Job 이 끝나는 한 곳에서 — 대상 기업만 저장, 규칙 변경도 무효화, 같은 키 계산 하나로 | 채택 |
 | [023](023-alert-scorecard.md) | 경보 성적표 — 실제 부실 사건 대비 정밀도 · 재현율 · 선행 기간 (규칙을 전체 기간에 point-in-time 재평가) | 채택 |
 | [024](024-pf-contingent-liabilities.md) | PF 우발채무 — 정기보고서 부동산 PF 종합요약표 구조화(구간 스트리밍 · 두 가지 대조), R-C06 | 채택 |
 | [025](025-notifications.md) | 알림 — 경보와 같은 트랜잭션의 outbox, 알림함 · 서명된 웹훅(SSRF 방어 · 저장 암호화 · 재시도) | 채택 |
 | [026](026-site-location.md) | 사업장 카드 — 지오코딩 없이 공시 주소의 법정동 · 지번을 실거래와 정확히 대조, 동 단위 시장 | 채택 |
-| [027](027-lineage-export.md) | 근거 계보(경보 → 원천 재무제표 줄 · 매핑 규칙 · 실행) · CSV 내려받기(수식 주입 방어) · v1 호환 정책 | 채택 |
+| [027](027-lineage-export.md) | 근거 계보(경보 → 원천 재무제표 줄 · 매핑 규칙 · 실행) · CSV 내려받기(수식 주입 방어) · v1 호환 정책 — v1 안의 두 변경(D1 수동 정리 409 · D2 riskShare 필드 추가) 기록 | 채택 |
 | [028](028-nextjs16-bundler.md) | Next.js 16 으로(15 지원 종료) — 운영 빌드는 webpack(첫 로드 JS 104 KB, Turbopack 은 116 KB) | 채택 |
-| [029](029-backend-feature-modules.md) | 백엔드를 기능 모듈 10개 × 계층(api · app · domain · data)으로 — 의존 방향 · domain 순수성 · 쓰기 SQL 위치를 테스트로 고정, 경보 전이는 순수 규칙 | 채택 |
-| [030](030-frontend-layers.md) | 프론트엔드를 화면 · Hook · 순수 함수 · 기능별 API 모듈로 — 경계는 ESLint, 조회 응답은 경로에 묶음, 효과 안 setState 없음 | 채택 |
-| [031](031-aws-demo-deployment.md) | AWS 데모 배포 — RDS(비-superuser 소유자, afterMigrate 는 비밀번호만 맞춤) · edge realip(앞단 Caddy) · 조회 전용 공개(화면도 로그인 안내 숨김 — 런타임 설정) · 덤프 복원 | 채택 |
+| [029](029-backend-feature-modules.md) | 백엔드를 기능 모듈 10개 × 계층(api · app · domain · data)으로 — 의존 방향 · domain 순수성 · 쓰기 SQL 위치를 테스트로 고정, 경보 전이는 순수 규칙 — 바깥 계층은 ops.* 에만 씀 | 채택 |
+| [030](030-frontend-layers.md) | 프론트엔드를 화면 · Hook · 순수 함수 · 기능별 API 모듈로 — 경계는 ESLint, 조회 응답은 경로에 묶음, 효과 안 setState 없음 — 상대 경로 · window/globalThis.fetch 우회도 막음 | 채택 |
+| [031](031-aws-demo-deployment.md) | AWS 데모 배포 — RDS(비-superuser 소유자, afterMigrate 는 비밀번호만 맞춤) · edge realip(앞단 Caddy) · 조회 전용 공개(화면도 로그인 안내 숨김 — 런타임 설정) · 덤프 복원 — 쿠키 Secure 를 고정하지 않은 이유 · 테스트 DB 를 PG 18.6 으로 | 채택 |
