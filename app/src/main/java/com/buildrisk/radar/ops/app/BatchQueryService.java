@@ -12,10 +12,13 @@ import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /** FR-603 배치 모니터 — Spring Batch 메타 테이블(ops.BATCH_*) + ops.skip_log */
 @Service
@@ -86,9 +89,47 @@ public class BatchQueryService {
         return out;
     }
 
+    /** Spring Batch 의 BatchStatus.isRunning() 과 같은 상태 */
+    private static final Set<String> RUNNING = Set.of("STARTING", "STARTED", "STOPPING");
+
+    /** Job 하나의 마지막 실행 · 실행 중 여부 · 하트비트 · 대기 요청 */
+    private record JobState(String name, boolean running, Long queued, Long lastId, String lastStatus, LocalDateTime lastStart,
+                            LocalDateTime lastEnd, LocalDateTime heartbeat) {}
+
+    /**
+     * 모든 Job 의 상태를 한 번에 — Spring Batch 저장소와 같은 정의: 마지막 실행 = 가장 큰 JobInstance 의 가장 큰 실행, 실행 중 = 그 이름의
+     * 어떤 실행이든 STARTING · STARTED · STOPPING, 하트비트 = 실행 중인 마지막 실행의 Job · Step last_updated 중 최근(BatchLauncher.heartbeat).
+     * Job 마다 저장소를 여러 번 부르면 호출 1회에 테이블 스캔 약 220회 — 익명으로 부를 수 있고 화면이 3초마다 부름 (VERIFICATION 193)
+     */
+    private Map<String, JobState> jobStates(List<String> names) {
+        return jdbc.sql("""
+                        WITH n AS (SELECT unnest(cast(:names AS text[])) AS job_name),
+                        li AS (SELECT job_name, max(job_instance_id) AS inst FROM ops.batch_job_instance
+                                WHERE job_name = ANY (cast(:names AS text[])) GROUP BY job_name),
+                        le AS (SELECT li.job_name, max(e.job_execution_id) AS exec
+                                 FROM li JOIN ops.batch_job_execution e ON e.job_instance_id = li.inst GROUP BY li.job_name),
+                        run AS (SELECT DISTINCT i.job_name FROM ops.batch_job_execution e
+                                  JOIN ops.batch_job_instance i ON i.job_instance_id = e.job_instance_id
+                                 WHERE i.job_name = ANY (cast(:names AS text[])) AND e.status IN ('STARTING', 'STARTED', 'STOPPING')),
+                        q AS (SELECT job_name, request_id FROM ops.job_request WHERE status = 'QUEUED' AND job_name = ANY (cast(:names AS text[])))
+                        SELECT n.job_name, run.job_name IS NOT NULL, q.request_id, e.job_execution_id, e.status, e.start_time, e.end_time,
+                               CASE WHEN e.status IN ('STARTING', 'STARTED', 'STOPPING') THEN greatest(e.last_updated,
+                                   (SELECT max(s.last_updated) FROM ops.batch_step_execution s WHERE s.job_execution_id = e.job_execution_id)) END
+                          FROM n LEFT JOIN le ON le.job_name = n.job_name
+                                 LEFT JOIN ops.batch_job_execution e ON e.job_execution_id = le.exec
+                                 LEFT JOIN run ON run.job_name = n.job_name
+                                 LEFT JOIN q ON q.job_name = n.job_name""")
+                .param("names", names.toArray(String[]::new))
+                .query((rs, i) -> new JobState(rs.getString(1), rs.getBoolean(2), rs.getObject(3, Long.class), rs.getObject(4, Long.class),
+                        rs.getString(5), rs.getObject(6, LocalDateTime.class), rs.getObject(7, LocalDateTime.class),
+                        rs.getObject(8, LocalDateTime.class)))
+                .list().stream().collect(Collectors.toMap(JobState::name, x -> x));
+    }
+
     public Map<String, Object> jobs() {
         List<Map<String, Object>> jobs = new ArrayList<>();
         Map<String, Boolean> liveKeys = workers.liveKeyStatus();   // API 는 키가 없으므로 살아 있는 worker 의 보고로
+        Map<String, JobState> states = jobStates(JobCatalog.JOBS.stream().map(JobCatalog.Def::name).toList());
         for (JobCatalog.Def d : JobCatalog.JOBS) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("name", d.name());
@@ -99,16 +140,15 @@ public class BatchQueryService {
             m.put("keyConfigured", d.envKey() == null || (liveKeys != null ? liveKeys.getOrDefault(d.envKey(), false)
                     : !blank(env.getProperty(d.envKey()))));
             m.put("envKey", d.envKey());
-            m.put("running", launcher.running(d.name()));
-            m.put("queued", jdbc.sql("SELECT request_id FROM ops.job_request WHERE job_name = :j AND status = 'QUEUED'")
-                    .param("j", d.name()).query(Long.class).optional().orElse(null));
-            var last = launcher.lastExecution(d.name());
-            if (last != null && last.isRunning()) {
-                m.put("heartbeat", String.valueOf(launcher.heartbeat(last)));
-                m.put("stale", launcher.stale(last));
+            JobState st = states.get(d.name());
+            m.put("running", st != null && st.running());
+            m.put("queued", st == null ? null : st.queued());
+            if (st != null && st.lastId() != null && RUNNING.contains(st.lastStatus())) {
+                m.put("heartbeat", String.valueOf(st.heartbeat()));
+                m.put("stale", launcher.stale(st.heartbeat()));
             }
-            m.put("last", last == null ? null : Map.of("jobExecutionId", last.getId(), "status", last.getStatus().name(),
-                    "startTime", String.valueOf(last.getStartTime()), "endTime", String.valueOf(last.getEndTime())));
+            m.put("last", st == null || st.lastId() == null ? null : Map.of("jobExecutionId", st.lastId(), "status", st.lastStatus(),
+                    "startTime", String.valueOf(st.lastStart()), "endTime", String.valueOf(st.lastEnd())));
             jobs.add(m);
         }
         Map<String, Object> out = new LinkedHashMap<>();

@@ -130,9 +130,11 @@ public class BatchLauncher {
         return hb;
     }
 
-    public boolean stale(JobExecution je) {
-        var hb = heartbeat(je);
-        return hb != null && hb.isBefore(LocalDateTime.now().minusMinutes(props.batch().staleMinutes()));
+    public boolean stale(JobExecution je) { return stale(heartbeat(je)); }
+
+    /** 하트비트가 staleMinutes 보다 오래됐는지 (없으면 false) */
+    public boolean stale(LocalDateTime heartbeat) {
+        return heartbeat != null && heartbeat.isBefore(LocalDateTime.now().minusMinutes(props.batch().staleMinutes()));
     }
 
     /**
