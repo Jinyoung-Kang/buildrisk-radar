@@ -1,5 +1,10 @@
 package com.buildrisk.radar.insight.app;
 
+import com.buildrisk.radar.alert.app.DbRuleData;
+import com.buildrisk.radar.alert.data.RuleRepository;
+import com.buildrisk.radar.alert.domain.Evidence;
+import com.buildrisk.radar.alert.domain.Params;
+import com.buildrisk.radar.alert.domain.rules.RiskRegionShare;
 import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.common.error.ApiException;
@@ -24,12 +29,17 @@ public class ExposureService {
     private final StockRepository stocks;
     private final ObjectMapper mapper;
     private final BacktestService backtest;
+    private final RuleRepository rules;
+    private final DbRuleData ruleData;
 
-    public ExposureService(JdbcClient jdbc, StockRepository stocks, ObjectMapper mapper, BacktestService backtest) {
+    public ExposureService(JdbcClient jdbc, StockRepository stocks, ObjectMapper mapper, BacktestService backtest, RuleRepository rules,
+                           DbRuleData ruleData) {
         this.backtest = backtest;
         this.jdbc = jdbc;
         this.stocks = stocks;
         this.mapper = mapper;
+        this.rules = rules;
+        this.ruleData = ruleData;
     }
 
     public record ContractRow(String rceptNo, String rceptDt, String name, String counterparty, BigDecimal amount,
@@ -44,8 +54,25 @@ public class ExposureService {
 
     public record ParseStatus(int parsed, int partial, int noDoc, int failed) {}
 
+    /**
+     * 위험 지역 수주 비중 — 경보 R-X01 과 같은 계산(RiskRegionShare) · 같은 데이터(규칙 평가의 DbRuleData) · 최신 R-X01 파라미터.
+     * 화면이 따로 계산하면 기간 · 기준이 달라 같은 화면의 경보와 숫자가 달랐음 (VERIFICATION 187)
+     */
+    public record RiskShare(int windowDays, BigDecimal unsoldPer1kHh, int ruleVersion, int contracts, BigDecimal totalAmount,
+                            BigDecimal riskAmount, BigDecimal sharePct) {}
+
     public record CompanyFilings(String corpCode, List<ContractRow> contracts, List<GuaranteeRow> guarantees,
-                                 ParseStatus parse, String disclaimer) {}
+                                 ParseStatus parse, RiskShare riskShare, String disclaimer) {}
+
+    /** R-X01 의 최신 파라미터 — 기간(일) · 천 가구당 미분양 기준 · 버전. 규칙이 없으면 seed 기본값(365일 · 5호, 버전 0) */
+    public record Rx01Window(int days, BigDecimal unsoldPer1kHh, int version) {}
+
+    public Rx01Window rx01() {
+        return rules.latest("R-X01").map(v -> {
+            Params p = new Params(v.def().params());
+            return new Rx01Window(p.count("windowDays", 30, 1095), p.num("unsoldPer1kHh"), v.def().version());
+        }).orElse(new Rx01Window(365, BigDecimal.valueOf(5), 0));
+    }
 
     public record ExposureRow(String corpCode, String corpName, int contracts, BigDecimal totalAmount, BigDecimal mappedAmount,
                               BigDecimal riskAmount, BigDecimal riskSharePct, int riskContracts, BigDecimal latestBalanceToEquityPct,
@@ -95,7 +122,14 @@ public class ExposureService {
                        count(*) FILTER (WHERE status = 'NO_DOC'), count(*) FILTER (WHERE status = 'FAILED')
                   FROM dart.filing_doc WHERE corp_code = :c""").param("c", corpCode)
                 .query((rs, i) -> new ParseStatus(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4))).single();
-        return new CompanyFilings(corpCode, contracts, guarantees, st, Disclaimer.TEXT);
+        Rx01Window w = rx01();
+        RiskShare share = RiskRegionShare.of(ruleData.contracts(corpCode, ruleData.today().minusDays(w.days())),
+                        r -> RiskRegionShare.latestOk(ruleData.regionMetric(r, "UNSOLD_PER_1K_HH")), w.unsoldPer1kHh())
+                .map(x -> new RiskShare(w.days(), w.unsoldPer1kHh(), w.version(), x.contracts(), x.totalAmount(), x.riskAmount(),
+                        Evidence.round(x.sharePct())))
+                // 기간 안에 셀 계약이 없어도 기준(기간 · 임계값)은 내려 줌 — 화면이 같은 기준으로 표시. 비중은 정할 수 없어 null
+                .orElse(new RiskShare(w.days(), w.unsoldPer1kHh(), w.version(), 0, BigDecimal.ZERO, BigDecimal.ZERO, null));
+        return new CompanyFilings(corpCode, contracts, guarantees, st, share, Disclaimer.TEXT);
     }
 
     /** 유니버스 기업별 노출 요약: 최근 days 일 현재 수주 중 위험 지역 비중 · 최신 보증 잔액/자기자본 · PF 보증 */

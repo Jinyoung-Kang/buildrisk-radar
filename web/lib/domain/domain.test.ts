@@ -8,7 +8,7 @@ import { niceAxis } from "@/lib/domain/axis";
 import { DIV_NEG, DIV_POS, makeScale, MISSING, NEUTRAL, SEQ } from "@/lib/domain/colors";
 import { filterDisclosures, metricSeries, recentPeriods } from "@/lib/domain/company";
 import { sortExposure } from "@/lib/domain/exposure";
-import { contractState, due12 } from "@/lib/domain/filings";
+import { contractState, due12, riskShareCard } from "@/lib/domain/filings";
 import { pageKey, safeNext, targetHref } from "@/lib/domain/nav";
 import { describeSubscription, subscriptionBody, toggleCode } from "@/lib/domain/notify";
 import { joinRegionValues, projectShapes, regionPanel, sidoOptions } from "@/lib/domain/regions";
@@ -213,3 +213,14 @@ describe("region panel · batch", () => {
   });
 });
 
+describe("수주 비중 카드 (VERIFICATION 187)", () => {
+  it("경보 R-X01 과 같은 기간 · 기준 — 서버가 계산한 비중을 그대로, 셀 계약이 없으면 비중 없음", () => {
+    const rs = { windowDays: 365, unsoldPer1kHh: 5, ruleVersion: 1, contracts: 2, totalAmount: 400, riskAmount: 100, sharePct: 25 };
+    assert.deepEqual(riskShareCard(rs, 5), { th: 5, title: "미분양 5호/천가구 이상 지역 비중", sharePct: 25, sub: "최근 365일 · 시군구로 매핑된 2건 · 경보 R-X01 과 같은 기준" });
+    assert.equal(riskShareCard({ ...rs, contracts: 0, sharePct: null }, 5).sharePct, null);
+    assert.equal(riskShareCard({ ...rs, windowDays: 730, unsoldPer1kHh: 3 }, 5).th, 3);
+  });
+  it("옛 응답(비중 없음)이면 화면 기본 기준만", () => {
+    assert.deepEqual(riskShareCard(undefined, 5), { th: 5, title: "미분양 5호/천가구 이상 지역 비중", sharePct: null, sub: "경보 R-X01 기준을 받지 못함" });
+  });
+});

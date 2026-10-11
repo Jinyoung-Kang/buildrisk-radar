@@ -102,7 +102,9 @@ export type GuaranteeRow = {
   rceptNo: string; rceptDt: string; debtor?: string; creditor?: string; amount?: number; equity?: number; pctOfEquity?: number;
   totalBalance?: number; balanceToEquityPct?: number; balanceIsLimit: boolean; usedBalance?: number; pfAmount?: number; pfLines: PfLine[]; endDate?: string; correction: boolean; supersededBy?: string;
 };
-export type CompanyFilings = { corpCode: string; contracts: ContractRow[]; guarantees: GuaranteeRow[]; parse: { parsed: number; partial: number; noDoc: number; failed: number }; disclaimer: string };
+/** 위험 지역 수주 비중 — 경보 R-X01 과 같은 계산 · 최신 파라미터 (VERIFICATION 187). 기간 안에 셀 계약이 없으면 sharePct 없음 */
+export type RiskShare = { windowDays: number; unsoldPer1kHh: number; ruleVersion: number; contracts: number; totalAmount: number; riskAmount: number; sharePct?: number | null };
+export type CompanyFilings = { corpCode: string; contracts: ContractRow[]; guarantees: GuaranteeRow[]; parse: { parsed: number; partial: number; noDoc: number; failed: number }; riskShare?: RiskShare | null; disclaimer: string };
 export type ExposureRow = {
   corpCode: string; corpName: string; contracts: number; totalAmount?: number; mappedAmount?: number; riskAmount?: number; riskSharePct?: number;
   riskContracts: number; latestBalanceToEquityPct?: number; latestGuaranteeDt?: string; pfAmount?: number; openAlerts: number;

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Card, DartLink, Empty, ErrorBox, Loading, Phrases, Prose, Segmented } from "@/components/ui";
 import { eok, num } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
-import { contractState, type ContractState } from "@/lib/domain/filings";
+import { contractState, riskShareCard, type ContractState } from "@/lib/domain/filings";
 import * as companyApi from "@/lib/api/company";
 
 const MATCH: Record<string, string> = { SIGUNGU: "", SIDO: "시도만", OVERSEAS: "해외", UNKNOWN: "주소 해석 불가", NONE: "지역 없음" };
@@ -23,9 +23,7 @@ export default function CompanyFilings({ corp, riskTh = 5 }: { corp: string; ris
   if (!data) return <Loading />;
   const contracts = data.contracts.filter((c) => view === "all" || (!c.supersededBy && !c.terminatedBy));
   const cur = data.contracts.filter((c) => !c.supersededBy && !c.terminatedBy);
-  const mapped = cur.filter((c) => c.regionCd && c.amount);
-  const total = mapped.reduce((a, c) => a + (c.amount ?? 0), 0);
-  const risky = mapped.filter((c) => (c.unsoldPer1kHh ?? 0) >= riskTh).reduce((a, c) => a + (c.amount ?? 0), 0);
+  const share = riskShareCard(data.riskShare, riskTh);
   const g = data.guarantees.filter((x) => !x.supersededBy);
   const p = data.parse;
   return (
@@ -33,9 +31,9 @@ export default function CompanyFilings({ corp, riskTh = 5 }: { corp: string; ris
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-raised rounded-xl shadow-card px-4 py-3"><div className="text-xs text-ink2">현재 수주 계약</div>
           <div className="text-lg font-semibold tabular">{cur.length}건 · {eok(cur.reduce((a, c) => a + (c.amount ?? 0), 0))}</div></div>
-        <div className="bg-raised rounded-xl shadow-card px-4 py-3"><div className="text-xs text-ink2">미분양 {riskTh}호/천가구 이상 지역 비중</div>
-          <div className="text-lg font-semibold tabular">{total ? `${num((risky / total) * 100)}%` : "–"}</div>
-          <div className="text-[11px] text-muted">시군구로 매핑된 {mapped.length}건 기준</div></div>
+        <div className="bg-raised rounded-xl shadow-card px-4 py-3"><div className="text-xs text-ink2">{share.title}</div>
+          <div className="text-lg font-semibold tabular">{share.sharePct != null ? `${num(share.sharePct)}%` : "–"}</div>
+          <div className="text-[11px] text-muted"><Phrases text={share.sub} /></div></div>
         <div className="bg-raised rounded-xl shadow-card px-4 py-3"><div className="text-xs text-ink2">최근 채무보증 잔액 / 자기자본</div>
           <div className="text-lg font-semibold tabular">{g[0]?.balanceToEquityPct != null ? `${num(g[0].balanceToEquityPct)}%` : "–"}</div>
           <div className="text-[11px] text-muted"><Prose text={g[0] ? `${g[0].rceptDt} 공시 · 잔액 ${eok(g[0].totalBalance)}${g[0].balanceIsLimit ? " (한도 기준" + (g[0].usedBalance != null ? `, 사용 ${eok(g[0].usedBalance)}` : "") + ")" : ""}` : "보증 공시 없음"} /></div></div>
@@ -53,7 +51,7 @@ export default function CompanyFilings({ corp, riskTh = 5 }: { corp: string; ris
                 <th className="num">천 가구당 미분양</th><th>종료</th><th>상태</th></tr></thead>
               <tbody>{contracts.map((c) => {
                 const st = STATE[contractState(c)];
-                const hot = (c.unsoldPer1kHh ?? 0) >= riskTh;
+                const hot = (c.unsoldPer1kHh ?? 0) >= share.th;
                 return (
                   <tr key={c.rceptNo}>
                     <td className="whitespace-nowrap tabular"><DartLink rceptNo={c.rceptNo}>{c.rceptDt}</DartLink></td>

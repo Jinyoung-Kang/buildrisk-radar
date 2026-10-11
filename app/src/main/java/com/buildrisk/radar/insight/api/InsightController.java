@@ -54,13 +54,16 @@ public class InsightController {
 
     @GetMapping("/exposure")
     @Operation(summary = "기업별 수주·보증 노출 — 위험 지역 수주 비중 · 보증 잔액/자기자본 · PF 보증")
-    public ExposureService.Exposure exposure(@RequestParam(defaultValue = "365") @Min(30) @Max(1095) int days,
-                                             @RequestParam(defaultValue = "5") @DecimalMin("0.1") @DecimalMax("100") BigDecimal unsoldPer1kHh) {
+    public ExposureService.Exposure exposure(@RequestParam(required = false) @Min(30) @Max(1095) Integer days,
+                                             @RequestParam(required = false) @DecimalMin("0.1") @DecimalMax("100") BigDecimal unsoldPer1kHh) {
+        // 주지 않으면 경보 R-X01 의 최신 파라미터 — 고정 기본값(365 · 5)이면 규칙을 바꿨을 때 노출 화면과 경보가 갈라졌음 (VERIFICATION 187)
+        var rx = days == null || unsoldPer1kHh == null ? exposure.rx01() : null;
+        int d = days != null ? days : rx.days();
+        BigDecimal th = unsoldPer1kHh != null ? unsoldPer1kHh : rx.unsoldPer1kHh();
+        String thKey = th.stripTrailingZeros().toPlainString();
         // 화면이 고르는 기간 · 기준만 캐시 — 임의의 값(30~1095일 × 소수 기준)마다 키가 생기지 않게
-        if (!EXPOSURE_DAYS.contains(days) || !EXPOSURE_THRESHOLDS.contains(unsoldPer1kHh.stripTrailingZeros().toPlainString()))
-            return exposure.exposure(days, unsoldPer1kHh);
-        return cache.get("exposure:" + days + ":" + unsoldPer1kHh.stripTrailingZeros().toPlainString(), Duration.ofMinutes(10),
-                ExposureService.Exposure.class, () -> exposure.exposure(days, unsoldPer1kHh));
+        if (!EXPOSURE_DAYS.contains(d) || !EXPOSURE_THRESHOLDS.contains(thKey)) return exposure.exposure(d, th);
+        return cache.get("exposure:" + d + ":" + thKey, Duration.ofMinutes(10), ExposureService.Exposure.class, () -> exposure.exposure(d, th));
     }
 
     // 기업별 조회(수주 · PF · 주가 · 사업장)는 대상 기업일 때만 저장 — 판단은 계산한 뒤(캐시에 없을 때)만 하므로 적중 경로에는 쿼리가 늘지 않음 (VERIFICATION 175)
