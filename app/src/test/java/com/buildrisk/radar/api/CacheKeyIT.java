@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Duration;
@@ -17,7 +18,10 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -152,6 +156,29 @@ class CacheKeyIT extends IntegrationTest {
         for (String prefix : List.of("company:", "filings:", "pf:", "prices:", "sites:c:")) {
             assertThat(keys(prefix)).as(prefix).hasSize(1);
         }
+    }
+
+    /**
+     * 규칙(임계값 · 사용 여부)이나 계정 매핑 규칙을 바꾸면 조회 캐시를 비움 — 성적표 · 대시보드 요약은 현재 규칙으로 다시 평가하는 화면인데
+     * 최대 30분 옛 규칙의 결과가, 근거 계보의 reproduced 는 10분 옛 값이 나갔음 (VERIFICATION 186)
+     */
+    @Test
+    void 규칙과_계정_매핑_규칙을_바꾸면_조회_캐시를_비운다() throws Exception {
+        java.util.function.Supplier<String> gen = () -> redis.opsForValue().get("br:gen");
+        String g0 = gen.get();
+        mvc.perform(put("/api/v1/rules/R-C02").header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"params\":{\"threshold\":0.75},\"changeNote\":\"캐시 시험\"}")).andExpect(status().isOk());
+        String g1 = gen.get();
+        assertThat(g1).as("규칙 변경").isNotEqualTo(g0);
+
+        String rule = "{\"stdCode\":\"TOTAL_ASSETS\",\"sjDiv\":\"BS\",\"matchType\":\"NAME_EXACT\",\"pattern\":\"자산합계(캐시)\"}";
+        String added = mvc.perform(post("/api/v1/mapping/account-rules").header("X-Admin-Token", ADMIN)
+                .contentType(MediaType.APPLICATION_JSON).content(rule)).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String g2 = gen.get();
+        assertThat(g2).as("매핑 규칙 추가").isNotEqualTo(g1);
+        int mapId = Integer.parseInt(added.replaceAll(".*\"mapId\":(\\d+).*", "$1"));
+        mvc.perform(delete("/api/v1/mapping/account-rules/" + mapId).header("X-Admin-Token", ADMIN)).andExpect(status().isOk());
+        assertThat(gen.get()).as("매핑 규칙 삭제").isNotEqualTo(g2);
     }
 
     @Test

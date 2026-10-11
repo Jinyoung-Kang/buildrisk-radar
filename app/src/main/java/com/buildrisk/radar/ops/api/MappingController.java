@@ -45,12 +45,18 @@ public class MappingController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "계정 매핑 규칙 추가 (ADMIN) — 재표준화 후 반영")
     public Map<String, Object> addAccountRule(@RequestBody MappingService.AccountRuleRequest body) {
-        return svc.addAccountRule(body);
+        Map<String, Object> out = svc.addAccountRule(body);
+        cache.invalidateAll();                 // 근거 계보의 reproduced(지금 규칙으로 다시 고른 원천 줄)가 바뀜 (VERIFICATION 186)
+        return out;
     }
 
     @DeleteMapping("/account-rules/{mapId}")
     @Operation(summary = "화면에서 추가한 계정 매핑 규칙 삭제 (ADMIN)")
-    public Map<String, Object> deleteAccountRule(@PathVariable int mapId) { return svc.deleteAccountRule(mapId); }
+    public Map<String, Object> deleteAccountRule(@PathVariable int mapId) {
+        Map<String, Object> out = svc.deleteAccountRule(mapId);
+        cache.invalidateAll();
+        return out;
+    }
 
     @GetMapping("/region-codes")
     @Operation(summary = "출처별 지역 코드 매핑표")

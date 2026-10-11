@@ -4,6 +4,7 @@ import com.buildrisk.radar.alert.app.RuleService;
 import com.buildrisk.radar.alert.domain.AlertViews.RuleHistory;
 import com.buildrisk.radar.alert.domain.AlertViews.RuleUpdate;
 import com.buildrisk.radar.alert.domain.AlertViews.RuleView;
+import com.buildrisk.radar.common.cache.JsonCache;
 import com.buildrisk.radar.common.role.ApiRole;
 import com.buildrisk.radar.common.security.Viewer;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,8 +25,12 @@ import java.util.List;
 @Tag(name = "규칙", description = "버전 관리되는 규칙 (FR-502)")
 public class RuleController {
     private final RuleService svc;
+    private final JsonCache cache;
 
-    public RuleController(RuleService svc) { this.svc = svc; }
+    public RuleController(RuleService svc, JsonCache cache) {
+        this.svc = svc;
+        this.cache = cache;
+    }
 
     @GetMapping
     @Operation(summary = "⑫ 규칙 목록 (최신 버전)")
@@ -44,6 +49,9 @@ public class RuleController {
     @PutMapping("/{ruleCode}")
     @Operation(summary = "⑫ 파라미터·심각도 변경 → 새 버전 (ADMIN)")
     public RuleView update(@PathVariable String ruleCode, @RequestBody RuleUpdate body, Principal principal) {
-        return svc.update(ruleCode, body, principal == null ? "anonymous" : principal.getName());
+        RuleView v = svc.update(ruleCode, body, principal == null ? "anonymous" : principal.getName());
+        // 성적표 · 대시보드 요약은 현재 규칙으로 다시 평가 — 비우지 않으면 최대 30분 옛 규칙의 결과가 나갔음 (VERIFICATION 186)
+        cache.invalidateAll();
+        return v;
     }
 }
