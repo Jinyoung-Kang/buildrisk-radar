@@ -28,6 +28,7 @@ describe("queries · downloads 경로", () => {
     assert.equal(regionApi.series("11/../x").path, "/regions/11%2F..%2Fx/series");
     assert.equal(companyApi.pfSitesCsv("a/b"), "/api/v1/export/companies/a%2Fb/pf-sites.csv");
     assert.equal(alertApi.csv({ status: "OPEN" }), "/api/v1/export/alerts.csv?status=OPEN");
+    assert.equal(alertApi.lineageJson(12), "/api/v1/alerts/12/lineage");
   });
   it("qs: 비었으면 물음표 없음", () => {
     assert.equal(qs({ a: undefined, b: null, c: "" }), "");

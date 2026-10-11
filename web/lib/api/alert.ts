@@ -12,3 +12,5 @@ export const setStatus = (id: number | string, status: "ACK" | "OPEN") => mutate
 export const updateRule = (code: string, body: { params: Record<string, unknown>; severity: string; enabled: boolean; changeNote: string }) =>
   mutate<RuleView>(`/rules/${e(code)}`, "PUT", body);
 export const csv = (p: { status?: string; severity?: string; targetType?: string }) => `${BASE}/export/alerts.csv${qs(p)}`;
+/** 근거 계보 JSON 내려받기 주소 — 화면이 경로를 직접 만들지 않게 (VERIFICATION 203) */
+export const lineageJson = (id: number | string) => `${BASE}/alerts/${e(String(id))}/lineage`;

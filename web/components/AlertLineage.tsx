@@ -146,7 +146,7 @@ function Body({ l }: { l: Lineage }) {
       </Step>
       <li className="pl-5">
         <ul className="text-[11px] text-muted list-disc pl-4 space-y-0.5">{l.notes.map((t) => <li key={t}><Prose text={t} /></li>)}</ul>
-        <a className="inline-block mt-2 text-xs text-accent hover:underline" href={`/api/v1/alerts/${l.alertId}/lineage`} download={`lineage-${l.alertId}.json`}>계보 JSON 내려받기</a>
+        <a className="inline-block mt-2 text-xs text-accent hover:underline" href={alertApi.lineageJson(l.alertId)} download={`lineage-${l.alertId}.json`}>계보 JSON 내려받기</a>
       </li>
     </ol>
   );
