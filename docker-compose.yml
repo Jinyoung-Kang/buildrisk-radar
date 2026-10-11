@@ -92,6 +92,8 @@ services:
   redis:
     restart: unless-stopped
     image: redis:7-alpine
+    # 이미지의 redis 사용자로 — command 를 sh -c 로 주면 공식 entrypoint 의 권한 내림을 건너뛰어 root 로 돌았음 (VERIFICATION 204)
+    user: "999:1000"
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?make env 로 .env 를 채우세요}
     command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no --maxmemory 128mb --maxmemory-policy allkeys-lru"]
