@@ -7,7 +7,7 @@
 DO $$
 DECLARE
     app text := '${approle}';
-    pw  text := '${approlepassword}';
+    pw  text := '${approlepassword}';   -- 앱이 계산한 SCRAM 검증값(평문이 SQL · 서버 로그에 남지 않게, VERIFICATION 178)
     s   text;
 BEGIN
     IF app = '' OR pw = '' THEN

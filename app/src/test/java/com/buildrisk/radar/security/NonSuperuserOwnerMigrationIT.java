@@ -1,5 +1,6 @@
 package com.buildrisk.radar.security;
 
+import com.buildrisk.radar.common.security.ScramVerifier;
 import com.buildrisk.radar.support.IntegrationTest;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterEach;
@@ -44,7 +45,8 @@ class NonSuperuserOwnerMigrationIT extends IntegrationTest {
                 .dataSource(jdbcUrl(DB), OWNER, OWNER_PASSWORD)
                 .schemas("public")
                 .locations("classpath:db/migration")
-                .placeholders(Map.of("approle", APP, "approlepassword", APP_PASSWORD))
+                // 운영과 같이 SCRAM 검증값으로 — CREATEROLE 만 가진 소유자도 미리 계산한 검증값을 설정할 수 있음 (VERIFICATION 178)
+                .placeholders(Map.of("approle", APP, "approlepassword", ScramVerifier.of(APP_PASSWORD).orElseThrow()))
                 .load();
 
         flyway.migrate();                                                  // 첫 기동: CREATE ROLE
