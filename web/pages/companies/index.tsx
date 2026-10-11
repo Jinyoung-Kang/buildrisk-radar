@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, Empty, ErrorBox, Loading, MetricStatus, PageTitle, Segmented, SeverityBadge, Pager } from "@/components/ui";
 import { num, pk } from "@/lib/domain/format";
+import { pageOverflow } from "@/lib/domain/nav";
 import { useApi } from "@/lib/hooks/useApi";
 import * as companyApi from "@/lib/api/company";
 
@@ -23,6 +24,7 @@ export default function Companies() {
   useEffect(() => { const t = setTimeout(() => setTerm(q.trim()), 250); return () => clearTimeout(t); }, [q]);
   // 검색 중에도 쪽은 주소의 p — 검색어를 바꾸면 첫 쪽으로 (전에는 검색 중 쪽을 0 으로 고정해 '다음'이 듣지 않음 — VERIFICATION 149)
   const { data, error } = useApi(router.isReady ? companyApi.list({ q: term, sort, page, size: PAGE }) : null);
+  const overflow = data ? pageOverflow(data.total, PAGE, page, data.items.length) : null;
   return (
     <Layout title="기업">
       <PageTitle title="건설업 유니버스" sub="DART 기업개황 업종코드 41(종합 건설업)·421(토목 기반조성 전문공사업) 유가·코스닥 상장사 + 수동 포함. 지표는 최신 분기, 연결 우선."
@@ -36,7 +38,10 @@ export default function Companies() {
       <ErrorBox error={error} />
       <Card pad={false}>
         {/* 값이 없을 때 실패하면 오류만 — 전에는 오류 아래에 '대상 기업이 없습니다(배치를 실행하세요)'가 함께 보였음 (VERIFICATION 163 · 167) */}
-        {!data ? (error ? null : <Loading />) : !data.items.length && term ? (
+        {!data ? (error ? null : <Loading />) : overflow != null ? (
+          // 범위 밖 ?p= — '대상 기업이 없습니다(배치를 실행하세요)'는 데이터가 비었다는 잘못된 안내였음 (VERIFICATION 200)
+          <Empty>이 쪽은 비었습니다. <button type="button" className="text-accent hover:underline focus-ring rounded" onClick={() => go({ p: overflow })}>마지막 쪽({overflow + 1})으로</button></Empty>
+        ) : !data.items.length && term ? (
           // 검색 결과가 없을 때도 '대상 기업이 없습니다 — 배치를 실행하세요'가 보였음 (VERIFICATION 165)
           <Empty>‘{term}’에 맞는 기업이 없습니다.</Empty>
         ) : !data.items.length ? (

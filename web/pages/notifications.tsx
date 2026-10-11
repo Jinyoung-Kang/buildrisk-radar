@@ -7,7 +7,7 @@ import { type RuleView, type Severity, type Subscription, type SubscriptionInput
 import { useAuth } from "@/lib/auth";
 import { DEMO_READ_ONLY, showLoginLink } from "@/lib/domain/demo";
 import { dt } from "@/lib/domain/format";
-import { targetHref } from "@/lib/domain/nav";
+import { pageOverflow, targetHref } from "@/lib/domain/nav";
 import { describeSubscription, EMPTY_SUBSCRIPTION, subscriptionBody, toggleCode } from "@/lib/domain/notify";
 import { notifyChanged } from "@/lib/notify";
 import { useAction } from "@/lib/hooks/useAction";
@@ -32,6 +32,7 @@ function InboxCard() {
   const { data, error, reload } = useApi(notifyApi.inbox({ unreadOnly: view === "unread", page, size: 30 }));
   const action = useAction();
   const read = (body: { ids?: number[]; all?: boolean }) => action.run(() => notifyApi.markRead(body), () => { reload(); notifyChanged(); });
+  const overflow = data ? pageOverflow(data.total, data.size, page, data.items.length) : null;
   return (
     <Card title="받은 알림" pad={false}
       sub={data ? `읽지 않음 ${data.unread}건 · 새 경보는 규칙 평가(매일 지표 계산 뒤)마다 구독과 맞춰 30초 안에 쌓입니다` : undefined}
@@ -42,7 +43,10 @@ function InboxCard() {
       </div>}>
       <ErrorBox error={error} />
       {action.error && <p role="alert" className="text-xs text-crit px-4 py-2">{action.error.message}</p>}
-      {!data ? (error ? null : <Loading />) : data.items.length === 0 ? (
+      {!data ? (error ? null : <Loading />) : overflow != null ? (
+        // 쪽이 범위를 넘음(마지막 건을 읽어 줄어든 뒤 등) — '없음'이 아니라 빈 쪽 (VERIFICATION 200)
+        <Empty>이 쪽은 비었습니다. <button type="button" className="text-accent hover:underline focus-ring rounded" onClick={() => setPage(overflow)}>마지막 쪽({overflow + 1})으로</button></Empty>
+      ) : data.items.length === 0 ? (
         <Empty>{view === "unread" ? "읽지 않은 알림이 없습니다." : "알림이 없습니다. 구독을 만들면 새 경보가 여기에 쌓입니다."}</Empty>
       ) : (
         <>

@@ -27,3 +27,13 @@ export function pageKey(pathname: string, query: Record<string, string | string[
   const params = Array.from(pathname.matchAll(/\[(?:\.\.\.)?(\w+)\]/g), (m) => m[1]);
   return [pathname, ...params.map((p) => String(query[p] ?? ""))].join("|");
 }
+
+/**
+ * 범위를 넘은 쪽 — 항목은 있는데(total > 0) 이 쪽이 비었으면 돌아갈 마지막 쪽 번호(0부터), 아니면 null.
+ * 비었다고 '데이터 없음'을 보이면 사실과 다름(알림함 '안 읽음' 2쪽의 마지막 건을 읽은 뒤 · 범위 밖 ?p=) (VERIFICATION 200)
+ */
+export function pageOverflow(total: number, size: number, page: number, shown: number): number | null {
+  if (shown > 0 || total <= 0 || page <= 0 || size <= 0) return null;
+  const last = Math.ceil(total / size) - 1;
+  return last < page ? last : null;                         // 마지막 쪽이 비었다면(데이터가 맞지 않음) 돌아갈 곳이 아님
+}

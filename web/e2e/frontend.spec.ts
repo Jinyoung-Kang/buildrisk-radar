@@ -158,6 +158,33 @@ test("검색어를 바꾸고 결과가 오기 전에 Enter 를 누르면 이전 
   expect(page.url()).not.toContain("/companies/00000001");
 });
 
+test("범위를 넘은 쪽은 '데이터 없음'이 아니라 빈 쪽 — 마지막 쪽으로 돌아갈 수 있음 (VERIFICATION 200)", async ({ page }) => {
+  // 기업 목록: 범위 밖 ?p= 이면 '대상 기업이 없습니다 — 배치를 실행하세요'(데이터가 비었다는 잘못된 안내)
+  await page.goto("/companies?p=50");
+  await expect(page.getByText("이 쪽은 비었습니다")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("대상 기업이 없습니다.", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: /마지막 쪽/ }).click();
+  await expect(page.locator("table.data-table tbody tr").first()).toBeVisible();
+
+  // 알림함: '안 읽음' 2쪽의 마지막 1건을 읽으면 '읽지 않은 알림이 없습니다'(머리글은 30건)가 보이고 쪽 넘김이 사라졌음
+  await page.route("**/api/v1/auth/me", (route) => route.fulfill({ json: { authenticated: true, username: "e2e", roles: ["ANALYST"] } }));
+  await page.route("**/api/v1/me/notifications?*", (route) => {
+    const u = new URL(route.request().url());
+    const p = Number(u.searchParams.get("page") ?? 0);
+    return route.fulfill({ json: { items: p === 0 ? [{ inboxId: 1, alertId: 1, title: "남은 알림", severity: "HIGH", targetType: "COMPANY",
+      targetKey: "00000001", ruleCode: "R-C01", asOf: "2026Q2", kind: "OPENED", createdAt: "2026-10-11T00:00:00Z" }] : [],
+      total: p === 0 ? 31 : 30, unread: 30, page: p, size: 30 } });              // 2쪽을 여는 사이 마지막 건을 읽어 30건이 됨
+  });
+  await page.route("**/api/v1/me/subscriptions", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/me/watch", (route) => route.fulfill({ json: [] }));
+  await page.goto("/notifications");
+  await page.getByRole("button", { name: "다음 ›" }).first().click();
+  await expect(page.getByText("이 쪽은 비었습니다")).toBeVisible();
+  await expect(page.getByText("알림이 없습니다", { exact: false })).toHaveCount(0);
+  await page.getByRole("button", { name: /마지막 쪽/ }).click();
+  await expect(page.getByText("남은 알림")).toBeVisible();
+});
+
 test("경보 확인 뒤 목록을 다시 불러오다 실패해도 보이던 목록은 남음 (VERIFICATION 167)", async ({ page }) => {
   // 163 에서 오류면 목록을 숨기게 해, 같은 조건을 다시 부르다 실패하면(이전 값은 남겨 둠) 행 없이 쪽 넘김만 남았음
   await page.route("**/api/v1/auth/me", (route) => route.fulfill({ json: { authenticated: true, username: "e2e", roles: ["ANALYST"] } }));

@@ -9,7 +9,7 @@ import { DIV_NEG, DIV_POS, makeScale, MISSING, NEUTRAL, SEQ } from "@/lib/domain
 import { filterDisclosures, metricSeries, recentPeriods } from "@/lib/domain/company";
 import { sortExposure } from "@/lib/domain/exposure";
 import { contractState, due12, riskShareCard } from "@/lib/domain/filings";
-import { pageKey, safeNext, targetHref } from "@/lib/domain/nav";
+import { pageKey, pageOverflow, safeNext, targetHref } from "@/lib/domain/nav";
 import { describeSubscription, subscriptionBody, toggleCode } from "@/lib/domain/notify";
 import { joinRegionValues, projectShapes, regionPanel, sidoOptions } from "@/lib/domain/regions";
 import { bestRule, episodesOf, ruleCodesOf } from "@/lib/domain/scorecard";
@@ -222,5 +222,16 @@ describe("수주 비중 카드 (VERIFICATION 187)", () => {
   });
   it("옛 응답(비중 없음)이면 화면 기본 기준만", () => {
     assert.deepEqual(riskShareCard(undefined, 5), { th: 5, title: "미분양 5호/천가구 이상 지역 비중", sharePct: null, sub: "경보 R-X01 기준을 받지 못함" });
+  });
+});
+
+describe("범위를 넘은 쪽 (VERIFICATION 200)", () => {
+  it("항목이 있는데 이 쪽이 비었으면 마지막 쪽, 그 밖은 null", () => {
+    assert.equal(pageOverflow(30, 30, 1, 0), 0, "31건 2쪽에서 마지막 건을 읽어 30건 — 1쪽뿐");
+    assert.equal(pageOverflow(31, 30, 1, 0), null, "마지막 쪽 자체가 비면 돌아갈 곳이 아님");
+    assert.equal(pageOverflow(43, 100, 49, 0), 0, "기업 43곳 · 범위 밖 ?p=50");
+    assert.equal(pageOverflow(0, 30, 1, 0), null, "정말 비었으면 '없음' 안내 그대로");
+    assert.equal(pageOverflow(31, 30, 0, 0), null, "첫 쪽이 비면 범위 문제가 아님");
+    assert.equal(pageOverflow(31, 30, 1, 1), null, "보이는 항목이 있으면 그대로");
   });
 });
