@@ -224,7 +224,7 @@ services:
   # ---------------------------------------------------------------- 관측 (make obs)
   prometheus:
     profiles: ["obs"]
-    image: prom/prometheus:v3.13.4               # LTS — 지원 2027-07-31 (prometheus.io release-cycle)
+    image: prom/prometheus:v3.15.0               # LTS — 지원 2027-07-31 (prometheus.io release-cycle)
     mem_limit: 512m
     command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=7d"]
     volumes:
