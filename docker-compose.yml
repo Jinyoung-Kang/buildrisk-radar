@@ -113,7 +113,7 @@ services:
       context: .
       dockerfile: app/Dockerfile
     image: buildrisk-radar-app
-    mem_limit: 1g                               # 힙 768 MB
+    mem_limit: 1g                               # 힙 최대 약 614 MiB (한도의 60%)
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
