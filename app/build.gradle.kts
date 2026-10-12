@@ -3,9 +3,9 @@
 buildscript {
     dependencies {
         constraints {
-            classpath("tools.jackson.core:jackson-core:3.1.7")
-            classpath("tools.jackson.core:jackson-databind:3.1.7")
-            classpath("org.apache.commons:commons-lang3:3.18.0")
+            classpath("tools.jackson.core:jackson-core:3.2.3")
+            classpath("tools.jackson.core:jackson-databind:3.2.3")
+            classpath("org.apache.commons:commons-lang3:3.21.0")
         }
     }
 }
@@ -41,7 +41,7 @@ dependencies {
     // Jackson DoS 수정판(GHSA-7hhh-6rmp-j9qf 등, High) — Boot 4.1.1 BOM 은 2.22.1 · 3.1.5. 더 높은 BOM 을 겹쳐 올림
     // (Boot 가 따라오면 삭제, 아래로 내려가면 DependencyFloorTest 가 실패)
     implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.3"))
-    implementation(platform("tools.jackson:jackson-bom:3.1.7"))
+    implementation(platform("tools.jackson:jackson-bom:3.2.3"))
 
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
