@@ -178,6 +178,7 @@ services:
       context: ./web
       args:
         API_INTERNAL_BASE: http://api:8410
+        LAST_UPDATED: ${BUILDRISK_LAST_UPDATED:-}   # make up · make build 가 마지막 커밋 날짜(KST)로 채움
     mem_limit: 512m
     depends_on:
       api: { condition: service_healthy }

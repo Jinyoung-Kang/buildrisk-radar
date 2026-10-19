@@ -8,7 +8,9 @@ RUN npm ci --no-audit --no-fund
 FROM node:24-trixie-slim AS build
 WORKDIR /app
 ARG API_INTERNAL_BASE=http://app:8410
-ENV API_INTERNAL_BASE=$API_INTERNAL_BASE NEXT_TELEMETRY_DISABLED=1
+# 바닥글의 최종 수정일 — 빌드 문맥(web/)에 .git 이 없어 밖에서 마지막 커밋 날짜를 넘김(Makefile · 배포), 비면 표시 안 함
+ARG LAST_UPDATED=
+ENV API_INTERNAL_BASE=$API_INTERNAL_BASE NEXT_TELEMETRY_DISABLED=1 NEXT_PUBLIC_LAST_UPDATED=$LAST_UPDATED
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build

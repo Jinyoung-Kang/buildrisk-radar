@@ -129,9 +129,11 @@ test("CSV 내려받기: 경보 목록 버튼이 BOM 으로 시작하는 CSV 를 
   expect(body.toString("utf8", 3, 40)).toContain('"alertId","ruleCode"');
 });
 
-test("API 안내: 메뉴에서 열고 근거 계보 · CSV 규칙 · 호환 정책", async ({ page }) => {
+test("API 안내: 상단 메뉴에는 없고 대시보드 링크에서 열어 근거 계보 · CSV 규칙 · 호환 정책", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "API", exact: true }).first().click();
+  await expect(page.getByRole("navigation", { name: "주 메뉴" }).getByRole("link", { name: "지표·출처" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "주 메뉴" }).getByRole("link", { name: "API", exact: true })).toHaveCount(0);
+  await page.getByRole("link", { name: "API · CSV" }).click();
   await expect(page.getByRole("heading", { name: /API 안내/ })).toBeVisible();
   await expect(page.getByRole("cell", { name: "GET /alerts/{alertId}/lineage" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "CSV 규칙" })).toBeVisible();

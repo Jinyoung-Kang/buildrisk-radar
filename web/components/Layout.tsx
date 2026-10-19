@@ -15,8 +15,11 @@ const GROUPS: { label: string; items: Item[] }[] = [
   { label: "운영", items: [
     { href: "/admin/rules", label: "규칙" }, { href: "/admin/batch", label: "배치" }, { href: "/admin/mapping", label: "매핑" },
     { href: "/admin/audit", label: "감사 로그", admin: true }] },
-  { label: "", items: [{ href: "/about", label: "지표·출처" }, { href: "/developers", label: "API" }] },
+  { label: "", items: [{ href: "/about", label: "지표·출처" }] },
 ];
+
+/** 바닥글의 최종 수정일 — 빌드할 때 마지막 git 커밋 날짜(KST)를 넣음(Makefile · 배포). 없거나 날짜 모양이 아니면 표시하지 않음 */
+const LAST_UPDATED = /^\d{4}-\d{2}-\d{2}$/.test(process.env.NEXT_PUBLIC_LAST_UPDATED ?? "") ? process.env.NEXT_PUBLIC_LAST_UPDATED : null;
 
 /** 모든 화면이 같은 폭(1440px)을 써서 메뉴를 바꿔도 상단 바 위치가 움직이지 않게 합니다. 1280px 미만은 메뉴 버튼. */
 export default function Layout({ title, children }: { title: string; children: ReactNode; wide?: boolean }) {
@@ -85,7 +88,10 @@ export default function Layout({ title, children }: { title: string; children: R
         <main id="main" className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 py-6">{children}</main>
         <footer className="border-t border-line text-xs text-muted">
           <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-4 flex flex-wrap gap-x-6 gap-y-1 justify-between">
-            <span>⚠ 공시·공공통계 기반 모니터링 예시, 투자 판단 자료 아님 — 투자 권유·신용평가가 아닙니다.</span>
+            <div className="flex flex-col gap-y-1">
+              <span>⚠ 공시·공공통계 기반 모니터링 예시, 투자 판단 자료 아님 — 투자 권유·신용평가가 아닙니다.</span>
+              {LAST_UPDATED && <span>최종 수정일 <time dateTime={LAST_UPDATED}>{LAST_UPDATED}</time></span>}
+            </div>
             <span>출처: 금융감독원 Open DART · KOSIS · 한국부동산원 R-ONE · 통계청 SGIS · V-World · 국토교통부 실거래가 · 한국부동산원 청약홈 · 금융위원회 주식시세 · 카카오맵</span>
           </div>
         </footer>

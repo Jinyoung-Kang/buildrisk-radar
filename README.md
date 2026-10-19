@@ -101,6 +101,7 @@ make obs                  # (선택) Prometheus :9490 · Grafana :3401
 | `DATA_GO_KR_KEY` | 공공데이터포털 일반 인증키 — **아파트 매매 실거래가 · 주식시세 · 청약홈 분양정보 세 API 모두 활용신청 승인 필요** (청약홈은 `api.odcloud.kr` 이지만 같은 키) | 실거래·주가·분양 공고 Job 이 "키 없음" |
 | `APPLYHOME_DAILY_CALL_LIMIT` · `PRESALE_FROM_YM` | 청약홈 자체 일일 상한(기본 1,000 — 포털 마이페이지의 일일 트래픽보다 낮게) · 처음 받을 모집공고 월(기본 2023-01) | 기본값 |
 | `NEXT_PUBLIC_KAKAO_JS_KEY` | 카카오 JavaScript 키 (플랫폼 Web 도메인에 `http://localhost:3400` 등록) | 지도가 **SVG 단계구분도**로 대체 표시 |
+| `BUILDRISK_LAST_UPDATED` | 화면 바닥글의 최종 수정일 — 넣지 않아도 `make up` · `make build` 가 마지막 커밋 날짜(KST)로 web 이미지에 넣음 | `docker compose build` 로만 빌드하면 날짜를 표시하지 않음 |
 | `ADMIN_PASSWORD` · `ANALYST_PASSWORD` | 화면 로그인 (12자 이상, `make up` 이 자동 생성) | 로그인 불가 (조회는 가능) |
 | `ADMIN_TOKEN` | 스크립트용 서비스 토큰 `X-Admin-Token` (자동 생성) | 스크립트로 변경 불가 |
 | `DB_APP_PASSWORD` · `REDIS_PASSWORD` · `GRAFANA_ADMIN_PASSWORD` | 자동 생성 | compose 가 기동을 거부 (값이 필요하다고 안내) |
@@ -124,6 +125,7 @@ make obs                  # (선택) Prometheus :9490 · Grafana :3401
 [compose.aws.yml](compose.aws.yml) 하나에 있고, 이유는 [ADR-031](docs/adr/031-aws-demo-deployment.md)에 있습니다.
 
 ```bash
+export BUILDRISK_LAST_UPDATED="$(TZ=Asia/Seoul git log -1 --format=%cd --date=format-local:%F)"   # 바닥글의 최종 수정일
 docker compose -f docker-compose.yml -f compose.aws.yml --env-file .env up -d --build --wait
 ```
 

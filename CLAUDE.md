@@ -31,7 +31,8 @@ make load                      # k6 50 VU · 90초 (레이트리밋을 잠시 �
 cd web && CAPTURE=1 E2E_CHANNEL=chrome npx playwright test capture   # README 화면 캡처 갱신
 ```
 
-이미지 반영: `docker compose build api web && docker compose up -d --wait`. 마이그레이션은 api 가 기동할 때 Flyway 로 적용됩니다.
+이미지 반영: `make build && docker compose up -d --wait` — `make` 가 마지막 커밋 날짜를 web 바닥글의 최종 수정일로 넣음(`docker compose build` 만 쓰면 날짜가 빠져 E2E smoke 가 실패).
+마이그레이션은 api 가 기동할 때 Flyway 로 적용됩니다.
 
 ## 작업 규칙 (반드시)
 

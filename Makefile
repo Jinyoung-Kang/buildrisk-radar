@@ -15,6 +15,8 @@
 SHELL := /bin/bash
 COMPOSE := docker compose
 BATCH := $(COMPOSE) --profile batch run --rm
+# 화면 바닥글의 최종 수정일 = 마지막 커밋 날짜(KST) — web 이미지를 빌드할 때 넣음
+export BUILDRISK_LAST_UPDATED ?= $(shell TZ=Asia/Seoul git log -1 --format=%cd --date=format-local:%F 2>/dev/null)
 
 .DEFAULT_GOAL := help
 .PHONY: help env up obs down restart logs build smoke batch-all regions job test test-app test-web e2e load ratelimit status psql reset

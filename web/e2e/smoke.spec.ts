@@ -5,6 +5,8 @@ test("대시보드: 경보 요약과 고지 문구", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /조기경보/ })).toBeVisible();
   await expect(page.getByText("열린 경보", { exact: true })).toBeVisible();
   await expect(page.getByText(/투자 판단 자료 아님/)).toBeVisible();   // NFR-08
+  // 바닥글의 최종 수정일 — make up · make build 가 마지막 커밋 날짜를 빌드에 넣음 (docker compose build 만 쓰면 빠짐)
+  await expect(page.locator("footer time")).toHaveText(/^\d{4}-\d{2}-\d{2}$/);
 });
 
 test("지역 지도: 단계구분도가 그려지고 목록에서 지역 카드를 연다", async ({ page }) => {
