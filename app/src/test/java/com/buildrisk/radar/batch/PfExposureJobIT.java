@@ -156,6 +156,7 @@ class PfExposureJobIT extends IntegrationTest {
                 .andExpect(jsonPath("$.current.rceptNo").value(CORRECTED))
                 .andExpect(jsonPath("$.current.guaranteeToEquityPct").value(235.4379))
                 .andExpect(jsonPath("$.current.reconciled").value(true))
+                .andExpect(jsonPath("$.current.due.within12m").value(1_312_155_000_000L))       // 지표와 같은 12개월 내 만기 (V24)
                 .andExpect(jsonPath("$.sites", hasSize(31)))
                 .andExpect(jsonPath("$.coverage.parsed").value(1));
         mvc.perform(MockMvcRequestBuilders.get("/api/v1/companies/99999999/pf")).andExpect(status().isNotFound());

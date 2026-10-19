@@ -75,9 +75,9 @@ public class MetricRepository {
                      ORDER BY corp_code, period_key, (fs_div = 'CFS') DESC),
                 j AS (
                     SELECT r.corp_code, r.period_key, r.rcept_no, r.guarantee, r.bridge_guarantee, r.reconciled, r.stated_total, r.stated_match,
-                           -- 12개월 내 만기: 구간이 모두 비면 알 수 없음(null → MISSING), 하나라도 있으면 '-' 는 0 (PfExposureParser.Due.within12m 과 같은 규칙)
-                           CASE WHEN num_nonnulls(r.due_3m, r.due_6m, r.due_12m, r.due_2y, r.due_3y, r.due_over3y) = 0 THEN NULL
-                                ELSE coalesce(r.due_3m, 0) + coalesce(r.due_6m, 0) + coalesce(r.due_12m, 0) END AS due12,
+                           -- 12개월 내 만기 = 파서가 원문 구간에서 셈(PfExposureParser.Due.within12m) — 모르면 null → MISSING.
+                           -- 표준 여섯 칸으로 나뉘지 않는 원문 구간('6개월이내')도 합은 앎 (V24)
+                           r.due_within_12m AS due12,
                            e.fs_div, e.amount AS equity,
                            e.rcept_no AS equity_rcept
                       FROM r LEFT JOIN e USING (corp_code, period_key)),

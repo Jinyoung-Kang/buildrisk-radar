@@ -194,6 +194,53 @@ class PfExposureParserTest {
     }
 
     @Test
+    void 신세계건설_표준_칸을_합친_6개월이내_구간도_12개월_내_만기는_원문_구간의_합() {
+        // 원문(천원) 대출잔액 155,500,000 = 6개월이내 45,500,000 + 6개월초과12개월이내 - + 12개월초과 110,000,000 — v14 는 '만기 구간 열을 알아보지 못함'
+        var r = parse("shinsegae-2025q4-maturity-6m-range");
+        var d = r.totals().due();
+        assertThat(d.within12m()).isEqualByComparingTo(m(45_500));
+        assertThat(d.m3()).isNull();                                                         // 0~6개월을 3개월 · 3~6개월로 나누지 않음
+        assertThat(d.m6()).isNull();
+        assertThat(d.partial()).isTrue();
+        assertThat(r.message()).contains("표준 구간과 달라");
+        assertThat(r.totals().guarantee()).isEqualByComparingTo(m(217_000));
+        // 2025.06 '6개월이내 168,500,000 · 6개월초과12개월이내 84,500,000 · 12개월초과 30,000,000'
+        var q2 = parse("shinsegae-2025q2-total-in-second-cell").totals().due();
+        assertThat(q2.within12m()).isEqualByComparingTo(m(168_500 + 84_500));
+        assertThat(q2.m12()).isEqualByComparingTo(m(84_500));
+    }
+
+    @Test
+    void 빈_구간_열을_뺀_표는_열_합이_대출잔액과_같을_때_빠진_구간을_0으로() {
+        // HS화성 2023.12 합계 줄: 대출잔액 254,340 = 3개월~6개월 74,900 + 1년~2년 179,440 (백만원)
+        var hs = parse("hswaseong-2023q4-sparse-maturity").totals().due();
+        assertThat(hs.m6()).isEqualByComparingTo(m(74_900));
+        assertThat(hs.y2()).isEqualByComparingTo(m(179_440));
+        assertThat(hs.within12m()).isEqualByComparingTo(m(74_900));
+        assertThat(hs.partial()).isFalse();
+        // 범양건영 2025.12: 머리가 '당기 | 대출잔액' 으로 위아래가 바뀜 — 대출잔액 78,800,000 = 3개월 이내 48,000,000 + 3개월 초과 6개월 이내 30,800,000 (천원)
+        var by = parse("bumyang-2025q4-balance-label-below").totals();
+        assertThat(by.balance()).isEqualByComparingTo(m(78_800));
+        assertThat(by.due().m3()).isEqualByComparingTo(m(48_000));
+        assertThat(by.due().within12m()).isEqualByComparingTo(m(78_800));
+        // 범위 읽기: 'N이내' 는 앞 열의 끝부터, '1~2년' 은 같은 단위
+        assertThat(PfExposureParser.span("6개월이내", 0)).containsExactly(0, 6);
+        assertThat(PfExposureParser.span("12개월이내", 3)).containsExactly(3, 12);
+        assertThat(PfExposureParser.span("6개월초과12개월이내", 6)).containsExactly(6, 12);
+        assertThat(PfExposureParser.span("1~2년", 12)).containsExactly(12, 24);
+        assertThat(PfExposureParser.span("12개월초과", 12)).containsExactly(12, Integer.MAX_VALUE);
+        assertThat(PfExposureParser.span("만기별잔액", 0)).isNull();
+    }
+
+    @Test
+    void 한_범위라도_만기를_모르면_12개월_내_만기는_0이_아니라_모름() {
+        // 금호건설 2023.12: 단독 표('만기경과' 금액이 있는 첫 서식)는 구간을 못 읽고 컨소시엄 회사분은 1~2년만 — v14 는 컨소시엄분만 더해 '12개월 내 만기 0'
+        var r = parse("kumho-2023q4-sole-maturity-unknown");
+        assertThat(r.totals().due()).isNull();
+        assertThat(r.message()).startsWith("만기 구간 열을 알아보지 못함");
+    }
+
+    @Test
     void 만기_구간이_모두_비면_12개월_내_만기는_0이_아니라_알_수_없음() {
         assertThat(new PfExposureParser.Due(null, null, null, null, null, null).within12m()).isNull();
         // 다른 구간에 금액이 있으면 12개월 안의 '-' 는 0
@@ -217,6 +264,10 @@ class PfExposureParserTest {
         // GS건설 '보증금액 기준 총 …'
         assertThat(PfExposureParser.statedTotal("연결기업은 PF와 관련하여 보증금액 기준 총 2,938,643백만원(전기말: 3,162,374백만원)의 신용보강을 제공하고"))
                 .isEqualByComparingTo(m(2_938_643));
+        // 포스코이앤씨 '프로젝트 파이낸싱(이하 'PF')과 관련한 총 1,623,726백만원(전기말: 1,359,139백만원)의 신용보강' — v14 는 못 읽어 대조 ② 가 빔
+        var posco = parse("posco-2026q2-soc-not-included");
+        assertThat(posco.statedTotal()).isEqualByComparingTo(m(1_623_726));
+        assertThat(posco.statedMatch()).isTrue();
         // 현대건설 'PF(대출)과 관련하여 …'
         assertThat(PfExposureParser.statedTotal("연결회사는 PF(대출)과 관련하여 보증금액 기준 14,184,538백만원(전기말 13,940,533백만원)의 신용보강을 제공"))
                 .isEqualByComparingTo(m(14_184_538));

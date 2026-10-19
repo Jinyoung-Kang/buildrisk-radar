@@ -64,16 +64,17 @@ public class PfExposureRepository {
         jdbc.sql("""
                 INSERT INTO dart.pf_report (rcept_no, corp_code, period_key, rcept_dt, report_nm, status, parser_version, section_html,
                     scanned_bytes, truncated, limit_amount, guarantee, loan_balance, bridge_guarantee, bridge_balance,
-                    due_3m, due_6m, due_12m, due_2y, due_3y, due_over3y, prior_balance, sites_guarantee, reconciled, stated_total, stated_match,
-                    message, job_execution_id)
-                VALUES (:r, :c, :p, :d, :n, :s, :v, :h, :sb, :tr, :lim, :g, :bal, :bg, :bb, :d3, :d6, :d12, :y2, :y3, :o3, :prior, :sg, :rec,
+                    due_3m, due_6m, due_12m, due_2y, due_3y, due_over3y, due_within_12m, prior_balance, sites_guarantee, reconciled, stated_total,
+                    stated_match, message, job_execution_id)
+                VALUES (:r, :c, :p, :d, :n, :s, :v, :h, :sb, :tr, :lim, :g, :bal, :bg, :bb, :d3, :d6, :d12, :y2, :y3, :o3, :w12, :prior, :sg, :rec,
                     :st, :sm, :msg, :job)
                 ON CONFLICT (rcept_no) DO UPDATE SET status = EXCLUDED.status, parser_version = EXCLUDED.parser_version,
                     section_html = EXCLUDED.section_html, scanned_bytes = EXCLUDED.scanned_bytes, truncated = EXCLUDED.truncated,
                     limit_amount = EXCLUDED.limit_amount, guarantee = EXCLUDED.guarantee, loan_balance = EXCLUDED.loan_balance,
                     bridge_guarantee = EXCLUDED.bridge_guarantee, bridge_balance = EXCLUDED.bridge_balance,
                     due_3m = EXCLUDED.due_3m, due_6m = EXCLUDED.due_6m, due_12m = EXCLUDED.due_12m, due_2y = EXCLUDED.due_2y,
-                    due_3y = EXCLUDED.due_3y, due_over3y = EXCLUDED.due_over3y, prior_balance = EXCLUDED.prior_balance,
+                    due_3y = EXCLUDED.due_3y, due_over3y = EXCLUDED.due_over3y, due_within_12m = EXCLUDED.due_within_12m,
+                    prior_balance = EXCLUDED.prior_balance,
                     sites_guarantee = EXCLUDED.sites_guarantee, reconciled = EXCLUDED.reconciled, stated_total = EXCLUDED.stated_total,
                     stated_match = EXCLUDED.stated_match, message = EXCLUDED.message,
                     parsed_at = now()""")
@@ -86,6 +87,7 @@ public class PfExposureRepository {
                 .param("d3", due == null ? null : due.m3()).param("d6", due == null ? null : due.m6())
                 .param("d12", due == null ? null : due.m12()).param("y2", due == null ? null : due.y2())
                 .param("y3", due == null ? null : due.y3()).param("o3", due == null ? null : due.over3())
+                .param("w12", due == null ? null : due.within12m())
                 .param("prior", tot == null ? null : tot.priorBalance()).param("sg", tot == null ? null : tot.sitesGuarantee())
                 .param("rec", tot == null ? null : tot.reconciled())
                 .param("st", r == null ? null : r.statedTotal()).param("sm", r == null ? null : r.statedMatch())
@@ -99,13 +101,14 @@ public class PfExposureRepository {
             Due d = s.due();
             jdbc.sql("""
                     INSERT INTO dart.pf_summary (rcept_no, seq, scope, category, pf_type, is_total, limit_amount, guarantee, loan_balance,
-                        due_3m, due_6m, due_12m, due_2y, due_3y, due_over3y, prior_balance)
-                    VALUES (:r, :q, :sc, :cat, :pf, :tot, :lim, :g, :bal, :d3, :d6, :d12, :y2, :y3, :o3, :prior)""")
+                        due_3m, due_6m, due_12m, due_2y, due_3y, due_over3y, due_within_12m, prior_balance)
+                    VALUES (:r, :q, :sc, :cat, :pf, :tot, :lim, :g, :bal, :d3, :d6, :d12, :y2, :y3, :o3, :w12, :prior)""")
                     .param("r", t.rceptNo()).param("q", ++seq).param("sc", s.scope().name()).param("cat", s.category())
                     .param("pf", s.pfType()).param("tot", s.total()).param("lim", s.limit()).param("g", s.guarantee())
                     .param("bal", s.balance()).param("d3", d == null ? null : d.m3()).param("d6", d == null ? null : d.m6())
                     .param("d12", d == null ? null : d.m12()).param("y2", d == null ? null : d.y2()).param("y3", d == null ? null : d.y3())
-                    .param("o3", d == null ? null : d.over3()).param("prior", s.priorBalance()).update();
+                    .param("o3", d == null ? null : d.over3()).param("w12", d == null ? null : d.within12m())
+                    .param("prior", s.priorBalance()).update();
         }
         for (var s : r.sites()) {
             var m = matcher.match(s.region());

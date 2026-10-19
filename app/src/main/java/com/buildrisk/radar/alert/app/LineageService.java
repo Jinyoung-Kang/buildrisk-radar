@@ -342,7 +342,7 @@ public class LineageService {
         // PF 종합요약표 (정기보고서 — dart.disclosure 에 없을 수 있음)
         jdbc.sql("""
                         SELECT report_nm, rcept_dt::text, status, parser_version, guarantee, loan_balance, bridge_guarantee, due_3m, due_6m, due_12m,
-                               reconciled, stated_total, stated_match, job_execution_id, fetched_at, period_key
+                               reconciled, stated_total, stated_match, job_execution_id, fetched_at, period_key, due_within_12m
                           FROM dart.pf_report WHERE rcept_no = :r""").param("r", rcept)
                 .query((rs, i) -> {
                     kind[0] = "PF";
@@ -357,6 +357,7 @@ public class LineageService {
                     facts.put("due3m", rs.getBigDecimal(8));
                     facts.put("due6m", rs.getBigDecimal(9));
                     facts.put("due12m", rs.getBigDecimal(10));
+                    facts.put("dueWithin12m", rs.getBigDecimal(17));
                     facts.put("reconciled", rs.getObject(11));
                     facts.put("statedTotal", rs.getBigDecimal(12));
                     facts.put("statedMatch", rs.getObject(13));
@@ -366,7 +367,7 @@ public class LineageService {
                 }).list();
         if ("PF".equals(kind[0])) {
             facts.put("summaryRows", jdbc.sql("""
-                            SELECT scope, category, pf_type, is_total, guarantee, loan_balance, due_3m, due_6m, due_12m FROM dart.pf_summary
+                            SELECT scope, category, pf_type, is_total, guarantee, loan_balance, due_3m, due_6m, due_12m, due_within_12m FROM dart.pf_summary
                              WHERE rcept_no = :r ORDER BY seq""").param("r", rcept)
                     .query((rs, i) -> {
                         Map<String, Object> m = new LinkedHashMap<>();
@@ -379,6 +380,7 @@ public class LineageService {
                         m.put("due3m", rs.getBigDecimal(7));
                         m.put("due6m", rs.getBigDecimal(8));
                         m.put("due12m", rs.getBigDecimal(9));
+                        m.put("dueWithin12m", rs.getBigDecimal(10));
                         return m;
                     }).list());
         }

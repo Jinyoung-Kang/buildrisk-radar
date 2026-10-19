@@ -4,7 +4,7 @@ import { TrendLine } from "@/components/LazyCharts";
 import { type PfReport, type PfScope, type PfStatus } from "@/lib/api";
 import { eok, num, pk } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
-import { due12, PF_BUCKETS, PF_DUE12_TH, PF_GUARANTEE_TH } from "@/lib/domain/filings";
+import { due12, duePartial, PF_BUCKETS, PF_DUE12_TH, PF_GUARANTEE_TH } from "@/lib/domain/filings";
 import * as companyApi from "@/lib/api/company";
 
 const SCOPE: Record<PfScope, string> = { SOLE: "단독사업", CONSORTIUM_ALL: "컨소시엄 전체 (참고)", CONSORTIUM_SHARE: "컨소시엄 회사분" };
@@ -51,6 +51,9 @@ function Maturity({ r }: { r: PfReport }) {
           <span className="tabular text-right">{d[b.key] == null ? "–" : eok(d[b.key])}</span>
         </div>
       ))}
+      {duePartial(d) && (
+        <p className="text-[11px] text-ink2 pt-1">원문 만기 구간이 표준 구간과 달라(예: &lsquo;6개월 이내&rsquo;) 일부 칸을 나누지 못했습니다 — 12개월 안 합계 {eok(d.within12m)}</p>
+      )}
       <p className="text-[11px] text-muted pt-1">진한 막대 = 12개월 안에 만기가 돌아오는 대출잔액 (회사 노출 기준, 단독 + 컨소시엄 회사분)</p>
     </div>
   );

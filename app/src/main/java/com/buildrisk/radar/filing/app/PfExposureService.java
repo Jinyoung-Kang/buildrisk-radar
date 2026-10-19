@@ -24,7 +24,8 @@ public class PfExposureService {
 
     public PfExposureService(JdbcClient jdbc) { this.jdbc = jdbc; }
 
-    public record Due(BigDecimal m3, BigDecimal m6, BigDecimal m12, BigDecimal y2, BigDecimal y3, BigDecimal over3) {}
+    /** within12m = 12개월 안 합 — 원문 구간이 표준 칸과 달라 칸이 비어도(예: '6개월이내') 합은 있을 수 있음 (V24) */
+    public record Due(BigDecimal m3, BigDecimal m6, BigDecimal m12, BigDecimal y2, BigDecimal y3, BigDecimal over3, BigDecimal within12m) {}
 
     /** 분기마다 최신 정기보고서 하나 — 금액은 원 단위, 회사 노출 = 단독 + 컨소시엄 회사분 */
     public record Report(String rceptNo, String periodKey, String rceptDt, String reportNm, String status, String message,
@@ -63,7 +64,8 @@ public class PfExposureService {
                 SELECT r.rcept_no, r.period_key, r.rcept_dt::text, r.report_nm, r.status, r.message, r.limit_amount, r.guarantee,
                        r.loan_balance, r.bridge_guarantee, r.bridge_balance, r.due_3m, r.due_6m, r.due_12m, r.due_2y, r.due_3y,
                        r.due_over3y, r.prior_balance, r.sites_guarantee, r.reconciled, r.stated_total, r.stated_match, r.truncated,
-                       (g.components->'denominator'->>'amount')::numeric, g.components->>'fsDiv', g.value, d.value, b.value, g.status
+                       (g.components->'denominator'->>'amount')::numeric, g.components->>'fsDiv', g.value, d.value, b.value, g.status,
+                       r.due_within_12m
                   FROM r
                   LEFT JOIN m g ON g.period_key = r.period_key AND g.metric_code = 'PF_GUARANTEE_TO_EQUITY'
                   LEFT JOIN m d ON d.period_key = r.period_key AND d.metric_code = 'PF_DUE_12M_TO_EQUITY'
@@ -73,11 +75,11 @@ public class PfExposureService {
         Report current = history.stream().filter(r -> "PARSED".equals(r.status())).findFirst().orElse(null);
         List<SummaryRow> summary = current == null ? List.of() : jdbc.sql("""
                 SELECT scope, category, pf_type, is_total, limit_amount, guarantee, loan_balance,
-                       due_3m, due_6m, due_12m, due_2y, due_3y, due_over3y, prior_balance
+                       due_3m, due_6m, due_12m, due_2y, due_3y, due_over3y, prior_balance, due_within_12m
                   FROM dart.pf_summary WHERE rcept_no = :r ORDER BY seq""")
                 .param("r", current.rceptNo())
                 .query((rs, i) -> new SummaryRow(rs.getString(1), rs.getString(2), rs.getString(3), rs.getBoolean(4),
-                        rs.getBigDecimal(5), rs.getBigDecimal(6), rs.getBigDecimal(7), due(rs, 8), rs.getBigDecimal(14))).list();
+                        rs.getBigDecimal(5), rs.getBigDecimal(6), rs.getBigDecimal(7), due(rs, 8, 15), rs.getBigDecimal(14))).list();
         List<Site> sites = current == null ? List.of() : jdbc.sql("WITH u AS (" + MetricRepository.LATEST_UNSOLD + ")" + """
                 SELECT s.seq, s.category, s.region_text, s.region_cd, rg.full_name, s.region_match, s.sido_name, s.site_type, s.pf_type,
                        s.enhancement, s.limit_total, s.share_pct, s.guarantee, s.debtor, s.related, s.lender_type, s.loan_balance,
@@ -108,18 +110,20 @@ public class PfExposureService {
     private static Report report(ResultSet rs) throws SQLException {
         return new Report(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6),
                 rs.getBigDecimal(7), rs.getBigDecimal(8), rs.getBigDecimal(9), rs.getBigDecimal(10), rs.getBigDecimal(11),
-                due(rs, 12), rs.getBigDecimal(18), rs.getBigDecimal(19), (Boolean) rs.getObject(20), rs.getBigDecimal(21),
+                due(rs, 12, 30), rs.getBigDecimal(18), rs.getBigDecimal(19), (Boolean) rs.getObject(20), rs.getBigDecimal(21),
                 (Boolean) rs.getObject(22), rs.getBoolean(23),
                 rs.getBigDecimal(24), rs.getString(25), rs.getBigDecimal(26), rs.getBigDecimal(27), rs.getBigDecimal(28), rs.getString(29));
     }
 
-    private static Due due(ResultSet rs, int from) throws SQLException {
+    /** 여섯 칸(from 부터) + 12개월 안 합(w12 열) — 모두 비면 만기 구간 없음(null) */
+    private static Due due(ResultSet rs, int from, int w12) throws SQLException {
         BigDecimal[] v = new BigDecimal[6];
-        boolean any = false;
+        BigDecimal within = rs.getBigDecimal(w12);
+        boolean any = within != null;
         for (int k = 0; k < 6; k++) {
             v[k] = rs.getBigDecimal(from + k);
             any |= v[k] != null;
         }
-        return any ? new Due(v[0], v[1], v[2], v[3], v[4], v[5]) : null;
+        return any ? new Due(v[0], v[1], v[2], v[3], v[4], v[5], within) : null;
     }
 }

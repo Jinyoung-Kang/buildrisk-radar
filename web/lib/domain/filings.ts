@@ -31,7 +31,13 @@ export const PF_BUCKETS: { key: keyof PfDue; label: string; within: boolean }[] 
   { key: "y2", label: "1~2년", within: false }, { key: "y3", label: "2~3년", within: false }, { key: "over3", label: "3년 초과", within: false },
 ];
 
-/** 12개월 안에 만기가 오는 PF 합 — 구간 값이 하나도 없으면 모름(undefined), 있으면 빈 구간은 0 */
+/** 12개월 안에 만기가 오는 PF 합 — 서버가 원문 구간에서 센 합(within12m)이 우선. 없으면 구간 값이 하나도 없을 때 모름(undefined), 있으면 빈 구간은 0 */
 export function due12(d?: PfDue): number | undefined {
+  if (d?.within12m != null) return d.within12m;
   return d && PF_BUCKETS.some((b) => d[b.key] != null) ? (d.m3 ?? 0) + (d.m6 ?? 0) + (d.m12 ?? 0) : undefined;
+}
+
+/** 원문 구간이 표준 칸으로 다 나뉘지 않음 — 12개월 안 합만 알고 칸별 값은 일부 비어 있음 */
+export function duePartial(d?: PfDue): boolean {
+  return d?.within12m != null && d.within12m !== (d.m3 ?? 0) + (d.m6 ?? 0) + (d.m12 ?? 0);
 }

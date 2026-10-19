@@ -140,7 +140,8 @@ export type RegionPresales = {
   method: string; disclaimer: string;
 };
 /** 기업 PF 우발채무 (ADR-024) — 금액은 원 단위, 회사 노출 = 단독 + 컨소시엄 회사분 */
-export type PfDue = { m3?: number; m6?: number; m12?: number; y2?: number; y3?: number; over3?: number };
+/** within12m = 12개월 안 합 — 원문 구간이 표준 칸과 다르면(예: '6개월이내') 칸은 비고 합만 있음 */
+export type PfDue = { m3?: number; m6?: number; m12?: number; y2?: number; y3?: number; over3?: number; within12m?: number };
 export type PfStatus = "PARSED" | "NO_STANDARD" | "NONE" | "NO_SECTION" | "NO_DOC";
 export type PfReport = {
   rceptNo: string; periodKey: string; rceptDt: string; reportNm: string; status: PfStatus; message?: string;

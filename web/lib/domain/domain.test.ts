@@ -8,7 +8,7 @@ import { niceAxis } from "@/lib/domain/axis";
 import { DIV_NEG, DIV_POS, makeScale, MISSING, NEUTRAL, SEQ } from "@/lib/domain/colors";
 import { filterDisclosures, listingLabel, metricSeries, recentPeriods, universeLabel } from "@/lib/domain/company";
 import { sortExposure } from "@/lib/domain/exposure";
-import { contractState, due12, riskShareCard } from "@/lib/domain/filings";
+import { contractState, due12, duePartial, riskShareCard } from "@/lib/domain/filings";
 import { consortiumLabel, currentPresales, moveinLabel, presaleShareCard, remainderLabel, upcomingMovein } from "@/lib/domain/presale";
 import { pageKey, pageOverflow, safeNext, targetHref } from "@/lib/domain/nav";
 import { describeSubscription, subscriptionBody, toggleCode } from "@/lib/domain/notify";
@@ -92,6 +92,13 @@ describe("alerts · filings", () => {
     assert.equal(due12({ y3: 1 }), 0);
     assert.equal(due12({}), undefined);
     assert.equal(due12(undefined), undefined);
+  });
+  it("12개월 내 만기: 원문 구간에서 센 합(within12m)이 있으면 그 값 — 칸으로 다 나뉘지 않으면 partial", () => {
+    // 신세계건설 2025.12 '6개월이내 455억 · 6개월초과12개월이내 - · 12개월초과 1,100억' — 0~6개월은 표준 칸(3개월 · 3~6개월)으로 나눌 수 없음
+    assert.equal(due12({ within12m: 455 }), 455);
+    assert.equal(duePartial({ within12m: 455 }), true);
+    assert.equal(duePartial({ m6: 749, y2: 1794, within12m: 749 }), false);   // HS화성: 빈 구간 열만 뺀 표 — 칸과 합이 같음
+    assert.equal(duePartial({ m3: 10, m12: 5 }), false);
   });
 });
 

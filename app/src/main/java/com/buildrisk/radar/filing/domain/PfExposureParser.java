@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  * DART 원문은 셀에 비표준 {@code <TE>} 태그를 써서 HTML 파서로 읽으면 표 밖으로 밀려나므로 XML 파서로 읽습니다.
  */
 public final class PfExposureParser {
-    public static final int VERSION = 14;
+    public static final int VERSION = 15;
     private static final Pattern UNIT = Pattern.compile("단위\\s*[:：]?\\s*(?:[^)]*?,\\s*)?(백만원|천원|억원|원)");
     private static final Pattern NUM = Pattern.compile("^\\(?-?[\\d,]+(\\.\\d+)?\\)?%?$");
     /** 소계 줄의 병합 칸: '계' · '소계' · '컨소시엄 사업 계' · '정비사업 계(단독 사업+컨소시엄 사업)' · '컨소시움 계' (회사마다 표기가 다름) */
@@ -53,8 +53,9 @@ public final class PfExposureParser {
     private static final Pattern COMPANY_BASIS = Pattern.compile("^보증금액\\(?(연결|당사|회사)");
     // 원문 주석 '(주1) 기타사업은 … 직접 시행 · 시공하는 자체 사업 … 직접 PF 차주' — 회사 자신의 차입(이미 부채)이라 보증이 아님 (아이에스동서)
     private static final Pattern SELF_DEV_NOTE = Pattern.compile("\\((주|\\*)\\s*(\\d+)\\)[^()]{0,40}자체\\s*사업");
-    // 표준 서식 본문 '연결회사는 보고기간 말에 PF와 관련하여 (보증금액 기준) 총 N백만원(전기말 …)의 신용보강을 제공' — 전기말 금액 · '없으며' 문장은 제외
-    private static final Pattern STATED = Pattern.compile("PF(?:\\(대출\\))?[와과]관련(?:하여|한|된)?[^0-9전없]{0,15}?([\\d,]+)(백만원|천원|억원|원)(?:\\(전기말?[^)]*\\))?의신용(?:보강|을보강)");
+    // 표준 서식 본문 '연결회사는 보고기간 말에 PF와 관련하여 (보증금액 기준) 총 N백만원(전기말 …)의 신용보강을 제공' — 전기말 금액 · '없으며' 문장은 제외.
+    // '프로젝트 파이낸싱(이하 'PF')과 관련한 총 …' (포스코이앤씨)
+    private static final Pattern STATED = Pattern.compile("PF(?:\\(대출\\)|'\\))?[와과]관련(?:하여|한|된)?[^0-9전없]{0,15}?([\\d,]+)(백만원|천원|억원|원)(?:\\(전기말?[^)]*\\))?의신용(?:보강|을보강)");
     private static final Pattern NONE_TEXT = Pattern.compile("PF.{0,30}(신용보강|보증).{0,15}(없습니다|없음|제공하지않)");
     private static final Pattern COMPLETION_INTRO = Pattern.compile("책임준공(미이행시조건부채무인수)?약정(세부|현황)");
     private static final Pattern SOC_EXCLUDED = Pattern.compile("제외|미포함|불포함|포함하지않|포함되지않");
@@ -65,27 +66,55 @@ public final class PfExposureParser {
 
     public enum Scope { SOLE, CONSORTIUM_ALL, CONSORTIUM_SHARE }
 
-    /** 대출잔액 만기 구간 (3개월 이내 · 3~6개월 · 6~12개월 · 1~2년 · 2~3년 · 3년 초과) */
-    public record Due(BigDecimal m3, BigDecimal m6, BigDecimal m12, BigDecimal y2, BigDecimal y3, BigDecimal over3) {
+    /**
+     * 대출잔액 만기 구간 (3개월 이내 · 3~6개월 · 6~12개월 · 1~2년 · 2~3년 · 3년 초과).
+     * w12 = 원문 구간을 개월 범위로 읽은 표(표준 이름이 아니거나 '6개월이내'처럼 표준 칸을 합친 열)의 12개월 안 합 — 합친 열이 덮는 칸은 null 로 두고
+     * 원문에 없는 칸 나눔을 만들지 않음. 표준 이름 표는 null(여섯 칸에서 셈)
+     */
+    public record Due(BigDecimal m3, BigDecimal m6, BigDecimal m12, BigDecimal y2, BigDecimal y3, BigDecimal over3, BigDecimal w12) {
+        public Due(BigDecimal m3, BigDecimal m6, BigDecimal m12, BigDecimal y2, BigDecimal y3, BigDecimal over3) {
+            this(m3, m6, m12, y2, y3, over3, null);
+        }
+
         /**
          * 12개월 안 만기 합. 구간 열을 알아본 표에서 '-' 는 0 (다른 구간에 금액이 있고 구간 합 = 대출잔액인 표 실측).
          * 여섯 구간이 모두 비면 알 수 없음(null) — 대출잔액은 있는데 구간을 하나도 안 적은 표(서한 2025)
          */
         public BigDecimal within12m() {
+            if (w12 != null) return w12;
             if (m3 == null && m6 == null && m12 == null && y2 == null && y3 == null && over3 == null) return null;
             return nz(m3).add(nz(m6)).add(nz(m12));
         }
 
+        /** 원문 구간이 표준 칸으로 다 나뉘지 않음 (12개월 안 합만 앎) */
+        public boolean partial() { return w12 != null && w12.compareTo(nz(m3).add(nz(m6)).add(nz(m12))) != 0; }
+
         private static BigDecimal nz(BigDecimal v) { return v == null ? BigDecimal.ZERO : v; }
 
         Due minus(Due o) {
-            return o == null ? this : plus(new Due(neg(o.m3), neg(o.m6), neg(o.m12), neg(o.y2), neg(o.y3), neg(o.over3)));
+            return o == null ? this : plus(new Due(neg(o.m3), neg(o.m6), neg(o.m12), neg(o.y2), neg(o.y3), neg(o.over3), neg(o.w12)));
         }
 
         private static BigDecimal neg(BigDecimal v) { return v == null ? null : v.negate(); }
 
+        /** 같은 표의 줄끼리 더함 (한 표의 줄은 구간 읽는 방식이 같음) */
         Due plus(Due o) {
-            return o == null ? this : new Due(sum(m3, o.m3), sum(m6, o.m6), sum(m12, o.m12), sum(y2, o.y2), sum(y3, o.y3), sum(over3, o.over3));
+            if (o == null) return this;
+            BigDecimal w = w12 == null && o.w12 == null ? null : sum(within12m(), o.within12m());
+            return new Due(sum(m3, o.m3), sum(m6, o.m6), sum(m12, o.m12), sum(y2, o.y2), sum(y3, o.y3), sum(over3, o.over3), w);
+        }
+
+        /**
+         * 범위(단독 · 컨소시엄 회사분) 합계 줄끼리 더함 — 한 범위라도 만기를 모르면 모름(null). 아는 범위만 더하면 12개월 내 만기를 적게 보임
+         * (금호건설 2023.12 · 2024.03: 단독 표 만기를 못 읽고 컨소시엄 회사분만 더해 '12개월 내 만기 0%')
+         */
+        static Due combine(List<Due> dues) {
+            if (dues.isEmpty() || dues.stream().anyMatch(java.util.Objects::isNull)) return null;
+            boolean byRange = dues.stream().anyMatch(d -> d.w12 != null);
+            if (byRange && dues.stream().anyMatch(d -> d.within12m() == null)) return null;
+            Due out = dues.getFirst();
+            for (Due d : dues.subList(1, dues.size())) out = out.plus(d);
+            return out;
         }
     }
 
@@ -187,7 +216,8 @@ public final class PfExposureParser {
                 ? "원문 주석 " + selfMarker + ": 자체사업(회사가 직접 PF 차주 — 이미 부채로 반영)은 보증 합계에서 뺌"
                 : summary.isEmpty() ? "부동산 PF 종합요약표를 찾지 못함 — 사업장별 내역만 (회사 합계 · 비율 없음)"
                 : totals.due() == null ? "만기 구간 열을 알아보지 못함 — 만기 구간 · 12개월 내 만기 없음"
-                : totals.due().within12m() == null ? "만기 구간이 모두 비어 있음 (대출잔액만 기재) — 12개월 내 만기 없음" : null;
+                : totals.due().within12m() == null ? "만기 구간이 모두 비어 있음 (대출잔액만 기재) — 12개월 내 만기 없음"
+                : totals.due().partial() ? "원문 만기 구간이 표준 구간과 달라(예: '6개월이내') 구간별로 나누지 못함 — 12개월 내 만기는 원문 구간의 합" : null;
         return new Result(Status.PARSED, summary, sites, totals, message, statedTotal(doc.text()));
     }
 
@@ -208,12 +238,13 @@ public final class PfExposureParser {
     private static List<SummaryRow> summaryRows(List<List<String>> grid, int h, List<String> cols, Scope scope, BigDecimal unit) {
         int limit = find(cols, c -> c.startsWith("보증한도")), guarantee = find(cols, c -> c.startsWith("보증금액"));
         List<Integer> balanceCols = new ArrayList<>();
-        for (int i = 0; i < cols.size(); i++) if (cols.get(i).startsWith("대출잔액")) balanceCols.add(i);
+        // '대출잔액|당기' 또는 머리가 위아래로 바뀐 '당기|대출잔액'(범양건영 2025.12)
+        for (int i = 0; i < cols.size(); i++) if (cols.get(i).startsWith("대출잔액") || cols.get(i).contains("|대출잔액")) balanceCols.add(i);
         // 당기 · 전기 대출잔액 열 = '대출잔액' 열 중 만기 구간이 아닌 것 (구간을 못 알아본 열을 잔액으로 잘못 고르지 않게 라벨로도 거름)
         List<Integer> plain = balanceCols.stream().filter(i -> !MATURITY_LABEL.matcher(cols.get(i)).find()).toList();
         int current = plain.isEmpty() ? -1 : plain.getFirst();
         int prior = plain.size() < 2 ? -1 : plain.getLast();
-        int[] b = buckets(grid, h, cols, current, unit);                 // m3 · m6 · m12 · y2 · y3 · over3, 못 알아보면 null
+        Function<List<String>, Due> dueOf = buckets(grid, h, cols, current, prior, Math.max(limit, guarantee), unit);   // 못 알아보면 null
         int labelEnd = Math.max(1, limit >= 0 ? limit : guarantee);
         // 한 표 안에서 줄마다 '전체분 · 당사분'을 나눈 서식(금호건설 컨소시엄 표) — 줄의 범위를 따로 매기고 합계 줄 대신 범위별로 더함
         // (KCC건설은 단독 줄 · 컨소시엄 '전체 · 당사분' 줄 · 소계를 한 표에) — 칸 전체가 꼬리표인 경우만 봄
@@ -243,9 +274,7 @@ public final class PfExposureParser {
             BigDecimal g = num(get(row, guarantee), unit);
             if (g == null && num(get(row, current), unit) == null && num(get(row, limit), unit) == null) continue;
             out.add(new SummaryRow(perRow ? rowScope.apply(row) : scope, total ? null : category, total ? null : pfType(row, labelEnd),
-                    num(get(row, limit), unit), g, num(get(row, current), unit),
-                    b == null ? null : new Due(num(get(row, b[0]), unit), num(get(row, b[1]), unit), num(get(row, b[2]), unit),
-                            num(get(row, b[3]), unit), num(get(row, b[4]), unit), num(get(row, b[5]), unit)),
+                    num(get(row, limit), unit), g, num(get(row, current), unit), dueOf == null ? null : dueOf.apply(row),
                     num(get(row, prior), unit), total));
         }
         // 합계 줄이 없는 표(또는 줄마다 범위가 다른 표)는 범위별로 행을 더해 합계를 만듦
@@ -272,17 +301,19 @@ public final class PfExposureParser {
     /**
      * 만기 구간 열 [m3, m6, m12, y2, y3, over3] — 12개월 안의 세 구간을 모두 알아봐야 씀 (일부만 더해 '12개월 내 만기'를 적게 보이지 않게).
      * '3개월이내 · 6개월이내 · 1년이내 · 2년이내 …' 처럼 누적인지 구간인지 이름만으로 알 수 없는 서식(금호건설)은
-     * 모든 줄에서 구간 합 = 대출잔액(±1%)이고 '만기경과' 금액이 없을 때만 구간으로 인정 — 그 밖('3년이내' 한 칸 · 일부 구간만)은 비움
+     * 모든 줄에서 구간 합 = 대출잔액(±1%)이고 '만기경과' 금액이 없을 때만 구간으로 인정. 두 방식이 다 안 되면 열을 개월 범위로 읽음({@link #ranges})
      */
-    private static int[] buckets(List<List<String>> grid, int h, List<String> cols, int current, BigDecimal unit) {
+    private static Function<List<String>, Due> buckets(List<List<String>> grid, int h, List<String> cols, int current, int prior,
+                                                       int amountsEnd, BigDecimal unit) {
         int m3 = find(cols, c -> M3.matcher(c).find()), m6 = find(cols, c -> M6.matcher(c).find()),
                 m12 = find(cols, c -> M12.matcher(c).find()), y2 = find(cols, c -> Y2.matcher(c).find()),
                 y3 = find(cols, c -> Y3.matcher(c).find()), over3 = find(cols, c -> OVER3.matcher(c).find());
-        if (m3 >= 0 && m6 >= 0 && m12 >= 0) return new int[]{m3, m6, m12, y2, y3, over3};
+        if (m3 >= 0 && m6 >= 0 && m12 >= 0) return byColumns(new int[]{m3, m6, m12, y2, y3, over3}, unit);
         int a6 = find(cols, c -> UPTO_6M.matcher(c).find()), a12 = find(cols, c -> UPTO_1Y.matcher(c).find()),
                 a2 = find(cols, c -> UPTO_2Y.matcher(c).find()), a3 = find(cols, c -> UPTO_3Y.matcher(c).find()),
                 overdue = find(cols, c -> c.contains("만기경과"));
-        if (m3 < 0 || a6 < 0 || a12 < 0 || current < 0) return null;
+        if (current < 0) return null;
+        if (m3 < 0 || a6 < 0 || a12 < 0) return ranges(grid, h, cols, current, prior, amountsEnd, unit);
         int[] cand = {m3, a6, a12, a2, a3, over3};
         boolean checked = false;
         for (int r = h; r < grid.size(); r++) {
@@ -295,8 +326,89 @@ public final class PfExposureParser {
             if (s.subtract(bal).abs().compareTo(bal.abs().multiply(new BigDecimal("0.01"))) > 0) return null;
             checked = true;
         }
-        return checked ? cand : null;
+        return checked ? byColumns(cand, unit) : null;
     }
+
+    private static Function<List<String>, Due> byColumns(int[] b, BigDecimal unit) {
+        return row -> new Due(num(get(row, b[0]), unit), num(get(row, b[1]), unit), num(get(row, b[2]), unit),
+                num(get(row, b[3]), unit), num(get(row, b[4]), unit), num(get(row, b[5]), unit));
+    }
+
+    /** 표준 여섯 칸의 개월 범위 [시작, 끝) — 끝 OPEN = 끝없음 */
+    private static final int OPEN = Integer.MAX_VALUE;
+    private static final int[][] STD = {{0, 3}, {3, 6}, {6, 12}, {12, 24}, {24, 36}, {36, OPEN}};
+    private static final Pattern DUR = Pattern.compile("(\\d{1,2})(개월|월|년)");
+    private static final Pattern R_SPAN = Pattern.compile("^(\\d{1,2})(개월|월|년)(?:초과|~)(\\d{1,2})(개월|월|년)(?:이내|이하|미만)?$"),
+            R_SPAN_SAME = Pattern.compile("^(\\d{1,2})~(\\d{1,2})(개월|월|년)$"),
+            R_UPTO = Pattern.compile("^(\\d{1,2})(개월|월|년)(?:이내|이하|미만)$"), R_OVER = Pattern.compile("^(\\d{1,2})(개월|월|년)(?:초과|이상)$");
+
+    /**
+     * 만기 열을 개월 범위로 읽음 — 빈 구간 열을 아예 뺀 표(HS화성 '3개월~6개월 · 3년초과', 범양건영 '3개월이내 · 3개월초과6개월이내')와
+     * 표준 칸을 합친 표(신세계건설 '6개월이내 · 6개월초과12개월이내 · 12개월초과', '3개월이내 · 3개월초과12개월이내').
+     * 대출잔액이 있는 모든 줄에서 열 합 = 대출잔액(±1%)일 때만 인정 — 그래야 표에 없는 범위가 0 임을 앎. 'N이내' 는 앞 열의 끝부터.
+     * 12개월에 걸친 열('3년이내')이 있거나 '만기경과' 금액이 있거나 이름을 못 읽은 열이 있으면 null. 합친 열이 덮는 표준 칸은 null(원문에 없는 나눔을 만들지 않음)
+     */
+    private static Function<List<String>, Due> ranges(List<List<String>> grid, int h, List<String> cols, int current, int prior,
+                                                      int amountsEnd, BigDecimal unit) {
+        List<Integer> idx = new ArrayList<>();
+        List<int[]> spans = new ArrayList<>();
+        int overdue = -1, prevTo = 0;
+        for (int i = Math.max(0, amountsEnd + 1); i < cols.size(); i++) {
+            if (i == current || i == prior) continue;
+            String label = cols.get(i);
+            if (label.contains("만기경과")) {
+                overdue = i;
+                continue;
+            }
+            String seg = null;
+            for (String s : label.split("\\|")) if (DUR.matcher(s).find()) seg = s;
+            if (seg == null) continue;                                   // 만기 열이 아님 (전기 잔액 등)
+            int[] span = span(seg, prevTo);
+            if (span == null || span[0] < prevTo || span[0] >= span[1] || span[0] < 12 && span[1] > 12) return null;
+            idx.add(i);
+            spans.add(span);
+            prevTo = span[1];
+        }
+        if (idx.isEmpty()) return null;
+        boolean checked = false;
+        for (int r = h; r < grid.size(); r++) {
+            List<String> row = grid.get(r);
+            if (overdue >= 0 && num(get(row, overdue), unit) != null && num(get(row, overdue), unit).signum() != 0) return null;
+            BigDecimal bal = num(get(row, current), unit);
+            if (bal == null || bal.signum() == 0) continue;
+            BigDecimal s = BigDecimal.ZERO;
+            for (int c : idx) if (num(get(row, c), unit) != null) s = s.add(num(get(row, c), unit));
+            if (s.subtract(bal).abs().compareTo(bal.abs().multiply(new BigDecimal("0.01"))) > 0) return null;
+            checked = true;
+        }
+        if (!checked) return null;
+        int[] std = new int[STD.length];
+        for (int k = 0; k < STD.length; k++) {
+            std[k] = -1;
+            for (int j = 0; j < spans.size(); j++) if (spans.get(j)[0] == STD[k][0] && spans.get(j)[1] == STD[k][1]) std[k] = idx.get(j);
+        }
+        return row -> {
+            BigDecimal w12 = BigDecimal.ZERO;
+            for (int j = 0; j < idx.size(); j++) {
+                BigDecimal v = num(get(row, idx.get(j)), unit);
+                if (spans.get(j)[1] <= 12 && v != null) w12 = w12.add(v);
+            }
+            return new Due(num(get(row, std[0]), unit), num(get(row, std[1]), unit), num(get(row, std[2]), unit),
+                    num(get(row, std[3]), unit), num(get(row, std[4]), unit), num(get(row, std[5]), unit), w12);
+        };
+    }
+
+    /** 만기 열 이름 한 토막 → 개월 범위 [시작, 끝). 'N이내' 는 앞 열의 끝(from)에서 시작. 못 읽으면 null */
+    static int[] span(String s, int from) {
+        Matcher m;
+        if ((m = R_SPAN.matcher(s)).matches()) return new int[]{months(m.group(1), m.group(2)), months(m.group(3), m.group(4))};
+        if ((m = R_SPAN_SAME.matcher(s)).matches()) return new int[]{months(m.group(1), m.group(3)), months(m.group(2), m.group(3))};
+        if ((m = R_UPTO.matcher(s)).matches()) return new int[]{from, months(m.group(1), m.group(2))};
+        if ((m = R_OVER.matcher(s)).matches()) return new int[]{months(m.group(1), m.group(2)), OPEN};
+        return null;
+    }
+
+    private static int months(String n, String u) { return Integer.parseInt(n) * (u.equals("년") ? 12 : 1); }
 
     /** 테스트용 — 표 앞 글자로 범위 판정 */
     public static Scope scopeOf(String ctx, int index) { return scope(ctx, index); }
@@ -420,19 +532,20 @@ public final class PfExposureParser {
             if (s.total() && seenTotal.add(s.scope())) closed.add(s.scope());
         }
         BigDecimal limit = null, guarantee = null, balance = null, prior = null, bridgeG = null, bridgeB = null;
-        Due due = null;
+        List<Due> dues = new ArrayList<>();
         for (SummaryRow s : mine) {
             if (s.total()) {
                 limit = sum(limit, s.limit());
                 guarantee = sum(guarantee, s.guarantee());
                 balance = sum(balance, s.balance());
                 prior = sum(prior, s.priorBalance());
-                due = due == null ? s.due() : due.plus(s.due());
+                dues.add(s.due());
             } else if (!self(s, selfMarker) && s.pfType() != null && norm(s.pfType()).contains("브릿지")) {
                 bridgeG = sum(bridgeG, s.guarantee());
                 bridgeB = sum(bridgeB, s.balance());
             }
         }
+        Due due = Due.combine(dues);
         // 자체사업 행은 합계 줄에 들어 있으므로 합계를 다 더한 뒤 빼냄 (원문 주석이 보증이 아니라고 밝힘)
         for (SummaryRow s : mine) {
             if (s.total() || !self(s, selfMarker)) continue;
