@@ -10,7 +10,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -66,5 +70,15 @@ class ScorecardIT extends IntegrationTest {
                 .andExpect(jsonPath("$.limitations").isNotEmpty())
                 .andExpect(jsonPath("$.disclaimer").isNotEmpty());
         mvc.perform(get("/api/v1/scorecard").param("horizonMonths", "7")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void 한계의_생존_편향은_비상장도_든_유니버스로_설명() throws Exception {
+        // ADR-033 뒤 모수에 비상장 · 상장폐지 기업이 드는데 '현재 상장된 기업만 유니버스'로 남아 있었음 (VERIFICATION 217)
+        mvc.perform(get("/api/v1/scorecard"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.limitations").value(everyItem(not(containsString("상장된 기업만")))))
+                .andExpect(jsonPath("$.limitations").value(hasItem(allOf(containsString("비상장"), containsString("감사보고서만"),
+                        containsString("생존 편향")))));
     }
 }

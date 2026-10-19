@@ -131,7 +131,7 @@ export default function Batch() {
       <ErrorBox error={action.error ?? jobs.error} />
       {msg && <div className="text-sm text-good mb-3"><Prose text={msg} /></div>}
       <Workers workers={jobs.data?.workers as Row[] | undefined} />
-      <div className="text-xs text-ink2 mb-3">오늘 호출 — DART {int(quota.DART ?? 0)} / 상한 {int(jobs.data?.dartDailyLimit)} · 실거래 {int(quota.RTMS ?? 0)} · 주가 {int(quota.FSC_STOCK ?? 0)} · 청약홈 {int(quota.APPLYHOME ?? 0)}
+      <div className="text-xs text-ink2 mb-3">오늘 호출 — DART {int(quota.DART ?? 0)} / 상한 {int(jobs.data?.dartDailyLimit)} · 실거래 {int(quota.RTMS ?? 0)} · 주가 {int(quota.FSC_STOCK ?? 0)} · 청약홈 {int(quota.APPLYHOME ?? 0)}{" "}
         · 스케줄러 {jobs.data?.schedulingEnabled ? "켜짐" : "꺼짐 (수동 실행)"}</div>
       <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-3 mb-5">
         {((jobs.data?.jobs as Row[]) ?? []).map((j, i) => (
