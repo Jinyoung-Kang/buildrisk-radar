@@ -68,6 +68,17 @@ class ApplyhomeParseTest {
     }
 
     @Test
+    void 데이터셋_전체가_0건인_응답은_정상_0건이_아니라_멈춤() throws IOException {
+        // 2026-10-20 실측: 같은 키 · 같은 요청이 몇 시간 전 totalCount 2,907 → 200 OK · totalCount 0 · data [] (일일 트래픽 초과로 추정, 원인 미확인).
+        // '그 달 공고 0건'으로 저장하면 원장이 받은 달로 남아 다시 받지 않고, 주택형은 0개로 끝난 것이 됨 (VERIFICATION 216)
+        assertThatThrownBy(() -> ApplyhomeClient.parseNotices(M, fixture("empty_dataset.json"))).isInstanceOf(QuotaExceededException.class)
+                .hasMessageContaining("totalCount");
+        assertThatThrownBy(() -> ApplyhomeClient.parseModels(M, fixture("empty_dataset.json"))).isInstanceOf(QuotaExceededException.class);
+        // 조건에 맞는 것만 0건(데이터셋은 있음)은 정상
+        assertThat(ApplyhomeClient.parseModels(M, "{\"currentCount\":0,\"data\":[],\"matchCount\":0,\"totalCount\":14869}").items()).isEmpty();
+    }
+
+    @Test
     void 날짜는_두_형식만_받고_그_밖은_비운다() {
         var n = M.readTree("{\"a\":\"2026-10-19\",\"b\":\"20261019\",\"c\":\"2026.10.19\",\"d\":\"\",\"e\":null,\"m\":\"202613\",\"y\":\"Y\",\"x\":\"-\"}");
         assertThat(ApplyhomeClient.date(n, "a")).isEqualTo(LocalDate.of(2026, 10, 19));

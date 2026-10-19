@@ -203,6 +203,12 @@ public class ApplyhomeClient {
             if (msg != null && msg.contains("인증키")) throw new ApiKeyRejectedException(PROVIDER, code + " " + msg);
             throw new UpstreamException(PROVIDER, "data 가 없는 응답: " + code + " " + msg);
         }
+        // totalCount 는 조건과 무관한 데이터셋 전체 건수(APT 공고 2,907 · 주택형 14,869 · 잔여세대 1,718 — 2026-10)라 0 일 수 없음.
+        // 같은 키 · 같은 요청이 200 OK · totalCount 0 · data [] 를 돌려준 적이 있어(일일 트래픽 초과로 추정, 원인 미확인) '0건'으로 저장하지 않고
+        // 한도와 같이 멈춤 → 다음 실행에서 이어받음 (VERIFICATION 216)
+        if (root.path("totalCount").isNumber() && root.path("totalCount").asInt() == 0 && data.isEmpty()) {
+            throw new QuotaExceededException(PROVIDER + " 응답의 데이터셋 전체 건수(totalCount)가 0 — 일일 트래픽 초과나 원천 점검으로 보고 멈춤, 다음 실행에서 이어받음", true);
+        }
         List<T> out = new ArrayList<>();
         for (JsonNode n : data.values()) {
             for (String f : required) {
