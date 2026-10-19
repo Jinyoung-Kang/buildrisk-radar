@@ -236,7 +236,7 @@ services:
 
   grafana:
     profiles: ["obs"]
-    image: grafana/grafana:12.4.12               # 12 의 마지막 minor — 지원 2027-05-24 (11.4 는 2025-09 종료)
+    image: grafana/grafana:12.4.13               # 12 의 마지막 minor — 지원 2027-05-24 (11.4 는 2025-09 종료)
     mem_limit: 256m
     depends_on: [prometheus]
     environment:
