@@ -35,7 +35,12 @@ public final class MetricCatalog {
             new Def("TRADE_YOY", "REGION", "거래량 전년 동월 대비", "%", "(당월 거래 − 전년 같은 달) / 전년 같은 달 × 100", false, "국토부 실거래"),
             new Def("CANCEL_RATE", "REGION", "계약 해제 비율", "%", "해제 건수 / (거래 + 해제) × 100", true, "국토부 실거래"),
             new Def("PRICE_M2_MEDIAN", "REGION", "㎡당 중위 매매가", "만원/㎡", "거래금액 / 전용면적 의 중앙값 (해제 제외)", false, "국토부 실거래"),
-            new Def("PRICE_M2_YOY", "REGION", "㎡당 중위가 전년 동월 대비", "%", "(당월 중위가 − 전년 같은 달) / 전년 같은 달 × 100", false, "국토부 실거래"));
+            new Def("PRICE_M2_YOY", "REGION", "㎡당 중위가 전년 동월 대비", "%", "(당월 중위가 − 전년 같은 달) / 전년 같은 달 × 100", false, "국토부 실거래"),
+            new Def("PRESALE_12M_PER_1K_HH", "REGION", "최근 12개월 분양 공고 세대 (천 가구당)", "세대/천가구",
+                    "기준월까지 12개월 청약홈 APT 분양 공고 세대(공급규모 = 일반 + 특별공급) / 총가구 × 1000", true, "청약홈·SGIS"),
+            new Def("MOVEIN_12M_AHEAD_PER_1K_HH", "REGION", "앞으로 12개월 입주 예정 (천 가구당 · 청약홈 공고 단지)", "세대/천가구",
+                    "기준월까지 공고된 청약홈 APT 단지 중 입주예정월이 다음 12개월인 세대 / 총가구 × 1000 — 청약을 거치지 않은 단지 · 조합원분이 빠진 하한",
+                    true, "청약홈·SGIS"));
 
     private static final Map<String, Def> BY_CODE = new LinkedHashMap<>();
 

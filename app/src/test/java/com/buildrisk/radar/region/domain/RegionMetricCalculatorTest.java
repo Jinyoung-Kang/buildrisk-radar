@@ -39,4 +39,29 @@ class RegionMetricCalculatorTest {
         assertThat(chg.get("202604").value()).isEqualByComparingTo("0");
         assertThat(chg.get("202605").status()).isEqualTo("ZERO_DENOM");
     }
+
+    @Test
+    void 청약홈_롤링_세대는_가구로_나누고_0과_MISSING_ZERO_DENOM_을_구분하며_미래_기간을_만들지_않는다() {
+        // ADR-032: 기준월(≤ 이번 달) 키의 롤링 두 시계열만 들어옴 — 입주예정월(미래) 키를 넣으면 2028 기간 지표가 생겼을 것
+        var e = new TreeMap<String, BigDecimal>();
+        var hh = new TreeMap<String, BigDecimal>(Map.of("2024", new BigDecimal("40000")));
+        var supply = new TreeMap<String, BigDecimal>(Map.of("202609", new BigDecimal("600"), "202610", BigDecimal.ZERO));
+        var movein = new TreeMap<String, BigDecimal>(Map.of("202610", new BigDecimal("1000")));
+        var vs = RegionMetricCalculator.compute("41110", new RegionMetricCalculator.Series(e, e, e, hh, e, e, e, supply, movein));
+        var by = vs.stream().collect(Collectors.toMap(v -> v.metricCode() + "@" + v.period(), Function.identity()));
+        assertThat(by.get("PRESALE_12M_PER_1K_HH@202609").value()).isEqualByComparingTo("15");          // 600 / 40,000 × 1000
+        assertThat(by.get("PRESALE_12M_PER_1K_HH@202609").components()).containsEntry("householdsYear", "2024");
+        assertThat(by.get("PRESALE_12M_PER_1K_HH@202610").value()).isEqualByComparingTo("0");           // 공고 없음 = 0 (OK)
+        assertThat(by.get("PRESALE_12M_PER_1K_HH@202610").status()).isEqualTo("OK");
+        assertThat(by.get("MOVEIN_12M_AHEAD_PER_1K_HH@202610").value()).isEqualByComparingTo("25");
+        assertThat(by).doesNotContainKey("MOVEIN_12M_AHEAD_PER_1K_HH@202609");                         // 창이 안 찬 달은 집계에 행이 없음
+        assertThat(vs).allSatisfy(v -> assertThat(v.period()).isLessThanOrEqualTo("202610"));
+        assertThat(vs).noneMatch(v -> v.metricCode().startsWith("UNSOLD") || v.metricCode().startsWith("TRADE"));
+
+        var noHh = RegionMetricCalculator.compute("1", new RegionMetricCalculator.Series(e, e, e, e, e, e, e, supply, e));
+        assertThat(noHh).allSatisfy(v -> assertThat(v.status()).isEqualTo("MISSING"));
+        var zeroHh = RegionMetricCalculator.compute("1", new RegionMetricCalculator.Series(e, e, e,
+                new TreeMap<>(Map.of("2024", BigDecimal.ZERO)), e, e, e, supply, e));
+        assertThat(zeroHh).allSatisfy(v -> assertThat(v.status()).isEqualTo("ZERO_DENOM"));
+    }
 }

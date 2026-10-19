@@ -7,6 +7,7 @@ import com.buildrisk.radar.filing.domain.FilingModels.ContractFact;
 import com.buildrisk.radar.filing.domain.FilingModels.DisclosureEvent;
 import com.buildrisk.radar.filing.domain.FilingModels.GuaranteeFact;
 import com.buildrisk.radar.metric.domain.MetricPoint;
+import com.buildrisk.radar.presale.domain.PresaleModels.PresaleFact;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -30,6 +31,7 @@ class ExposureRulesTest {
         final Map<String, NavigableMap<String, MetricPoint>> region = new HashMap<>();
         final List<ContractFact> contracts = new ArrayList<>();
         final List<GuaranteeFact> guarantees = new ArrayList<>();
+        final List<PresaleFact> presales = new ArrayList<>();
 
         Mem metric(String regionCd, String code, String period, String value, Map<String, Object> comp) {
             region.computeIfAbsent(regionCd + ":" + code, k -> new TreeMap<>())
@@ -47,6 +49,9 @@ class ExposureRulesTest {
         }
         @Override public List<GuaranteeFact> guarantees(String c, LocalDate since) {
             return guarantees.stream().filter(x -> !x.rceptDt().isBefore(since)).toList();
+        }
+        @Override public List<PresaleFact> presales(String c, LocalDate since) {
+            return presales.stream().filter(x -> !x.noticeDate().isBefore(since)).toList();
         }
         @Override public int windowSize(TargetType t) { return 12; }
         @Override public LocalDate today() { return TODAY; }
@@ -117,6 +122,42 @@ class ExposureRulesTest {
         assertThat(registry.get("R-X01").evaluate(strict, "c", d).findings()).isEmpty();
         var many = rule("R-X01", TargetType.COMPANY, Map.of("windowDays", 365, "unsoldPer1kHh", 5, "sharePct", 50, "minContracts", 3));
         assertThat(registry.get("R-X01").evaluate(many, "c", d).findings()).isEmpty();
+    }
+
+    static PresaleFact p(String no, String date, String region, int units, List<String> partners) {
+        return new PresaleFact(no, no, "단지" + no, LocalDate.parse(date), region, region == null ? null : "지역" + region,
+                region == null ? "SIDO" : "SIGUNGU", units, partners);
+    }
+
+    @Test
+    void R_X02_미분양_많은_지역_분양_세대_비중이_기준_이상이면_참() {
+        var d = new Mem()
+                .metric("11111", "UNSOLD_PER_1K_HH", "202607", "8.0", Map.of())      // 위험 지역
+                .metric("22222", "UNSOLD_PER_1K_HH", "202607", "1.0", Map.of());     // 아님
+        d.presales.add(p("A", "2026-01-10", "11111", 600, List.of("(주)동반건설")));
+        d.presales.add(p("B", "2026-02-10", "11111", 300, List.of()));
+        d.presales.add(p("C", "2026-03-10", "22222", 400, List.of()));
+        d.presales.add(p("D", "2026-04-10", "33333", 9_999, List.of()));             // 미분양 지표 없는 지역 — 분모 제외
+        d.presales.add(p("E", "2026-04-11", null, 9_999, List.of()));                // 시도만 — 제외
+        d.presales.add(p("F", "2025-01-10", "11111", 9_999, List.of()));             // 1년 밖
+        var r = rule("R-X02", TargetType.COMPANY, Map.of("windowDays", 365, "unsoldPer1kHh", 5, "sharePct", 50, "minNotices", 2));
+        var ev = registry.get("R-X02").evaluate(r, "c", d);
+        assertThat(ev.findings()).hasSize(1);
+        assertThat(ev.latestAsOf()).isEqualTo("2026Q3");
+        var f = ev.findings().get(0);
+        assertThat(f.title()).contains("69.23");                                   // 900 / 1300
+        assertThat(f.message()).contains("단지A").contains("컨소시엄");              // 가장 큰 위험 공고 · 지분 미공개
+        assertThat((List<?>) f.evidence().get("observations")).first().asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+                .containsEntry("excludedNoUnsoldMetric", 1);
+
+        var strict = rule("R-X02", TargetType.COMPANY, Map.of("windowDays", 365, "unsoldPer1kHh", 5, "sharePct", 70, "minNotices", 2));
+        assertThat(registry.get("R-X02").evaluate(strict, "c", d).findings()).isEmpty();
+        var many = rule("R-X02", TargetType.COMPANY, Map.of("windowDays", 365, "unsoldPer1kHh", 5, "sharePct", 50, "minNotices", 3));
+        var none = registry.get("R-X02").evaluate(many, "c", d);
+        assertThat(none.findings()).isEmpty();
+        assertThat(none.decided()).isTrue();                                       // 판단은 함 — 열린 경보가 있으면 닫힘 (R-X01 과 같음)
+        assertThat(none.evaluatedAsOfs()).containsExactly("2026Q3");
+        assertThat(registry.get("R-X02").evaluate(r, "c", new Mem()).findings()).isEmpty();
     }
 
     @Test

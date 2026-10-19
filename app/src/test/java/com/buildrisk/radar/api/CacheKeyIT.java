@@ -142,18 +142,18 @@ class CacheKeyIT extends IntegrationTest {
         jdbc.update("""
                 INSERT INTO ref.company (corp_code, corp_name, stock_code, corp_cls, induty_code, is_target, target_reason)
                 VALUES ('00000105', '비대상상사', '000105', 'Y', '46101', false, NULL)""");
-        for (String p : List.of("", "/filings", "/pf", "/prices", "/prices?days=1095", "/sites")) {
+        for (String p : List.of("", "/filings", "/pf", "/prices", "/prices?days=1095", "/sites", "/presales")) {
             mvc.perform(get("/api/v1/companies/00000105" + p)).andExpect(status().isOk());
         }
-        for (String prefix : List.of("company:", "filings:", "pf:", "prices:", "sites:c:")) {
+        for (String prefix : List.of("company:", "filings:", "pf:", "prices:", "sites:c:", "presales:c:")) {
             assertThat(keys(prefix)).as(prefix).isEmpty();
         }
 
         company("00000106", "대상건설");
-        for (String p : List.of("", "/filings", "/pf", "/prices", "/sites")) {
+        for (String p : List.of("", "/filings", "/pf", "/prices", "/sites", "/presales")) {
             mvc.perform(get("/api/v1/companies/00000106" + p)).andExpect(status().isOk());
         }
-        for (String prefix : List.of("company:", "filings:", "pf:", "prices:", "sites:c:")) {
+        for (String prefix : List.of("company:", "filings:", "pf:", "prices:", "sites:c:", "presales:c:")) {
             assertThat(keys(prefix)).as(prefix).hasSize(1);
         }
     }

@@ -1,6 +1,6 @@
 // 기업 — /companies/* 조회 · CSV 주소 — 화면은 `import * as companyApi from "@/lib/api/company"` (ADR-030)
 import { qs, query, BASE } from "./client";
-import type { CompanyFilings, CompanyPf, CompanyRow, CompanySummary, Disclosure, Financials, Metrics, Page, Prices, Sites } from "./types";
+import type { CompanyFilings, CompanyPf, CompanyPresales, CompanyRow, CompanySummary, Disclosure, Financials, Metrics, Page, Prices, Sites } from "./types";
 
 const e = encodeURIComponent;
 export const list = (p: { q?: string; sort?: string; page: number; size: number }) => query<Page<CompanyRow>>(`/companies${qs(p)}`);
@@ -12,5 +12,6 @@ export const filings = (corp: string) => query<CompanyFilings>(`/companies/${e(c
 export const pf = (corp: string) => query<CompanyPf>(`/companies/${e(corp)}/pf`);
 export const prices = (corp: string) => query<Prices>(`/companies/${e(corp)}/prices?days=1095`);
 export const sites = (corp: string) => query<Sites>(`/companies/${e(corp)}/sites`);
+export const presales = (corp: string) => query<CompanyPresales>(`/companies/${e(corp)}/presales`);
 export const metricsCsv = (corp: string) => `${BASE}/export/companies/${e(corp)}/metrics.csv`;
 export const pfSitesCsv = (corp: string) => `${BASE}/export/companies/${e(corp)}/pf-sites.csv`;

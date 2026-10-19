@@ -58,3 +58,8 @@ app 사이 직접 호출을 인터페이스로 바꾼다.
 '쓰기 SQL 은 기능 data 에만' 검사가 기능 패키지만 봐서 seed 적재(adapters)가 기능 테이블 5개에 직접 썼고, 계정 매핑 규칙은 쓰는 곳이 둘이라 동작이 달랐다(185).
 바깥 계층(adapters · batch · common)은 **운영 기반 테이블 `ops.*`(실행 큐 · 실행 기록 · 감사 · 호출 수)에만** 쓰도록 검사를 더했고, `SeedLoader` 는 ops.app 으로 옮겨
 각 기능 저장소를 부른다(adapters 의 `SeedCatalog` 는 파일만 읽음).
+
+**덧붙임 (2026-10-19, ADR-032) — 기능 모듈 11개** 청약홈 분양 공고를 새 기능 `presale`(app · domain · data)로 두었다. 엔드포인트는 따로 api 계층을 두지 않고
+`insight.api.InsightController` 에 — 노출 표 · 규칙 파라미터와 함께 보는 화면이라서. 의존은 `presale.domain → company.domain · metric.domain`, `presale.data → region.domain`(주소 매처),
+`alert · insight → presale`, **presale 은 alert · insight 를 모름**(R-X02 파라미터는 insight 가 넘김). 공시 계약명 키를 `company.domain.CorpNameKey` 로 옮겨
+filing.data 와 presale.domain 이 함께 쓴다. `ArchitectureTest` 의 기능 목록에 더한 뒤 위반 0 · 순환 없음.

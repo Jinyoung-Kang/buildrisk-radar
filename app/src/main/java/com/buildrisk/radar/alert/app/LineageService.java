@@ -46,7 +46,11 @@ public class LineageService {
             Map.entry("TRADE_YOY", List.of(new String[]{"RTMS_TRADE_CNT", null}, new String[]{"RTMS_TRADE_CNT", "period12mAgo"})),
             Map.entry("CANCEL_RATE", List.of(new String[]{"RTMS_TRADE_CNT", null}, new String[]{"RTMS_CANCEL_CNT", null})),
             Map.entry("PRICE_M2_MEDIAN", List.<String[]>of(new String[]{"RTMS_PRICE_M2", null})),
-            Map.entry("PRICE_M2_YOY", List.of(new String[]{"RTMS_PRICE_M2", null}, new String[]{"RTMS_PRICE_M2", "period12mAgo"})));
+            Map.entry("PRICE_M2_YOY", List.of(new String[]{"RTMS_PRICE_M2", null}, new String[]{"RTMS_PRICE_M2", "period12mAgo"})),
+            // 청약홈 (ADR-032) — 12개월 창은 집계가 기준월 한 값(롤링 합)으로 저장해 시계열 하나로 이어짐
+            Map.entry("PRESALE_12M_PER_1K_HH", List.of(new String[]{"PRESALE_SUPPLY_12M_HH", null}, new String[]{"SGIS_HOUSEHOLDS", "householdsYear"})),
+            Map.entry("MOVEIN_12M_AHEAD_PER_1K_HH", List.of(new String[]{"PRESALE_MOVEIN_12M_AHEAD_HH", null},
+                    new String[]{"SGIS_HOUSEHOLDS", "householdsYear"})));
 
     public record RuleInfo(String code, int version, String nameKo, String condition, Map<String, Object> params, String changeNote,
                            OffsetDateTime createdAt) {}
@@ -70,12 +74,20 @@ public class LineageService {
                              String parseStatus, Integer parserVersion, Map<String, Object> facts, Long jobExecutionId,
                              OffsetDateTime fetchedAt) {}
 
+    /**
+     * R-X02 의 청약홈 분양 공고 (ADR-032) — 공급위치 → 시군구 대조, 시공사 원문 → 기업 대조(builders: name · corpCode · matchStatus ·
+     * matchMethod · candidates), 수집 실행. removed = 다 받은 달의 응답에서 사라짐(정정 · 취소)
+     */
+    public record PresaleNode(String houseManageNo, String pblancNo, String houseNm, String noticeDate, String address, String regionCd,
+                              String regionMatch, Integer units, String moveinYm, String builderRaw, List<Map<String, Object>> builders,
+                              String pblancUrl, boolean removed, Integer linkVersion, OffsetDateTime fetchedAt) {}
+
     /** kind: RULE · METRIC · STANDARD(계산 실행) · JOB(배치 실행) · COLLECT(통계 수집) */
     public record RunNode(String kind, String id, String name, String status, OffsetDateTime startedAt, OffsetDateTime finishedAt) {}
 
     public record Lineage(long alertId, String targetType, String targetKey, String asOf, RuleInfo rule, List<MetricNode> metrics,
-                          List<StatementNode> statements, List<StatNode> stats, List<FilingNode> filings, List<RunNode> runs,
-                          List<String> notes, String disclaimer) {}
+                          List<StatementNode> statements, List<StatNode> stats, List<FilingNode> filings, List<PresaleNode> presales,
+                          List<RunNode> runs, List<String> notes, String disclaimer) {}
 
     private final JdbcClient jdbc;
     private final ObjectMapper mapper;
@@ -98,11 +110,12 @@ public class LineageService {
         final List<StatementNode> statements = new ArrayList<>();
         final List<StatNode> stats = new ArrayList<>();
         final List<FilingNode> filings = new ArrayList<>();
+        final List<PresaleNode> presales = new ArrayList<>();
         final Set<String> calcRuns = new LinkedHashSet<>();
         final Set<Long> jobs = new LinkedHashSet<>();
         final Set<String> collects = new LinkedHashSet<>();
         final Set<String> seenMetric = new java.util.HashSet<>(), seenStmt = new java.util.HashSet<>(), seenStat = new java.util.HashSet<>(),
-                seenFiling = new java.util.HashSet<>();
+                seenFiling = new java.util.HashSet<>(), seenPresale = new java.util.HashSet<>();
         final Map<String, Map<String, Trace>> traces = new HashMap<>();
         AccountStandardizer std;
         Map<String, String> stdNames;
@@ -144,6 +157,14 @@ public class LineageService {
                         .query(String.class).optional().ifPresent(rc -> metric(ctx, "REGION", rc, unsoldPeriod, "UNSOLD_PER_1K_HH"));
             }
         }
+        // 분양 공고 규칙(R-X02): 관측값의 주택관리번호 · 공고번호 → 공고 · 시공사 대조 · 그 시군구의 미분양 지표
+        for (Map<String, Object> o : obs) {
+            String h = str(o.get("houseManageNo")), p = str(o.get("pblancNo"));
+            if (h == null || p == null) continue;
+            String region = presale(ctx, h, p);
+            String unsoldPeriod = str(o.get("unsoldPeriod"));
+            if (region != null && unsoldPeriod != null) metric(ctx, "REGION", region, unsoldPeriod, "UNSOLD_PER_1K_HH");
+        }
         List<RunNode> runs = runs(ctx);
         List<String> notes = new ArrayList<>(List.of(
                 "원천 줄 = 같은 보고서를 지금의 계정 매핑 규칙으로 다시 표준화해 고른 줄과 그 규칙(mapId). 저장된 표준계정 값과 같으면 reproduced = true",
@@ -153,8 +174,10 @@ public class LineageService {
             notes.add("reproduced = false 인 줄이 있음 — 매핑 규칙이 바뀐 뒤 아직 다시 표준화하지 않았거나 원천이 정정됨 (다음 standardizeMetricJob 뒤 다시 확인)");
         if (ctx.stats.stream().anyMatch(s -> "CHILD".equals(s.role())))
             notes.add("CHILD 행 = 일반구 값 — 시 단위 값은 이 행들의 합(미분양 · 가구) 또는 평균(가격지수)");
+        if (!ctx.presales.isEmpty())
+            notes.add("분양 공고 = 청약홈 원문 행(mkt.presale_notice.raw) · 시공사 대조(builders) · 공급위치 → 시군구. 컨소시엄은 지분 미공개라 세대를 나누지 않음");
         return new Lineage(a.id(), a.targetType(), a.targetKey(), a.asOf(), rule, ctx.metrics, ctx.statements, ctx.stats, ctx.filings,
-                runs, notes, Disclaimer.TEXT);
+                ctx.presales, runs, notes, Disclaimer.TEXT);
     }
 
     // ---- 지표 --------------------------------------------------------------
@@ -411,6 +434,42 @@ public class LineageService {
                 d != null ? d.reportNm() : pfName, d != null ? d.rceptDt() : pfDt,
                 d == null ? null : d.eventType(), d == null ? null : d.keyword(), FilingModels.dartUrl(rcept), status[0], parser[0], facts,
                 d != null && d.job() != null ? d.job() : job[0], d != null ? d.fetched() : fetched[0]));
+    }
+
+    // ---- 청약홈 분양 공고 ---------------------------------------------------------
+
+    /** 공고 노드를 더하고 그 공고의 화면 시군구를 돌려줌(없으면 null) */
+    private String presale(Ctx ctx, String h, String p) {
+        if (!ctx.seenPresale.add(h + "|" + p)) return null;
+        record Row(PresaleNode node, String collectRunId) {}
+        Row row = jdbc.sql("""
+                        SELECT house_nm, notice_date::text, address, region_cd, region_match, tot_supply_hh, movein_ym, builder_name, pblanc_url,
+                               removed_at IS NOT NULL, link_version, fetched_at, collect_run_id::text
+                          FROM mkt.presale_notice WHERE house_manage_no = :h AND pblanc_no = :p""")
+                .param("h", h).param("p", p)
+                .query((rs, i) -> new Row(new PresaleNode(h, p, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4),
+                        rs.getString(5), (Integer) rs.getObject(6), rs.getString(7), rs.getString(8), List.of(), rs.getString(9),
+                        rs.getBoolean(10), (Integer) rs.getObject(11), rs.getObject(12, OffsetDateTime.class)), rs.getString(13)))
+                .optional().orElse(null);
+        if (row == null) return null;
+        List<Map<String, Object>> builders = jdbc.sql("""
+                        SELECT name_raw, corp_code, match_status, match_method, candidates::text FROM mkt.presale_notice_builder
+                         WHERE house_manage_no = :h AND pblanc_no = :p ORDER BY seq""")
+                .param("h", h).param("p", p)
+                .query((rs, i) -> {
+                    Map<String, Object> b = new LinkedHashMap<>();
+                    b.put("name", rs.getString(1));
+                    b.put("corpCode", rs.getString(2));
+                    b.put("matchStatus", rs.getString(3));
+                    b.put("matchMethod", rs.getString(4));
+                    b.put("candidates", rs.getString(5) == null ? null : mapper.readValue(rs.getString(5), List.class));
+                    return b;
+                }).list();
+        PresaleNode n = row.node();
+        ctx.presales.add(new PresaleNode(n.houseManageNo(), n.pblancNo(), n.houseNm(), n.noticeDate(), n.address(), n.regionCd(),
+                n.regionMatch(), n.units(), n.moveinYm(), n.builderRaw(), builders, n.pblancUrl(), n.removed(), n.linkVersion(), n.fetchedAt()));
+        if (row.collectRunId() != null) ctx.collects.add(row.collectRunId());
+        return n.regionCd();
     }
 
     // ---- 실행 ---------------------------------------------------------------

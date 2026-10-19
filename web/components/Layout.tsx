@@ -86,7 +86,7 @@ export default function Layout({ title, children }: { title: string; children: R
         <footer className="border-t border-line text-xs text-muted">
           <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-4 flex flex-wrap gap-x-6 gap-y-1 justify-between">
             <span>⚠ 공시·공공통계 기반 모니터링 예시, 투자 판단 자료 아님 — 투자 권유·신용평가가 아닙니다.</span>
-            <span>출처: 금융감독원 Open DART · KOSIS · 한국부동산원 R-ONE · 통계청 SGIS · V-World · 국토교통부 실거래가 · 금융위원회 주식시세 · 카카오맵</span>
+            <span>출처: 금융감독원 Open DART · KOSIS · 한국부동산원 R-ONE · 통계청 SGIS · V-World · 국토교통부 실거래가 · 한국부동산원 청약홈 · 금융위원회 주식시세 · 카카오맵</span>
           </div>
         </footer>
       </div>

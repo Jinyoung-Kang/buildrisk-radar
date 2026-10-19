@@ -21,6 +21,7 @@ const shots: [string, string, (p: import("@playwright/test").Page) => Promise<vo
   ["backtest", "/backtest", async (p) => { await p.waitForTimeout(1500); }],
   ["company-filings", "/companies/00124540?tab=filings", async (p) => { await p.waitForTimeout(1200); }],
   ["company-price", "/companies/00124540?tab=price", async (p) => { await p.waitForTimeout(1500); }],
+  ["company-presales", "/companies/00124540?tab=presales", async (p) => { await p.waitForTimeout(1200); }],
   ["lineage", "/alerts", async (p) => {
     const id = (await (await p.request.get("/api/v1/alerts?ruleCode=R-C02&status=OPEN,ACK,CLOSED&size=1")).json()).items[0].alertId;
     await p.goto(`/alerts?status=OPEN%2CACK%2CCLOSED&id=${id}`); await p.waitForLoadState("networkidle");

@@ -11,6 +11,8 @@ import com.buildrisk.radar.filing.domain.FilingModels.DisclosureEvent;
 import com.buildrisk.radar.filing.domain.FilingModels.GuaranteeFact;
 import com.buildrisk.radar.metric.data.MetricRepository;
 import com.buildrisk.radar.metric.domain.MetricPoint;
+import com.buildrisk.radar.presale.data.PresaleRepository;
+import com.buildrisk.radar.presale.domain.PresaleModels.PresaleFact;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -24,10 +26,12 @@ public class DbRuleData implements RuleData {
     private final DisclosureRepository disclosures;
     private final AppProperties.Batch cfg;
     private final ExposureRepository exposure;
+    private final PresaleRepository presales;
 
     public DbRuleData(MetricRepository metrics, DisclosureRepository disclosures, AppProperties props,
-                      ExposureRepository exposure) {
+                      ExposureRepository exposure, PresaleRepository presales) {
         this.exposure = exposure;
+        this.presales = presales;
         this.metrics = metrics;
         this.disclosures = disclosures;
         this.cfg = props.batch();
@@ -51,6 +55,9 @@ public class DbRuleData implements RuleData {
 
     @Override
     public List<GuaranteeFact> guarantees(String corpCode, LocalDate since) { return exposure.guarantees(corpCode, since); }
+
+    @Override
+    public List<PresaleFact> presales(String corpCode, LocalDate since) { return presales.facts(corpCode, since); }
 
     @Override
     public int windowSize(TargetType type) {

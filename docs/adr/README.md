@@ -20,16 +20,17 @@
 | [016](016-filing-structuring.md) | 공시 원문 구조화 — 수주 지역 · 채무보증 · PF, 원문 보관 + 파서 버전, R-C05 · R-X01 | 채택 |
 | [017](017-stock-backtest.md) | 경보 백테스트 — point-in-time 사건 연구, 수정주가 아님 대응 | 채택 |
 | [018](018-observability.md) | 관리 포트 분리 · Prometheus 지표 · ECS 로그 · Grafana | 채택 |
-| [019](019-api-selection.md) | 추가 공공 API 중 쓴 것과 쓰지 않은 것 | 채택 |
+| [019](019-api-selection.md) | 추가 공공 API 중 쓴 것과 쓰지 않은 것 — 청약홈 분양정보(APT 3종) 사용 · 나머지 7개 오퍼레이션은 시공사가 없어 쓰지 않음 | 채택 |
 | [020](020-map-boundaries-cache.md) | 지도 — 경계(버전 URL · immutable, 프로세스 안 gzip 바이트)와 지표 값 분리 | 채택 |
 | [021](021-container-memory.md) | 컨테이너 메모리 예산 · JVM 힙 60% · G1 명시 (부하 중 OOM 킬에서 발견) | 채택 |
 | [022](022-read-cache.md) | 조회 캐시를 목록까지, 무효화는 모든 Job 이 끝나는 한 곳에서 — 대상 기업만 저장, 규칙 변경도 무효화, 같은 키 계산 하나로 | 채택 |
 | [023](023-alert-scorecard.md) | 경보 성적표 — 실제 부실 사건 대비 정밀도 · 재현율 · 선행 기간 (규칙을 전체 기간에 point-in-time 재평가) | 채택 |
 | [024](024-pf-contingent-liabilities.md) | PF 우발채무 — 정기보고서 부동산 PF 종합요약표 구조화(구간 스트리밍 · 두 가지 대조), R-C06 | 채택 |
 | [025](025-notifications.md) | 알림 — 경보와 같은 트랜잭션의 outbox, 알림함 · 서명된 웹훅(SSRF 방어 · 저장 암호화 · 재시도) | 채택 |
-| [026](026-site-location.md) | 사업장 카드 — 지오코딩 없이 공시 주소의 법정동 · 지번을 실거래와 정확히 대조, 동 단위 시장 | 채택 |
+| [026](026-site-location.md) | 사업장 카드 — 지오코딩 없이 공시 주소의 법정동 · 지번을 실거래와 정확히 대조, 동 단위 시장 — 입주 예정 물량은 청약홈 공고 단지 기준 하한으로 부분 해소(ADR-032) | 채택 |
 | [027](027-lineage-export.md) | 근거 계보(경보 → 원천 재무제표 줄 · 매핑 규칙 · 실행) · CSV 내려받기(수식 주입 방어) · v1 호환 정책 — v1 안의 두 변경(D1 수동 정리 409 · D2 riskShare 필드 추가) 기록 | 채택 |
 | [028](028-nextjs16-bundler.md) | Next.js 16 으로(15 지원 종료) — 운영 빌드는 webpack(첫 로드 JS 104 KB, Turbopack 은 116 KB) | 채택 |
-| [029](029-backend-feature-modules.md) | 백엔드를 기능 모듈 10개 × 계층(api · app · domain · data)으로 — 의존 방향 · domain 순수성 · 쓰기 SQL 위치를 테스트로 고정, 경보 전이는 순수 규칙 — 바깥 계층은 ops.* 에만 씀 | 채택 |
+| [029](029-backend-feature-modules.md) | 백엔드를 기능 모듈 11개(presale 추가) × 계층(api · app · domain · data)으로 — 의존 방향 · domain 순수성 · 쓰기 SQL 위치를 테스트로 고정, 경보 전이는 순수 규칙 — 바깥 계층은 ops.* 에만 씀 | 채택 |
 | [030](030-frontend-layers.md) | 프론트엔드를 화면 · Hook · 순수 함수 · 기능별 API 모듈로 — 경계는 ESLint, 조회 응답은 경로에 묶음, 효과 안 setState 없음 — 상대 경로 · window/globalThis.fetch 우회도 막음 | 채택 |
 | [031](031-aws-demo-deployment.md) | AWS 데모 배포 — RDS(비-superuser 소유자, afterMigrate 는 비밀번호만 맞춤) · edge realip(앞단 Caddy) · 조회 전용 공개(화면도 로그인 안내 숨김 — 런타임 설정) · 덤프 복원 — 쿠키 Secure 를 고정하지 않은 이유 · 테스트 DB 를 PG 18.6 으로 | 채택 |
+| [032](032-presale-notices.md) | 청약홈 분양 공고 — 시공사명 → 기업 정확 대조 + 확인한 별칭, 사라진 공고는 표시만, 기준월 롤링 시계열(미래 키를 지표 기간으로 만들지 않음), 입주 예정은 원장이 공고→입주 90% 간격을 덮을 때만, R-X02 | 채택 |

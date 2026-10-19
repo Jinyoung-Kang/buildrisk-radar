@@ -65,11 +65,18 @@ export type LineageStatement = {
 export type LineageMetric = { scope: "COMPANY" | "REGION"; targetKey: string; period: string; metricCode: string; name?: string; unit?: string; formula?: string; value?: number; status: string; components: Record<string, unknown>; calcRunId?: string };
 export type LineageStat = { seriesId: string; name: string; unit: string; source: string; sourceTable: string; regionCd: string; period: string; value?: number; rawSymbol?: string; role: "OWN" | "CHILD"; collectRunId?: string; fetchedAt?: string };
 export type LineageFiling = { rceptNo: string; kind: string; reportNm?: string; rceptDt?: string; eventType?: string; keyword?: string; dartUrl: string; parseStatus?: string; parserVersion?: number; facts: Record<string, unknown>; jobExecutionId?: number; fetchedAt?: string };
+/** R-X02 의 청약홈 분양 공고 (ADR-032) — 시공사 대조 결과 */
+export type LineagePresale = {
+  houseManageNo: string; pblancNo: string; houseNm: string; noticeDate: string; address?: string; regionCd?: string; regionMatch?: string;
+  units?: number; moveinYm?: string; builderRaw?: string; pblancUrl?: string; removed: boolean; linkVersion?: number; fetchedAt?: string;
+  builders: { name: string; corpCode?: string; matchStatus: string; matchMethod?: string; candidates?: string[] | null }[];
+};
 export type LineageRun = { kind: "RULE" | "METRIC" | "STANDARD" | "JOB" | "COLLECT"; id: string; name?: string; status?: string; startedAt?: string; finishedAt?: string };
 export type Lineage = {
   alertId: number; targetType: string; targetKey: string; asOf: string;
   rule: { code: string; version: number; nameKo: string; condition?: string; params: Record<string, unknown>; changeNote?: string; createdAt?: string };
-  metrics: LineageMetric[]; statements: LineageStatement[]; stats: LineageStat[]; filings: LineageFiling[]; runs: LineageRun[]; notes: string[]; disclaimer: string;
+  metrics: LineageMetric[]; statements: LineageStatement[]; stats: LineageStat[]; filings: LineageFiling[]; presales?: LineagePresale[];
+  runs: LineageRun[]; notes: string[]; disclaimer: string;
 };
 export type AlertDetail = AlertRow & {
   ruleDescription: string; message: string; evidence: Evidence; ackedAt?: string; ackedBy?: string; closedAt?: string; calcRunId?: string;
@@ -109,6 +116,26 @@ export type ExposureRow = {
   corpCode: string; corpName: string; contracts: number; totalAmount?: number; mappedAmount?: number; riskAmount?: number; riskSharePct?: number;
   riskContracts: number; latestBalanceToEquityPct?: number; latestGuaranteeDt?: string; pfAmount?: number; openAlerts: number;
   pfPeriod?: string; pfGuaranteeToEquityPct?: number; pfDue12mToEquityPct?: number;
+  /** 청약홈 분양 공고 (ADR-032) — 같은 기간 · 기준, 세대 = 공급규모 */
+  presaleNotices: number; presaleUnits?: number; presaleRiskUnits?: number; presaleRiskSharePct?: number; remainderUnits?: number;
+};
+/** 청약홈 분양 공고 (ADR-032) — 시공사 한 곳. matchStatus: 기업 대조 결과 */
+export type PresaleBuilder = { name: string; corpCode?: string; corpName?: string; matchStatus: "MATCHED" | "AMBIGUOUS" | "UNMATCHED"; target: boolean };
+export type PresaleRow = {
+  houseManageNo: string; pblancNo: string; houseNm: string; houseSecd: string; noticeDate: string; regionText?: string; regionCd?: string;
+  regionName?: string; regionMatch?: string; units?: number; moveinYm?: string; flags: string[]; builderRaw?: string;
+  consortium: number; consortiumMore: boolean; partners: PresaleBuilder[]; remainderNotices: number; remainderUnits?: number;
+  unsoldPer1kHh?: number; unsoldPeriod?: string; pblancUrl?: string; removed: boolean;
+};
+export type PresaleShare = { windowDays: number; unsoldPer1kHh: number; ruleVersion: number; notices: number; totalUnits: number; riskUnits: number; sharePct?: number | null; excluded: number };
+export type CompanyPresales = { corpCode: string; items: PresaleRow[]; share: PresaleShare; method: string; disclaimer: string };
+export type RegionPresales = {
+  regionCd: string;
+  items: { houseManageNo: string; pblancNo: string; houseNm: string; noticeDate: string; units?: number; moveinYm?: string; builders: PresaleBuilder[]; pblancUrl?: string }[];
+  upcoming: { units: number; complexes: number; fromYm: string; toYm: string };
+  remainder: { notices: number; units: number; since: string };
+  companies: { corpCode: string; corpName: string; notices: number; units: number }[];
+  method: string; disclaimer: string;
 };
 /** 기업 PF 우발채무 (ADR-024) — 금액은 원 단위, 회사 노출 = 단독 + 컨소시엄 회사분 */
 export type PfDue = { m3?: number; m6?: number; m12?: number; y2?: number; y3?: number; over3?: number };

@@ -4,6 +4,7 @@ import com.buildrisk.radar.filing.domain.FilingModels.ContractFact;
 import com.buildrisk.radar.filing.domain.FilingModels.DisclosureEvent;
 import com.buildrisk.radar.filing.domain.FilingModels.GuaranteeFact;
 import com.buildrisk.radar.metric.domain.MetricPoint;
+import com.buildrisk.radar.presale.domain.PresaleModels.PresaleFact;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -23,6 +24,9 @@ public interface RuleData {
 
     /** since 이후 채무보증 결정 (정정된 원 공시 제외, 접수일 순) */
     default List<GuaranteeFact> guarantees(String corpCode, LocalDate since) { return List.of(); }
+
+    /** since 이후 모집공고된 청약홈 분양 공고 중 이 기업이 시공사(MATCHED)인 것 — 사라진(정정 · 취소) 공고 제외 (ADR-032) */
+    default List<PresaleFact> presales(String corpCode, LocalDate since) { return List.of(); }
 
     /** 평가할 최근 기간 수 (기업 분기 · 지역 월) */
     int windowSize(RuleModels.TargetType type);

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { TrendLine } from "@/components/LazyCharts";
 import Layout from "@/components/Layout";
+import PresaleCard from "@/components/PresaleCard";
 import RegionPanel from "@/components/RegionPanel";
 import SiteCards from "@/components/SiteCards";
 import { Card, Empty, ErrorBox, Loading } from "@/components/ui";
@@ -36,6 +37,7 @@ export default function RegionDetail() {
               <TrendLine data={m("PRICE_IDX_3M_CHG")} series={[{ key: "v", name: "매매지수 변화" }]} threshold={0} thresholdLabel="0" fmt={(v) => num(v, 2)} />
             </Card>
             <SiteCards query={regionApi.sites(cd)} showCorp title="이 지역의 사업장" />
+            <PresaleCard regionCd={cd} />
             <Card title="출처 지역 코드 매핑" sub="각 출처의 지역 코드가 이 시군구로 연결된 방식 (FR-405)">
               <div className="table-wrap"><table className="data-table compact">
                 <thead><tr><th>출처</th><th>코드</th><th>출처 표기</th><th>방식</th></tr></thead>

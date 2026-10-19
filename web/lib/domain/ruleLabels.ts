@@ -6,7 +6,7 @@ const PARAM: Record<string, string> = {
   guaranteeToEquityPct: "PF 보증 / 자기자본 기준(%)", due12mToEquityPct: "12개월 내 만기 PF / 자기자본 기준(%)",
   unsold3mChgPct: "미분양 3개월 증가율 기준(%)", unsoldPer1kHh: "천 가구당 미분양 기준(호)", minUnsoldUnits: "최소 미분양(호)",
   tradeDropPct: "거래 감소율 기준(%)", minTradesYearAgo: "전년 같은 달 최소 거래(건)",
-  sharePct: "위험 지역 수주 비중 기준(%)", minContracts: "최소 해당 계약(건)",
+  sharePct: "위험 지역 수주 비중 기준(%)", minContracts: "최소 해당 계약(건)", minNotices: "최소 해당 공고(건)",
 };
 
 const RULE_PARAM: Record<string, Record<string, string>> = {
@@ -14,6 +14,7 @@ const RULE_PARAM: Record<string, Record<string, string>> = {
   "R-C03": { consecutive: "연속 분기 수" },
   "R-R02": { consecutive: "연속 개월 수" },
   "R-X01": { windowDays: "수주 확인 기간(일)", unsoldPer1kHh: "위험 지역 기준 — 천 가구당 미분양(호)" },
+  "R-X02": { windowDays: "분양 공고 확인 기간(일)", unsoldPer1kHh: "위험 지역 기준 — 천 가구당 미분양(호)", sharePct: "위험 지역 분양 세대 비중 기준(%)" },
 };
 
 export function paramLabel(ruleCode: string, key: string): string {

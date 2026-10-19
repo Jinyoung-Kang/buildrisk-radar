@@ -139,6 +139,12 @@ buildrisk:
     min-interval-ms: 60
     trade-months: 25          # 실거래: 전년 동월 비교용 24개월 + 1
     stock-years: 3            # 주가: 백테스트 3년
+  applyhome:                  # 청약홈 분양정보 (api.odcloud.kr, JSON) — 공공데이터포털 키 그대로 (ADR-032)
+    base-url: ${APPLYHOME_BASE_URL:https://api.odcloud.kr/api}
+    service-key: ${DATA_GO_KR_KEY:}
+    daily-call-limit: ${APPLYHOME_DAILY_CALL_LIMIT:1000}   # 자체 상한 — 포털 마이페이지의 일일 트래픽보다 낮게
+    min-interval-ms: 100
+    from-ym: ${PRESALE_FROM_YM:2023-01}                    # 처음 받을 모집공고 월 (이후 매일 최근 3개월 + 미수집 달)
   batch:
     scheduling-enabled: ${BATCH_SCHEDULING_ENABLED:false}
     company-window-quarters: 8

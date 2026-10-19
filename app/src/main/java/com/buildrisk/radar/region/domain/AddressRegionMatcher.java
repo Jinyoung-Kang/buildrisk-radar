@@ -17,6 +17,7 @@ import java.util.regex.Pattern;
  *   <li>시군구가 접미사 없이 오면('경기 용인') 그 시도 안에서 '용인시'·'용인군' 이 정확히 하나일 때만</li>
  *   <li>시도가 없으면('평택시 고덕면 …') 전국에서 이름이 하나뿐인 시·군일 때만</li>
  *   <li>세종처럼 시도 = 시군구 하나인 곳은 시도만 있어도 그 시군구</li>
+ *   <li>한 시도 토큰으로 풀리지 않으면 뒤에 나오는 시도 토큰으로 다시 (괄호 안의 정식 주소), 모두 안 되면 첫 시도까지만</li>
  * </ol>
  * 일반구는 화면 단위(시)로 올립니다. 폐지된 옛 구 이름(2026-07 인천 개편 전 '서구' 등)은 현재 경계에 없으므로 시도까지만.
  */
@@ -56,15 +57,18 @@ public final class AddressRegionMatcher {
     public Result match(String text) {
         if (text == null || text.isBlank() || text.trim().equals("-")) return new Result(Match.NONE, null, null);
         List<String> tokens = List.of(SPLIT.split(text.trim())).stream().filter(t -> !t.isBlank()).toList();
+        Result sidoOnly = null;
         for (int i = 0; i < tokens.size(); i++) {
             String sido = sidoToken(tokens.get(i));
             if (sido == null) continue;
             String next = i + 1 < tokens.size() ? tokens.get(i + 1) : null;
             List<List<String>> tries = new ArrayList<>();
             if (next != null && sigungu(next)) {
-                List<String> rest = new ArrayList<>(List.of(next));
-                if (next.endsWith("시") && i + 2 < tokens.size() && tokens.get(i + 2).endsWith("구")) rest.add(tokens.get(i + 2));
-                tries.add(rest);
+                if (next.endsWith("시") && i + 2 < tokens.size() && tokens.get(i + 2).endsWith("구")) {
+                    tries.add(List.of(next, tokens.get(i + 2)));
+                }
+                // 시 다음 '…구'가 일반구가 아니면('안성시 아양지구' · '파주시 운정3지구') 시만 — 전에는 여기서 시도로 끝났음 (ADR-032)
+                tries.add(List.of(next));
             } else if (next != null && next.matches("[가-힣]{2,4}")) {
                 tries.add(List.of(next + "시"));                              // '경기 용인' → 용인시 (시도 안에서 하나일 때만)
                 tries.add(List.of(next + "군"));
@@ -74,8 +78,10 @@ public final class AddressRegionMatcher {
                 var m = matcher.match("DART", sido, rest);
                 if (m.mapped()) return sigunguResult(m.region());
             }
-            return new Result(Match.SIDO, null, sidoFull(sido));
+            // 이 시도 토큰으로 못 풀면 뒤의 시도 토큰도 봄 — '경기도 용인고림지구 H5BL(경기도 용인시 처인구 …)' 처럼 괄호 안에 정식 주소
+            if (sidoOnly == null) sidoOnly = new Result(Match.SIDO, null, sidoFull(sido));
         }
+        if (sidoOnly != null) return sidoOnly;
         // 시도 없이 시군구부터 — 전국에서 이름이 하나뿐일 때만
         for (int i = 0; i < tokens.size(); i++) {
             String t = tokens.get(i);

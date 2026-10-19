@@ -70,6 +70,8 @@ test("조회가 실패하면 무한 로딩 · '데이터 없음' 대신 오류�
     [`/companies/${corp}?tab=financials`, `**/api/v1/companies/${corp}/metrics`],
     [`/companies/${corp}?tab=financials`, `**/api/v1/companies/${corp}/financials*`],
     [`/companies/${corp}?tab=disclosures`, `**/api/v1/companies/${corp}/disclosures`],
+    [`/companies/${corp}?tab=presales`, `**/api/v1/companies/${corp}/presales`],
+    [`/regions/${region}`, `**/api/v1/regions/${region}/presales`],
     ["/admin/batch", "**/api/v1/batch/executions?*"],
     ["/admin/mapping", "**/api/v1/mapping/account-rules"],
   ];

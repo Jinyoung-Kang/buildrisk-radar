@@ -18,6 +18,9 @@ class AddressRegionMatcherTest {
             new RegionRef("41220", "평택시", "경기도", 2, null),
             new RegionRef("41460", "용인시", "경기도", 2, null),
             new RegionRef("41590", "화성시", "경기도", 2, null),
+            new RegionRef("41550", "안성시", "경기도", 2, null),
+            new RegionRef("41110", "수원시", "경기도", 2, null),
+            new RegionRef("41111", "수원시 장안구", "경기도", 3, "41110"),
             new RegionRef("43110", "청주시", "충청북도", 2, null),
             new RegionRef("43113", "청주시 흥덕구", "충청북도", 3, "43110"),
             new RegionRef("36110", "세종특별자치시", "세종특별자치시", 2, null),
@@ -48,7 +51,13 @@ class AddressRegionMatcherTest {
             "Alger, Algeria|OVERSEAS|",
             "싱가폴 Tekong Island|OVERSEAS|",
             "삼성전자(주) 평택캠퍼스|UNKNOWN|",
-            "-|NONE|"})
+            "-|NONE|",
+            // 청약홈 공급위치 (ADR-032): 시 다음 '…지구'는 일반구가 아님 · 첫 시도 토큰으로 안 풀리면 괄호 안 정식 주소
+            "경기도 안성시 아양지구 B-2블록 (옥산동 659번지)|SIGUNGU|41550",
+            "경기도 수원시 장안구 정자동 111|SIGUNGU|41110",
+            "경기도 수원시 당수지구 A1블록|SIGUNGU|41110",
+            "경기도 용인고림지구 H5BL(경기도 용인시 처인구 고림동 646-2 일원)|SIGUNGU|41460",
+            "인천 검단신도시 AB13블록 (인천광역시 서구 원당동 1063-2 일원)|SIDO|"})
     void 주소를_시군구로(String text, Match expected, String regionCd) {
         var r = m.match(text);
         assertThat(r.match()).isEqualTo(expected);

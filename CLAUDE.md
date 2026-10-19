@@ -8,7 +8,7 @@
 - `app/` Spring Boot 4.1 · Java 25 · Spring Batch 6 — 같은 이미지가 역할(`BUILDRISK_ROLE`)로 **api**(REST, 외부 API 키 없음)와 **worker**(DB 큐 소비 · 배치 · 외부 API 호출)로 나뉨
   - 패키지는 기능 모듈 × 계층 `<기능>.api · app · domain · data` + 바깥 `adapters · batch · common` (ADR-029). 의존 방향 · domain 순수성 ·
     쓰기 SQL 위치(data 에만)는 `ArchitectureTest` 가 검사 — 새 클래스를 어디 둘지 모르면 이 테스트를 먼저 본다
-- 백엔드는 기능 모듈(company · metric · region · market · filing · alert · insight · notify · export · ops) × 계층(api · app · domain · data) — 의존 방향 ·
+- 백엔드는 기능 모듈(company · metric · region · market · filing · presale · alert · insight · notify · export · ops) × 계층(api · app · domain · data) — 의존 방향 ·
   domain 순수성 · 쓰기 SQL 위치(기능 `data` 에만)를 `ArchitectureTest` 가 막는다(ADR-029). 새 클래스는 기능 모듈의 계층 하나에 넣는다
 - `web/` Next.js 16 (Pages Router, 운영 빌드 webpack — ADR-028) · TypeScript · Tailwind · Recharts — 화면 · `lib/hooks` · `lib/api`(기능별) · `lib/domain`(순수 함수),
   화면에서 `fetch` · `lib/api/client` 직접 사용 금지(ESLint, ADR-030)
@@ -64,7 +64,8 @@ cd web && CAPTURE=1 E2E_CHANNEL=chrome npx playwright test capture   # README �
 - **Job 멈춤**: Spring Batch 6 의 `JobOperator.stop` 은 Job · Step 을 곧바로 STOPPED 로 적는다(스레드는 청크 끝까지 돎) — 멈춤은 `BatchLauncher.stop`(STOPPING 신호)으로만. 상태만 보고 '끝났다'고 판단하면 재시작이 겹친다(VERIFICATION 102).
 - **레이트리밋**: IP 당 분당 1,200, CSV 내려받기(`/api/v1/export/`)는 따로 분당 30(`br:rl:x:*`). API 를 전수 호출하는 스크립트를 연달아 돌리면 429 — Redis 의 `br:rl:*` 를 비우거나 1분 기다린다. E2E 로그인 잠금은 `br:login:*`.
 - **SQL**: 텍스트 블록과 문자열을 이을 때 공백 누락(`WHEREc` · `NULLORDER`)을 조심. `char(n)` 열과 `text` 를 비교하면 인덱스를 못 쓴다 — 계산한 키는 cast.
-- **외부 API 한도**: DART 일 15,000 · 공공데이터포털 일 9,000(기본값). 검증만 필요하면 외부 호출이 없는 Job(`standardizeMetricJob` · `ruleEvalJob`)을 쓴다.
+- **외부 API 한도**: DART 일 15,000 · 공공데이터포털 일 9,000 · 청약홈(odcloud, 같은 키) 일 1,000(자체 기본값). 검증만 필요하면 외부 호출이 없는 Job(`standardizeMetricJob` · `ruleEvalJob`)을 쓴다.
+  청약홈 처음 수집(2023-01~)은 주택형까지 약 1,400건이라 첫날은 STOPPED — 다음 실행이 이어받는다(ADR-032).
 - **Flyway**: 한 번이라도 적용된 마이그레이션은 주석까지 고치지 않는다(체크섬) — 새 버전으로 덧붙인다. 로컬 DB 테이블을 지우고 다시 적용하는 방법은 쓰지 않는다.
 - **원문 파서(공시 · PF)를 고치면** 보관 구간을 호출 없이 전수 재파싱해 이전 버전 결과와 비교한다 — 한 회사를 고치다 다른 회사가 깨진 적이 있음(VERIFICATION 89).
   기대값은 원문 표에서 직접 계산해 적고, 원문과 어긋나면 먼저 파서를 의심한다(88: '원문 탓'으로 고정했던 테스트가 파서 탓이었음).

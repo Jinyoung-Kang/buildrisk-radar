@@ -12,6 +12,7 @@ import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.filing.data.ExposureRepository;
 import com.buildrisk.radar.market.data.StockRepository;
 import com.buildrisk.radar.metric.data.MetricRepository;
+import com.buildrisk.radar.presale.app.PresaleQueryService;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
@@ -68,6 +69,14 @@ public class ExposureService {
     /** R-X01 의 최신 파라미터 — 기간(일) · 천 가구당 미분양 기준 · 버전. 규칙이 없으면 seed 기본값(365일 · 5호, 버전 0) */
     public record Rx01Window(int days, BigDecimal unsoldPer1kHh, int version) {}
 
+    /** R-X02 의 최신 파라미터 — 기업 분양 탭의 위험 지역 비중이 경보와 같은 기준을 쓰게 (없으면 seed 기본값 365일 · 5호, 버전 0) */
+    public PresaleQueryService.Window rx02() {
+        return rules.latest("R-X02").map(v -> {
+            Params p = new Params(v.def().params());
+            return new PresaleQueryService.Window(p.count("windowDays", 30, 1095), p.num("unsoldPer1kHh"), v.def().version());
+        }).orElse(new PresaleQueryService.Window(365, BigDecimal.valueOf(5), 0));
+    }
+
     public Rx01Window rx01() {
         return rules.latest("R-X01").map(v -> {
             Params p = new Params(v.def().params());
@@ -78,7 +87,9 @@ public class ExposureService {
     public record ExposureRow(String corpCode, String corpName, int contracts, BigDecimal totalAmount, BigDecimal mappedAmount,
                               BigDecimal riskAmount, BigDecimal riskSharePct, int riskContracts, BigDecimal latestBalanceToEquityPct,
                               String latestGuaranteeDt, BigDecimal pfAmount, int openAlerts,
-                              String pfPeriod, BigDecimal pfGuaranteeToEquityPct, BigDecimal pfDue12mToEquityPct) {}
+                              String pfPeriod, BigDecimal pfGuaranteeToEquityPct, BigDecimal pfDue12mToEquityPct,
+                              int presaleNotices, Long presaleUnits, Long presaleRiskUnits, BigDecimal presaleRiskSharePct,
+                              Long remainderUnits) {}
 
     public record Exposure(int days, BigDecimal unsoldPer1kHh, String asOf, List<ExposureRow> items, String method,
                            String disclaimer) {}
@@ -156,27 +167,49 @@ public class ExposureService {
                 pg AS (SELECT DISTINCT ON (corp_code) corp_code, period_key, value FROM risk.company_metric
                         WHERE metric_code = 'PF_GUARANTEE_TO_EQUITY' AND status = 'OK' ORDER BY corp_code, period_key DESC),
                 pd AS (SELECT corp_code, period_key, value FROM risk.company_metric
-                        WHERE metric_code = 'PF_DUE_12M_TO_EQUITY' AND status = 'OK')
+                        WHERE metric_code = 'PF_DUE_12M_TO_EQUITY' AND status = 'OK'),
+                -- 분양 공고 (ADR-032): 이 기업이 시공사(MATCHED)인 사라지지 않은 공고. 위험 비중 = 미분양 지표가 있는 시군구 공고 세대 중
+                -- 기준 이상 지역 세대 (PresaleRegionShare 와 같은 규칙) · 잔여세대 = 그 공고에 이어진 잔여세대 공고 세대
+                ps AS (SELECT DISTINCT b.corp_code, p.house_manage_no, p.pblanc_no, coalesce(p.tot_supply_hh, 0) AS hh, p.region_cd,
+                              u.value AS unsold
+                         FROM mkt.presale_notice p
+                         JOIN mkt.presale_notice_builder b ON b.house_manage_no = p.house_manage_no AND b.pblanc_no = p.pblanc_no
+                         LEFT JOIN u ON u.region_cd = p.region_cd
+                        WHERE b.match_status = 'MATCHED' AND p.removed_at IS NULL AND p.notice_date >= :since),
+                pagg AS (SELECT corp_code, count(*) AS n, sum(hh) AS units,
+                                sum(hh) FILTER (WHERE region_cd IS NOT NULL AND unsold IS NOT NULL AND hh > 0) AS judged,
+                                sum(hh) FILTER (WHERE region_cd IS NOT NULL AND unsold >= :th AND hh > 0) AS risky
+                           FROM ps GROUP BY corp_code),
+                prem AS (SELECT ps.corp_code, sum(r.tot_supply_hh) AS hh
+                           FROM ps JOIN mkt.presale_remainder r ON r.notice_house_manage_no = ps.house_manage_no
+                            AND r.notice_pblanc_no = ps.pblanc_no AND r.removed_at IS NULL AND r.notice_date >= :since
+                          GROUP BY ps.corp_code)
                 SELECT co.corp_code, co.corp_name, coalesce(agg.n, 0), agg.total, agg.mapped, agg.risky,
                        CASE WHEN agg.mapped > 0 THEN round(coalesce(agg.risky, 0) * 100 / agg.mapped, 2) END,
                        coalesce(agg.risky_n, 0), g.ratio, g.rcept_dt::text, pf.pf, coalesce(al.n, 0),
-                       pg.period_key, pg.value, pd.value
+                       pg.period_key, pg.value, pd.value,
+                       coalesce(pagg.n, 0), pagg.units, pagg.risky,
+                       CASE WHEN pagg.judged > 0 THEN round(coalesce(pagg.risky, 0) * 100.0 / pagg.judged, 2) END, prem.hh
                   FROM ref.company co
                   LEFT JOIN agg ON agg.corp_code = co.corp_code LEFT JOIN g ON g.corp_code = co.corp_code
                   LEFT JOIN pf ON pf.corp_code = co.corp_code LEFT JOIN al ON al.target_key = co.corp_code
                   LEFT JOIN pg ON pg.corp_code = co.corp_code
                   LEFT JOIN pd ON pd.corp_code = pg.corp_code AND pd.period_key = pg.period_key
+                  LEFT JOIN pagg ON pagg.corp_code = co.corp_code LEFT JOIN prem ON prem.corp_code = co.corp_code
                  WHERE co.is_target
                  ORDER BY 7 DESC NULLS LAST, 9 DESC NULLS LAST, co.corp_name""")
                 .param("since", since).param("th", unsoldTh)
                 .query((rs, i) -> new ExposureRow(rs.getString(1), rs.getString(2), rs.getInt(3), rs.getBigDecimal(4),
                         rs.getBigDecimal(5), rs.getBigDecimal(6), rs.getBigDecimal(7), rs.getInt(8), rs.getBigDecimal(9),
                         rs.getString(10), rs.getBigDecimal(11), rs.getInt(12), rs.getString(13), rs.getBigDecimal(14),
-                        rs.getBigDecimal(15))).list();
+                        rs.getBigDecimal(15), rs.getInt(16), (Long) rs.getObject(17), (Long) rs.getObject(18), rs.getBigDecimal(19),
+                        (Long) rs.getObject(20))).list();
         return new Exposure(days, unsoldTh, since.toString(), rows,
                 "현재 수주 = 정정으로 대체되지 않고 해지되지 않은 공급계약 공시. 위험 지역 비중 = 시군구로 매핑된 수주 금액 중 "
                         + "최신 '천 가구당 미분양' ≥ 기준인 지역의 비중. 보증 비율 = 가장 최근 채무보증 결정 공시의 채무보증 총 잔액 / 자기자본. "
-                        + "PF 비율 = 가장 최근 정기보고서의 부동산 PF 보증금액(단독 + 컨소시엄 회사분)과 12개월 내 만기 PF 대출잔액을 각각 같은 분기 자본총계로 나눈 값.",
+                        + "PF 비율 = 가장 최근 정기보고서의 부동산 PF 보증금액(단독 + 컨소시엄 회사분)과 12개월 내 만기 PF 대출잔액을 각각 같은 분기 자본총계로 나눈 값. "
+                        + "분양 = 같은 기간 청약홈 APT 분양 공고 중 이 기업이 시공사인 것(세대 = 공급규모, 컨소시엄은 나누지 않음), 위험 지역 비중은 "
+                        + "미분양 지표가 있는 시군구 공고 세대 중 기준 이상 지역 비중.",
                 Disclaimer.TEXT);
     }
 

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import EvidenceView from "@/components/EvidenceView";
 import CompanyFilings from "@/components/CompanyFilings";
 import CompanyPf from "@/components/CompanyPf";
+import CompanyPresales from "@/components/CompanyPresales";
 import SiteCards from "@/components/SiteCards";
 import WatchButton from "@/components/WatchButton";
 import Layout from "@/components/Layout";
@@ -37,7 +38,7 @@ function AlertCard({ id }: { id: number }) {
   );
 }
 
-const TABS = ["overview", "financials", "filings", "price", "disclosures"] as const;
+const TABS = ["overview", "financials", "filings", "price", "presales", "disclosures"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function CompanyDetail() {
@@ -74,7 +75,7 @@ export default function CompanyDetail() {
 
           <Tabs label="기업 정보" value={tab} onChange={setTab} tabs={[
             { id: "overview", label: "개요", badge: s.alerts.length }, { id: "financials", label: "재무·지표" },
-            { id: "filings", label: "수주·보증" }, { id: "price", label: "주가·경보" }, { id: "disclosures", label: "공시" }]} />
+            { id: "filings", label: "수주·보증" }, { id: "price", label: "주가·경보" }, { id: "presales", label: "분양" }, { id: "disclosures", label: "공시" }]} />
 
           {tab === "overview" && <TabPanel id="overview">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
@@ -163,6 +164,8 @@ export default function CompanyDetail() {
               <PriceChart corp={corp} />
             </Card>
           </TabPanel>}
+
+          {tab === "presales" && corp && <TabPanel id="presales"><CompanyPresales corp={corp} /></TabPanel>}
 
           {tab === "disclosures" && <TabPanel id="disclosures">
           <Card title="공시 타임라인 (최근 1년)" sub="보고서명 키워드 사전으로 분류 · 원문은 DART"

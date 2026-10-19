@@ -130,6 +130,27 @@ function Body({ l }: { l: Lineage }) {
             </div>))}</div>
         </Step>
       )}
+      {(l.presales?.length ?? 0) > 0 && (
+        <Step title="분양 공고 (청약홈)" sub="공급위치 → 시군구, 시공사 원문 → DART 기업 대조 (지분 미공개 — 세대를 나누지 않음)">
+          <div className="space-y-2">{l.presales!.map((p) => (
+            <div key={p.houseManageNo + p.pblancNo} className="rounded-lg border border-line px-3 py-2">
+              <div className="flex flex-wrap gap-x-2 items-baseline">
+                {p.pblancUrl ? <a className="font-medium hover:underline" href={p.pblancUrl} target="_blank" rel="noreferrer">{p.houseNm}</a> : <span className="font-medium">{p.houseNm}</span>}
+                <span className="text-xs text-muted">{p.noticeDate} · {n(p.units)}세대 · 입주 {p.moveinYm ?? "–"}{p.removed && " · 정정·취소됨"}</span>
+              </div>
+              <dl className="text-xs grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 mt-1">
+                <div className="contents"><dt className="text-ink2">공급위치</dt><dd className="[overflow-wrap:anywhere]">{p.address ?? "–"} → {p.regionCd ?? "–"} ({p.regionMatch ?? "–"})</dd></div>
+                <div className="contents"><dt className="text-ink2">시공사 원문</dt><dd className="[overflow-wrap:anywhere]">{p.builderRaw ?? "–"}</dd></div>
+                {p.builders.map((b) => (
+                  <div key={b.name} className="contents"><dt className="text-ink2">↳ {b.name}</dt>
+                    <dd className="tabular">{b.matchStatus}{b.matchMethod && ` · ${b.matchMethod}`}{b.corpCode && ` · ${b.corpCode}`}
+                      {b.candidates && b.candidates.length > 0 && ` · 후보 ${b.candidates.join(", ")}`}</dd></div>
+                ))}
+              </dl>
+              <div className="text-[11px] text-muted mt-1">대조 규칙 v{p.linkVersion ?? "–"}{p.fetchedAt && ` · 받은 시각 ${dt(p.fetchedAt)}`}</div>
+            </div>))}</div>
+        </Step>
+      )}
       <Step title="실행" sub="수집 · 계산 · 평가 이력">
         <div className="table-wrap">
           <table className="data-table compact">

@@ -65,6 +65,9 @@ public abstract class IntegrationTest {
         r.add("buildrisk.data-go-kr.base-url", WM::baseUrl);
         r.add("buildrisk.data-go-kr.service-key", () -> "test-data-key");
         r.add("buildrisk.data-go-kr.min-interval-ms", () -> 0);
+        r.add("buildrisk.applyhome.base-url", WM::baseUrl);
+        r.add("buildrisk.applyhome.service-key", () -> "test-data-key");
+        r.add("buildrisk.applyhome.min-interval-ms", () -> 0);
         r.add("buildrisk.notification.secret-key", () -> NOTIFY_KEY);
         r.add("buildrisk.notification.allow-insecure-targets", () -> true);      // WireMock(http · 127.0.0.1) — 운영은 false
     }
@@ -90,7 +93,8 @@ public abstract class IntegrationTest {
         WM.resetAll();
         jdbc.execute("""
                 TRUNCATE risk.alert, risk.company_metric, mkt.region_metric, mkt.region_stat, dart.fs_std, dart.fs_raw,
-                  dart.fs_fetch, dart.disclosure, dart.pf_report, ref.universe_history, ops.skip_log, ops.api_quota, ops.collect_run CASCADE""");
+                  dart.fs_fetch, dart.disclosure, dart.pf_report, ref.universe_history, ops.skip_log, ops.api_quota, ops.collect_run,
+                  mkt.presale_notice, mkt.presale_remainder, mkt.presale_fetch CASCADE""");
         jdbc.execute("TRUNCATE notify.outbox, notify.inbox, notify.delivery, notify.subscription, notify.webhook, notify.watch CASCADE");
         jdbc.execute("DELETE FROM ops.calc_run");
         jdbc.execute("DELETE FROM ref.company");

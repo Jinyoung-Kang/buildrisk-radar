@@ -10,11 +10,13 @@ const GROUPS: { title: string; rows: [string, string][] }[] = [
     ["GET /companies/{corpCode}/financials", "표준계정 시계열 (fsDiv = AUTO · CFS · OFS, 누적 + 분기값)"],
     ["GET /companies/{corpCode}/metrics", "지표 시계열 — 값 · 상태 코드 · 분자/분모(components) · 원천 접수번호"],
     ["GET /companies/{corpCode}/filings · /pf · /sites · /prices", "수주 · 채무보증 · PF 우발채무 · 사업장 카드 · 일별 종가"],
+    ["GET /companies/{corpCode}/presales", "청약홈 분양 공고(이 기업이 시공사) · 위험 지역 분양 비중(R-X02 와 같은 계산)"],
   ] },
   { title: "지역", rows: [
     ["GET /regions", "시군구 목록 + 지표 값 (sido · metric · period)"],
     ["GET /regions/{regionCd}/series", "통계 · 지표 시계열과 출처 코드 매핑"],
     ["GET /regions/{regionCd}/contracts · /sites", "그 지역에 걸린 수주 · 사업장 카드"],
+    ["GET /regions/{regionCd}/presales", "최근 12개월 청약홈 공고 · 앞으로 12개월 입주 예정(공고 단지 하한) · 잔여세대 공고"],
   ] },
   { title: "경보 · 근거", rows: [
     ["GET /alerts", "경보 목록 (targetType = COMPANY · REGION, severity = HIGH · MEDIUM · LOW, status = OPEN · ACK · CLOSED 쉼표로 여러 개, since · targetKey · ruleCode)"],
@@ -40,7 +42,7 @@ const EVIDENCE: [string, string][] = [
   ["ruleCode · ruleVersion", "평가한 규칙과 그 버전 — 파라미터를 바꾸면 새 버전, 옛 경보는 옛 버전을 가리킴"],
   ["condition · params", "사람이 읽는 조건식과 그때의 임계값"],
   ["observations[]", "조건을 참으로 만든 관측값 (기간 · 값 · 분자/분모 금액)"],
-  ["sources[]", "원천 — type(DART · KOSIS · RONE · SGIS · RTMS) · rceptNo(접수번호) · table(통계표) · period"],
+  ["sources[]", "원천 — type(DART · KOSIS · RONE · SGIS · RTMS · 청약홈) · rceptNo(접수번호) · table(통계표) · period"],
   ["calcRunId", "규칙 평가 실행 ID (ops.calc_run)"],
 ];
 
@@ -51,6 +53,7 @@ const LINEAGE: [string, string][] = [
   ["statements[].reproduced", "같은 보고서를 지금의 매핑 규칙으로 다시 표준화한 값 = 저장된 값인지. false 면 매핑이 바뀐 뒤 아직 재계산 전"],
   ["stats[]", "지역 지표를 만든 통계 행 — role OWN(그 지역) · CHILD(일반구 행, 시 값은 합 · 평균)"],
   ["filings[]", "공시 원문 링크 · 구조화한 값(facts) · 파서 버전 · 상태"],
+  ["presales[]", "R-X02 의 청약홈 분양 공고 — 공급위치 · 시군구 · 세대 · 시공사 대조 결과(MATCHED · ALIAS/EXACT) · 수집 실행"],
   ["runs[]", "RULE(규칙 평가) · METRIC(지표 계산) · JOB(배치 실행) · COLLECT(통계 수집) — 시작 · 끝 · 상태"],
 ];
 

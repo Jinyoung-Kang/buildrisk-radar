@@ -62,3 +62,9 @@ rules:
     description: 최근 1년 수주(공급계약 공시 원문의 공사 지역) 중 미분양이 많은 지역의 금액 비중이 큰 기업 — 기업 × 지역 교차
     severity: MEDIUM
     params: { windowDays: 365, unsoldPer1kHh: 5, sharePct: 50, minContracts: 2 }
+  - code: R-X02
+    target: COMPANY
+    name: 위험 지역 분양 집중
+    description: 최근 1년 청약홈 APT 분양 공고(시공사로 대조된 공고) 세대 중 미분양이 많은 지역의 비중이 큰 기업 — 수주 공시보다 앞선 공급 신호. 탐색용 기본값(R-X01 과 같은 기준)
+    severity: MEDIUM
+    params: { windowDays: 365, unsoldPer1kHh: 5, sharePct: 50, minNotices: 2 }

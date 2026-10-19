@@ -5,7 +5,7 @@
 #   make obs         관측 (Prometheus :9490 · Grafana :3401)
 #   make smoke       외부 API 키 확인 (응답은 fixtures/smoke/ 에 키를 가린 채 저장)
 #   make batch-all   전체 배치를 순서대로 실행 (batch-only 컨테이너, 처음 약 30~60분)
-#   make regions     지역만: 경계 → 총가구 → 미분양 → 가격지수 → 실거래 → 지표 → 규칙 (DART 키 없이도 가능)
+#   make regions     지역만: 경계 → 총가구 → 미분양 → 가격지수 → 실거래 → 분양 공고 → 지표 → 규칙 (DART 키 없이도 가능)
 #   make job JOB=financialStatementJob   Job 하나 실행 (STOPPED·FAILED 면 restart)
 #   make test        백엔드 단위·통합·구조 테스트 (Testcontainers — Docker 필요) + 웹 타입 검사 · ESLint · 단위 테스트
 #   make e2e         Playwright (스택이 떠 있어야 함) · make load  k6 부하 · make ratelimit  429 확인
@@ -63,7 +63,7 @@ batch-all: env
 	$(BATCH) -e BATCH_RUN_JOBS=all batch
 
 regions: env
-	$(BATCH) -e BATCH_RUN_JOBS=boundaryLoadJob,sgisHouseholdJob,kosisUnsoldJob,roneIndexJob,aptTradeJob,standardizeMetricJob,ruleEvalJob batch
+	$(BATCH) -e BATCH_RUN_JOBS=boundaryLoadJob,sgisHouseholdJob,kosisUnsoldJob,roneIndexJob,aptTradeJob,presaleSyncJob,standardizeMetricJob,ruleEvalJob batch
 
 job: env
 	@test -n "$(JOB)" || (echo "사용법: make job JOB=financialStatementJob" && exit 1)

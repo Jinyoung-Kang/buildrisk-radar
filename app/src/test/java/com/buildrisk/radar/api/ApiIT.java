@@ -43,7 +43,7 @@ class ApiIT extends IntegrationTest {
     @Test
     void 없는_지역의_하위_자원은_404() throws Exception {
         // 계약 목록만 지역을 확인하지 않아 아무 다섯 자리나 200 빈 목록 — 없는 코드마다 캐시 키가 생겼음 (VERIFICATION 159)
-        for (String sub : List.of("series", "contracts", "sites")) {
+        for (String sub : List.of("series", "contracts", "sites", "presales")) {
             mvc.perform(get("/api/v1/regions/99998/" + sub)).andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.code").value("REGION_NOT_FOUND"));
         }
@@ -106,8 +106,11 @@ class ApiIT extends IntegrationTest {
         mvc.perform(post("/api/v1/batch/jobs/pfExposureJob/launch").header("X-Admin-Token", ADMIN)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"fromPeriod\":\"2023Q5\"}"))
                 .andExpect(status().isBadRequest());                                                   // 분기 형식 검증
+        mvc.perform(post("/api/v1/batch/jobs/presaleSyncJob/launch").header("X-Admin-Token", ADMIN)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"from\":\"2023-13\"}"))
+                .andExpect(status().isBadRequest());                                                   // 청약홈 시작 월 형식
         jdbc.update("DELETE FROM ops.job_request");
-        mvc.perform(get("/api/v1/batch/jobs")).andExpect(jsonPath("$.jobs", hasSize(14)));
+        mvc.perform(get("/api/v1/batch/jobs")).andExpect(jsonPath("$.jobs", hasSize(15)));
     }
 
     @Test

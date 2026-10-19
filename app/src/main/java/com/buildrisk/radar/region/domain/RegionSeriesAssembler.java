@@ -40,7 +40,9 @@ public final class RegionSeriesAssembler {
                     pick(by, aggOf, "UNSOLD", d.regionCd(), kids), pick(by, aggOf, "SALE_IDX", d.regionCd(), kids),
                     pick(by, aggOf, "JEONSE_IDX", d.regionCd(), kids), pick(by, aggOf, "HOUSEHOLDS", d.regionCd(), kids),
                     // 실거래는 aptTradeJob 이 화면 단위로 직접 집계해 넣으므로 자기 행만 (중위값은 하위 구 평균으로 만들 수 없음)
-                    own(by, "TRADE_CNT", d.regionCd()), own(by, "CANCEL_CNT", d.regionCd()), own(by, "PRICE_M2", d.regionCd())));
+                    own(by, "TRADE_CNT", d.regionCd()), own(by, "CANCEL_CNT", d.regionCd()), own(by, "PRICE_M2", d.regionCd()),
+                    // 청약홈 롤링 세대도 presaleSyncJob 이 화면 단위로 집계 — 자기 행만 (월별 원 시계열은 계산기에 넣지 않음, ADR-032)
+                    own(by, "PRESALE_SUPPLY_12M", d.regionCd()), own(by, "PRESALE_MOVEIN_12M", d.regionCd())));
         }
         return out;
     }

@@ -1,5 +1,6 @@
 package com.buildrisk.radar.batch.support;
 
+import com.buildrisk.radar.adapters.applyhome.ApplyhomeClient;
 import com.buildrisk.radar.adapters.common.ApiQuotaService;
 import com.buildrisk.radar.adapters.dart.DartClient;
 import com.buildrisk.radar.adapters.datagokr.RtmsClient;
@@ -17,6 +18,9 @@ import com.buildrisk.radar.filing.data.PfExposureRepository;
 import com.buildrisk.radar.market.data.AptTradeRepository;
 import com.buildrisk.radar.market.domain.TradeWindow;
 import com.buildrisk.radar.ops.domain.JobCatalog;
+import com.buildrisk.radar.presale.data.PresaleRepository;
+import com.buildrisk.radar.presale.domain.PresaleModels;
+import com.buildrisk.radar.presale.domain.PresaleModels.Dataset;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.BatchStatus;
@@ -72,12 +76,14 @@ public class BatchLauncher {
     private final FilingRepository filings;
     private final JsonCache cache;
     private final PfExposureRepository pf;
+    private final PresaleRepository presales;
 
     public BatchLauncher(JobOperator operator, JobRepository repository, List<Job> jobList, FsRepository fs,
                          ApiQuotaService quota, AppProperties props, JdbcClient jdbc,
                          DataSource dataSource, AptTradeRepository trades,
                          FilingRepository filings,
-                         JsonCache cache, PfExposureRepository pf) {
+                         JsonCache cache, PfExposureRepository pf, PresaleRepository presales) {
+        this.presales = presales;
         this.cache = cache;
         this.pf = pf;
         this.trades = trades;
@@ -243,6 +249,32 @@ public class BatchLauncher {
                     if (planned > remaining) {
                         warning = "수집 대상 " + planned + "건이 오늘 남은 실거래 API 호출 " + remaining
                                 + "건보다 많아 상한까지만 받고 STOPPED 로 멈춥니다. 다음 실행에서 이어갑니다(최근 달부터 채움).";
+                    }
+                    if (max != null) pb.addLong("maxCalls", max);
+                }
+                case "presaleSyncJob" -> {
+                    String from = b.get("from") == null ? props.applyhome().fromYm() : String.valueOf(b.get("from"));
+                    int fromYm;
+                    try {
+                        fromYm = PresaleModels.fromParam(from);
+                    } catch (IllegalArgumentException e) {
+                        throw new ApiException(ErrorCode.VALIDATION_ERROR, "from 은 YYYY-MM 형식 (예: 2023-01)");
+                    }
+                    YearMonth now = YearMonth.now(Kst.ZONE);
+                    if (fromYm > PresaleModels.ym(now)) throw new ApiException(ErrorCode.VALIDATION_ERROR, "from 은 이번 달까지");
+                    int refresh = PresaleModels.ym(now.minusMonths(PresaleModels.REFRESH_MONTHS - 1));
+                    // 계획 = 받을 달(공고 · 잔여세대) + 주택형을 받을 공고 — 이번에 새로 받는 공고의 주택형은 실행 뒤에야 알 수 있어 더 많아질 수 있음
+                    planned = presales.pendingMonths(Dataset.APT_NOTICE, fromYm, PresaleModels.ym(now), refresh, Kst.today()).size()
+                            + presales.pendingMonths(Dataset.REMAINDER, fromYm, PresaleModels.ym(now), refresh, Kst.today()).size()
+                            + presales.pendingModels().size();
+                    limit = props.applyhome().dailyCallLimit();
+                    used = quota.used(ApplyhomeClient.PROVIDER);
+                    if (b.get("from") != null) pb.addString("from", from);
+                    Long max = b.get("maxCalls") == null ? null : Long.parseLong(String.valueOf(b.get("maxCalls")));
+                    int remaining = Math.max(0, limit - used);
+                    if (planned > remaining) {
+                        warning = "수집 대상 " + planned + "건이 오늘 남은 청약홈 호출 " + remaining
+                                + "건보다 많아 상한까지만 받고 STOPPED 로 멈춥니다. 다음 실행에서 이어갑니다(최근 달부터, 주택형은 마지막).";
                     }
                     if (max != null) pb.addLong("maxCalls", max);
                 }

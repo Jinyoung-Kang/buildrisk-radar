@@ -1,7 +1,7 @@
 // 화면에서 옮긴 순수 함수의 지금 동작 고정 (ADR-030) — 문장 · 이동 · 구독 · 공시 · 지역 · 노출 · 기업 · 성적표 · 축 · 색
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { Boundaries, ContractRow, Disclosure, ExposureRow, Financials, GeoJson, Metrics, RegionList, RegionSeries, Scorecard, Subscription } from "@/lib/api";
+import type { Boundaries, ContractRow, Disclosure, ExposureRow, Financials, GeoJson, Metrics, PresaleRow, RegionList, RegionSeries, Scorecard, Subscription } from "@/lib/api";
 import { asOfLabel } from "@/lib/domain/alerts";
 import { changedRows } from "@/lib/domain/batch";
 import { niceAxis } from "@/lib/domain/axis";
@@ -9,6 +9,7 @@ import { DIV_NEG, DIV_POS, makeScale, MISSING, NEUTRAL, SEQ } from "@/lib/domain
 import { filterDisclosures, metricSeries, recentPeriods } from "@/lib/domain/company";
 import { sortExposure } from "@/lib/domain/exposure";
 import { contractState, due12, riskShareCard } from "@/lib/domain/filings";
+import { consortiumLabel, currentPresales, moveinLabel, presaleShareCard, remainderLabel, upcomingMovein } from "@/lib/domain/presale";
 import { pageKey, pageOverflow, safeNext, targetHref } from "@/lib/domain/nav";
 import { describeSubscription, subscriptionBody, toggleCode } from "@/lib/domain/notify";
 import { joinRegionValues, projectShapes, regionPanel, sidoOptions } from "@/lib/domain/regions";
@@ -126,6 +127,8 @@ describe("exposure · company · scorecard", () => {
     assert.deepEqual(sortExposure(rows, "risk").map((r) => r.corpName), ["다", "나", "가"]);
     assert.deepEqual(sortExposure(rows, "name").map((r) => r.corpName), ["가", "나", "다"]);
     assert.deepEqual(rows.map((r) => r.corpName), ["나", "가", "다"]);
+    const ps = [{ corpName: "가", presaleRiskSharePct: 20 }, { corpName: "나" }, { corpName: "다", presaleRiskSharePct: 70 }] as ExposureRow[];
+    assert.deepEqual(sortExposure(ps, "presale").map((r) => r.corpName), ["다", "가", "나"]);
   });
   it("지표 시리즈 · 최근 기간 · 위험 공시", () => {
     const m = { corpCode: "c", metrics: [{ code: "DEBT_RATIO", nameKo: "", unit: "%", formula: "", higherIsRisk: true,
@@ -222,6 +225,34 @@ describe("수주 비중 카드 (VERIFICATION 187)", () => {
   });
   it("옛 응답(비중 없음)이면 화면 기본 기준만", () => {
     assert.deepEqual(riskShareCard(undefined, 5), { th: 5, title: "미분양 5호/천가구 이상 지역 비중", sharePct: null, sub: "경보 R-X01 기준을 받지 못함" });
+  });
+});
+
+describe("presale (ADR-032)", () => {
+  const row = (o: Partial<PresaleRow>): PresaleRow => ({ houseManageNo: "H", pblancNo: "P", houseNm: "단지", houseSecd: "01", noticeDate: "2026-09-01",
+    flags: [], consortium: 1, consortiumMore: false, partners: [], remainderNotices: 0, removed: false, ...o });
+  it("분양 비중 카드 — 서버가 R-X02 와 같은 기준으로 낸 값만, 지표 없는 지역 제외 수를 밝힘", () => {
+    const s = { windowDays: 365, unsoldPer1kHh: 5, ruleVersion: 1, notices: 3, totalUnits: 1200, riskUnits: 600, sharePct: 50, excluded: 1 };
+    assert.deepEqual(presaleShareCard(s, 5), { th: 5, title: "미분양 5호/천가구 이상 지역 분양 비중", sharePct: 50,
+      sub: "최근 365일 · 시군구 공고 3건 1,200세대 · 미분양 지표 없는 지역 1건 제외 · 경보 R-X02 와 같은 기준" });
+    assert.equal(presaleShareCard({ ...s, excluded: 0, sharePct: null }, 5).sub, "최근 365일 · 시군구 공고 3건 1,200세대 · 경보 R-X02 와 같은 기준");
+    assert.equal(presaleShareCard(undefined, 3).th, 3);
+  });
+  it("컨소시엄 · 잔여세대 · 입주예정월 문구", () => {
+    assert.equal(consortiumLabel({ consortium: 1, consortiumMore: false }), null);
+    assert.equal(consortiumLabel({ consortium: 3, consortiumMore: false }), "컨소시엄 3사 (지분 미공개)");
+    assert.equal(consortiumLabel({ consortium: 1, consortiumMore: true }), "컨소시엄 1사 이상 (지분 미공개)");
+    assert.equal(remainderLabel({ remainderNotices: 0 }), null);
+    assert.equal(remainderLabel({ remainderNotices: 2, remainderUnits: 1035 }), "잔여세대 공고 2건 · 1,035세대");
+    assert.equal(moveinLabel("202912"), "2029.12");
+    assert.equal(moveinLabel(undefined), "–");
+  });
+  it("사라진 공고는 빼고, 입주 예정은 다음 달 ~ 12개월 뒤 (해 넘김)", () => {
+    const items = [row({ units: 300, moveinYm: "202611" }), row({ units: 200, moveinYm: "202710" }), row({ units: 50, moveinYm: "202711" }),
+      row({ units: 999, moveinYm: "202612", removed: true }), row({ units: 10, moveinYm: "202610" })];
+    assert.equal(currentPresales(items).units, 560);
+    assert.deepEqual(upcomingMovein(items, "202610"), { units: 500, complexes: 2, fromYm: "202611", toYm: "202710" });
+    assert.deepEqual(upcomingMovein([], "202612"), { units: 0, complexes: 0, fromYm: "202701", toYm: "202712" });
   });
 });
 

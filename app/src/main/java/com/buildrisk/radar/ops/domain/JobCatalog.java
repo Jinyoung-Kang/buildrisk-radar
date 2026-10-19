@@ -20,6 +20,7 @@ public final class JobCatalog {
             new Def("roneIndexJob", "아파트 매매·전세 가격지수 (월)", "R-ONE", "매주 금 04:10", "FR-402", "REB_API_KEY"),
             new Def("aptTradeJob", "아파트 매매 실거래 (월)", "국토부 RTMS", "매주 금 04:30", "FR-406", "DATA_GO_KR_KEY"),
             new Def("stockPriceJob", "상장사 일별 주가 (백테스트)", "금융위 주식시세", "평일 18:30", "FR-601", "DATA_GO_KR_KEY"),
+            new Def("presaleSyncJob", "분양 공고 (청약홈)", "한국부동산원 청약홈", "매일 04:40", "ADR-032", "DATA_GO_KR_KEY"),
             new Def("standardizeMetricJob", "표준화 · 기업/지역 지표", "내부", "매일 05:00", "FR-204~205, 501", null),
             new Def("ruleEvalJob", "규칙 평가 · 경보", "내부", "지표 Job 완료 후", "FR-502~504", null));
 

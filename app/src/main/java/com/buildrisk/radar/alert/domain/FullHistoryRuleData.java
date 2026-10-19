@@ -5,6 +5,7 @@ import com.buildrisk.radar.filing.domain.FilingModels.ContractFact;
 import com.buildrisk.radar.filing.domain.FilingModels.DisclosureEvent;
 import com.buildrisk.radar.filing.domain.FilingModels.GuaranteeFact;
 import com.buildrisk.radar.metric.domain.MetricPoint;
+import com.buildrisk.radar.presale.domain.PresaleModels.PresaleFact;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -25,6 +26,7 @@ public final class FullHistoryRuleData implements RuleData {
     @Override public List<DisclosureEvent> disclosures(String c, LocalDate since) { return delegate.disclosures(c, since); }
     @Override public List<ContractFact> contracts(String c, LocalDate since) { return delegate.contracts(c, since); }
     @Override public List<GuaranteeFact> guarantees(String c, LocalDate since) { return delegate.guarantees(c, since); }
+    @Override public List<PresaleFact> presales(String c, LocalDate since) { return delegate.presales(c, since); }
     @Override public int windowSize(TargetType type) { return ALL; }
     @Override public LocalDate today() { return delegate.today(); }
 }

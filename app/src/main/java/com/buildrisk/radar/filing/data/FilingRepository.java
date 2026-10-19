@@ -1,5 +1,6 @@
 package com.buildrisk.radar.filing.data;
 
+import com.buildrisk.radar.company.domain.CorpNameKey;
 import com.buildrisk.radar.filing.domain.FilingModels.Contract;
 import com.buildrisk.radar.filing.domain.FilingModels.Guarantee;
 import com.buildrisk.radar.filing.domain.FilingModels.Kind;
@@ -16,7 +17,6 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Locale;
 
 /** 공시 원문 · 구조화 결과 저장 (ADR-016) */
 @Repository
@@ -119,7 +119,7 @@ public class FilingRepository {
                   start_date, end_date, contract_date, corrects_date, correction_reason)
                 VALUES (:r, :c, :dt, :kind, :name, :key, :cp, :amt, :rev, :pct, :rt, :rcd, :sido, :rm, :sd, :ed, :cd, :orig, :why)""")
                 .param("r", t.rceptNo()).param("c", t.corpCode()).param("dt", t.rceptDt())
-                .param("kind", cut(c.kind(), 40)).param("name", cut(c.name(), 300)).param("key", nameKey(c.name()))
+                .param("kind", cut(c.kind(), 40)).param("name", cut(c.name(), 300)).param("key", CorpNameKey.key(c.name()))
                 .param("cp", cut(c.counterparty(), 200)).param("amt", c.amount()).param("rev", c.recentRevenue())
                 .param("pct", c.pctOfRevenue()).param("rt", cut(c.regionText(), 300)).param("rcd", r.regionCd())
                 .param("sido", cut(r.sidoName(), 20)).param("rm", r.match().name())
@@ -135,7 +135,7 @@ public class FilingRepository {
                   terminated_on, original_date)
                 VALUES (:r, :c, :dt, :name, :key, :amt, :why, :on, :orig)""")
                 .param("r", t.rceptNo()).param("c", t.corpCode()).param("dt", t.rceptDt())
-                .param("name", cut(x.name(), 300)).param("key", x.name() == null ? null : nameKey(x.name()))
+                .param("name", cut(x.name(), 300)).param("key", x.name() == null ? null : CorpNameKey.key(x.name()))
                 .param("amt", x.amount()).param("why", cut(x.reason(), 300)).param("on", x.terminatedOn())
                 .param("orig", x.originalDate()).update();
     }
@@ -195,12 +195,6 @@ public class FilingRepository {
                          GROUP BY o.rcept_no) c
                  WHERE c.rcept_no = g.rcept_no AND g.superseded_by IS DISTINCT FROM c.by""").update();
         return n;
-    }
-
-    /** 계약명 연결 키: 공백·기호·법인 표기 제거, 소문자 */
-    static String nameKey(String name) {
-        return name.toLowerCase(Locale.ROOT).replace("(주)", "").replace("㈜", "").replace("주식회사", "")
-                .replaceAll("[\\s\\p{Punct}ㆍ·「」『』“”‘’]", "");
     }
 
     private static String cut(String s, int n) { return s == null || s.length() <= n ? s : s.substring(0, n); }

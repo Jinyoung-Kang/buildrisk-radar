@@ -12,6 +12,7 @@ import com.buildrisk.radar.alert.domain.rules.RR01UnsoldSurge;
 import com.buildrisk.radar.alert.domain.rules.RR02PriceDeclineUnsold;
 import com.buildrisk.radar.alert.domain.rules.RR03TradeCliffUnsold;
 import com.buildrisk.radar.alert.domain.rules.RX01RiskRegionContracts;
+import com.buildrisk.radar.alert.domain.rules.RX02RiskRegionPresales;
 import com.buildrisk.radar.filing.domain.EventClassifier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -39,7 +40,8 @@ public class RuleRegistry {
     public RuleRegistry(Map<String, String> eventTypeNames) {
         List.of(new RC01DebtRatioSurge(), new RC02InterestCoverage(), new RC03NegativeOcf(),
                 new RC04MaterialDisclosure(eventTypeNames), new RR01UnsoldSurge(), new RR02PriceDeclineUnsold(),
-                new RR03TradeCliffUnsold(), new RC05GuaranteeBalance(), new RX01RiskRegionContracts(), new RC06PfExposure())
+                new RR03TradeCliffUnsold(), new RC05GuaranteeBalance(), new RX01RiskRegionContracts(), new RC06PfExposure(),
+                new RX02RiskRegionPresales())
                 .forEach(r -> byCode.put(r.code(), r));
     }
 

@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.TreeMap;
 
 @Service
 public class RegionQueryService {
@@ -126,6 +127,10 @@ public class RegionQueryService {
             add(statSeries, stats, "TRADE_CNT", "아파트 매매 거래", "건", "국토부 실거래 RTMSDataSvcAptTrade", assembled.trades());
             add(statSeries, stats, "CANCEL_CNT", "아파트 매매 계약 해제", "건", "국토부 실거래 RTMSDataSvcAptTrade", assembled.cancels());
             add(statSeries, stats, "PRICE_M2", "㎡당 중위 매매가", "만원/㎡", "국토부 실거래 RTMSDataSvcAptTrade", assembled.priceM2());
+            // 청약홈 월별 원 시계열 (화면 추세용 — 입주예정월은 미래 달 포함, 지표 계산에는 쓰지 않음)
+            add(statSeries, stats, "PRESALE_SUPPLY", "분양 공고 세대 (모집공고 월)", "세대", "청약홈 getAPTLttotPblancDetail", own(pts, "PRESALE_SUPPLY", display));
+            add(statSeries, stats, "PRESALE_MOVEIN", "입주 예정 세대 (입주예정월 · 청약홈 공고 단지)", "세대", "청약홈 getAPTLttotPblancDetail",
+                    own(pts, "PRESALE_MOVEIN", display));
         }
         record M(String code, String p, BigDecimal v, String st, String comp) {}
         List<M> ms = jdbc.sql("""
@@ -154,6 +159,13 @@ public class RegionQueryService {
                         rs.getString(4), rs.getInt(5), rs.getString(6))).single();
         return new RegionSeries(d.cd(), d.name(), d.full(), d.sido(), children, statSeries, metrics, alerts, codes,
                 Disclaimer.TEXT);
+    }
+
+    /** 화면 단위로 이미 집계한 시계열(청약홈) — 그 지역 행만 */
+    private static NavigableMap<String, BigDecimal> own(List<StatPoint> pts, String statCode, String regionCd) {
+        NavigableMap<String, BigDecimal> m = new TreeMap<>();
+        pts.stream().filter(x -> x.statCode().equals(statCode) && x.regionCd().equals(regionCd)).forEach(x -> m.put(x.period(), x.value()));
+        return m;
     }
 
     private static void add(List<StatSeries> out, List<String> filter, String code, String name, String unit, String src,

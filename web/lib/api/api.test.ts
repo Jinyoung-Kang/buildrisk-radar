@@ -25,6 +25,8 @@ describe("queries · downloads 경로", () => {
     assert.equal(notifyApi.inbox({ unreadOnly: false, page: 0, size: 30 }).path, "/me/notifications?unreadOnly=false&page=0&size=30");
     assert.equal(opsApi.batchExecutions(undefined).path, "/batch/executions?limit=60");
     assert.equal(regionApi.boundaries("abc").path, "/regions/boundaries?v=abc");
+    assert.equal(companyApi.presales("00164478").path, "/companies/00164478/presales");
+    assert.equal(regionApi.presales("26380").path, "/regions/26380/presales");
   });
   it("경로 조각은 인코딩 — 화면 파라미터가 다른 경로로 새지 않게", () => {
     assert.equal(companyApi.summary("../admin").path, "/companies/..%2Fadmin");

@@ -7,6 +7,7 @@ import com.buildrisk.radar.filing.app.SiteService;
 import com.buildrisk.radar.insight.app.BacktestService;
 import com.buildrisk.radar.insight.app.ExposureService;
 import com.buildrisk.radar.insight.app.ScorecardService;
+import com.buildrisk.radar.presale.app.PresaleQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.DecimalMax;
@@ -36,6 +37,7 @@ public class InsightController {
     private final ScorecardService scorecard;
     private final PfExposureService pf;
     private final SiteService sites;
+    private final PresaleQueryService presales;
     private final JsonCache cache;
     /** 캐시하는 값 — 화면의 선택지(노출: 6개월 · 1년 · 2년, 3 · 5 · 10호)와 API 기본값(주가 730일) */
     private static final Set<Integer> EXPOSURE_DAYS = Set.of(180, 365, 730);
@@ -43,7 +45,8 @@ public class InsightController {
     private static final Set<Integer> PRICE_DAYS = Set.of(365, 730, 1095);
 
     public InsightController(ExposureService exposure, BacktestService backtest, ScorecardService scorecard, PfExposureService pf,
-                             SiteService sites, JsonCache cache) {
+                             SiteService sites, PresaleQueryService presales, JsonCache cache) {
+        this.presales = presales;
         this.exposure = exposure;
         this.backtest = backtest;
         this.scorecard = scorecard;
@@ -97,6 +100,22 @@ public class InsightController {
     public SiteService.Sites companySites(@PathVariable @Pattern(regexp = "\\d{8}") String corpCode) {
         return cache.get("sites:c:" + corpCode, Duration.ofMinutes(10), SiteService.Sites.class, () -> sites.company(corpCode),
                 r -> exposure.isTarget(corpCode));
+    }
+
+    @GetMapping("/companies/{corpCode}/presales")
+    @Operation(summary = "기업 분양 공고 — 청약홈 APT 공고 중 이 기업이 시공사인 것 · 위험 지역 분양 비중 (R-X02 와 같은 계산)",
+            description = "세대 = 공급규모(일반 + 특별공급). 컨소시엄은 지분 미공개라 나누지 않음. 기준은 R-X02 의 최신 파라미터 (ADR-032)")
+    public PresaleQueryService.CompanyPresales companyPresales(@PathVariable @Pattern(regexp = "\\d{8}") String corpCode) {
+        return cache.get("presales:c:" + corpCode, Duration.ofMinutes(10), PresaleQueryService.CompanyPresales.class,
+                () -> presales.company(corpCode, exposure.rx02()), r -> exposure.isTarget(corpCode));
+    }
+
+    @GetMapping("/regions/{regionCd}/presales")
+    @Operation(summary = "지역 분양 카드 — 최근 12개월 청약홈 공고 · 앞으로 12개월 입주 예정(공고 단지 하한) · 잔여세대 공고 · 대상 기업 (ADR-032)")
+    public PresaleQueryService.RegionPresales regionPresales(@PathVariable @Pattern(regexp = "\\d{5}") String regionCd) {
+        // 없는 지역은 계산(404)이 먼저 — 캐시 키가 아무 코드마다 생기지 않게 (VERIFICATION 159)
+        return cache.get("region-presales:" + regionCd, Duration.ofMinutes(10), PresaleQueryService.RegionPresales.class,
+                () -> presales.region(regionCd));
     }
 
     @GetMapping("/regions/{regionCd}/sites")

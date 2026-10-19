@@ -26,6 +26,10 @@ const LABEL: Record<string, string> = {
   // 수주 × 지역 (R-X01)
   asOf: "기준 분기", contracts: "수주(건)", totalAmount: "수주 합계(원)", riskRegionAmount: "위험 지역 수주(원)", riskRegionSharePct: "위험 지역 비중(%)",
   contract: "계약명", region: "지역", amount: "계약 금액(원)", unsoldPeriod: "미분양 기준 월",
+  // 분양 × 지역 (R-X02, 청약홈)
+  notices: "분양 공고(건)", totalUnits: "공고 세대", riskRegionUnits: "위험 지역 세대", excludedNoUnsoldMetric: "미분양 지표 없어 뺀 공고(건)",
+  houseManageNo: "주택관리번호", pblancNo: "공고번호", houseNm: "단지", noticeDate: "모집공고일", regionCd: "시군구 코드", regionName: "지역",
+  units: "세대", partners: "함께한 시공사(지분 미공개)",
 };
 
 /** 같은 키를 규칙마다 다르게 읽어야 할 때 — R-C02 의 value 는 이자보상배율 */
@@ -35,6 +39,7 @@ function cell(k: string, v: unknown, names: EventNames) {
   if (v === null || v === undefined || v === "-") return <span className="text-muted">–</span>;
   if (k === "rceptNo") return <DartLink rceptNo={String(v)} />;
   if (k === "eventType") return names[String(v)] ?? String(v);
+  if (Array.isArray(v)) return v.length ? v.join(", ") : <span className="text-muted">단독</span>;
   if (typeof v === "number") return <span className="tabular">{new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 4 }).format(v)}</span>;
   return String(v);
 }

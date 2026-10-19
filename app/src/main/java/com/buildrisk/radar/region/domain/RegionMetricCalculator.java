@@ -20,11 +20,24 @@ public final class RegionMetricCalculator {
     private static final MathContext MC = new MathContext(20, RoundingMode.HALF_UP);
     private static final DateTimeFormatter YM = DateTimeFormatter.ofPattern("yyyyMM");
 
-    /** unsold/sale/jeonse/trades/cancels/priceM2: YYYYMM → 값, households: YYYY → 값 */
+    /**
+     * unsold/sale/jeonse/trades/cancels/priceM2: YYYYMM → 값, households: YYYY → 값.
+     * presale12m · movein12mAhead: 기준월(as-of, ≤ 이번 달) → 청약홈 롤링 세대 합 (ADR-032). 입주예정월 같은 미래 달 키의 시계열은 넣지 않음 —
+     * 계산 기간이 입력 키의 합집합이라 2028 같은 기간의 지표가 생김
+     */
     public record Series(NavigableMap<String, BigDecimal> unsold, NavigableMap<String, BigDecimal> sale,
                          NavigableMap<String, BigDecimal> jeonse, NavigableMap<String, BigDecimal> households,
                          NavigableMap<String, BigDecimal> trades, NavigableMap<String, BigDecimal> cancels,
-                         NavigableMap<String, BigDecimal> priceM2) {
+                         NavigableMap<String, BigDecimal> priceM2, NavigableMap<String, BigDecimal> presale12m,
+                         NavigableMap<String, BigDecimal> movein12mAhead) {
+        /** 청약홈 없이 */
+        public Series(NavigableMap<String, BigDecimal> unsold, NavigableMap<String, BigDecimal> sale,
+                      NavigableMap<String, BigDecimal> jeonse, NavigableMap<String, BigDecimal> households,
+                      NavigableMap<String, BigDecimal> trades, NavigableMap<String, BigDecimal> cancels,
+                      NavigableMap<String, BigDecimal> priceM2) {
+            this(unsold, sale, jeonse, households, trades, cancels, priceM2, new TreeMap<>(), new TreeMap<>());
+        }
+
         /** 실거래 없이 (기존 시계열만) */
         public Series(NavigableMap<String, BigDecimal> unsold, NavigableMap<String, BigDecimal> sale,
                       NavigableMap<String, BigDecimal> jeonse, NavigableMap<String, BigDecimal> households) {
@@ -34,6 +47,7 @@ public final class RegionMetricCalculator {
 
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
     private static final String RTMS = "국토부 아파트 매매 실거래 (RTMSDataSvcAptTrade)";
+    private static final String PRESALE = "청약홈 APT 분양정보 (getAPTLttotPblancDetail)";
 
     private RegionMetricCalculator() {}
 
@@ -42,6 +56,8 @@ public final class RegionMetricCalculator {
         periods.addAll(s.unsold().keySet());
         periods.addAll(s.sale().keySet());
         periods.addAll(s.trades().keySet());
+        periods.addAll(s.presale12m().keySet());
+        periods.addAll(s.movein12mAhead().keySet());
         List<MetricValue> out = new ArrayList<>();
         for (String p : periods) {
             String p3 = shift(p, -3);
@@ -93,8 +109,26 @@ public final class RegionMetricCalculator {
                         Map.of("saleChg3m", nz(dSale), "jeonseChg3m", nz(dJeonse))));
             }
             if (s.trades().containsKey(p)) trade(regionCd, p, s, out);
+            if (s.presale12m().containsKey(p)) out.add(per1k(regionCd, p, "PRESALE_12M_PER_1K_HH", s.presale12m().get(p), s));
+            if (s.movein12mAhead().containsKey(p)) out.add(per1k(regionCd, p, "MOVEIN_12M_AHEAD_PER_1K_HH", s.movein12mAhead().get(p), s));
         }
         return out;
+    }
+
+    /**
+     * 청약홈 세대 ÷ 총가구 × 1000 (ADR-032) — UNSOLD_PER_1K_HH 와 같은 규칙: 가구 없음 MISSING · 0 ZERO_DENOM.
+     * 공고가 없던 지역은 집계가 0 으로 채워 값 0(OK), 창이 다 차지 않은 기준월은 집계에 행이 없어 여기 오지 않음
+     */
+    private static MetricValue per1k(String regionCd, String p, String code, BigDecimal units, Series s) {
+        var hh = s.households().floorEntry(p.substring(0, 4));
+        Map<String, Object> c = new LinkedHashMap<>();
+        c.put("units", nz(units));
+        c.put("households", hh == null ? "-" : hh.getValue());
+        c.put("householdsYear", hh == null ? "-" : hh.getKey());
+        c.put("source", PRESALE);
+        if (units == null || hh == null || hh.getValue() == null) return of(regionCd, p, code, null, "MISSING", c);
+        if (hh.getValue().signum() == 0) return of(regionCd, p, code, null, "ZERO_DENOM", c);
+        return of(regionCd, p, code, units.multiply(BigDecimal.valueOf(1000)).divide(hh.getValue(), MC), MetricValue.OK, c);
     }
 
     /** 실거래 지표 (ADR-015): 거래 건수 · 전년 동월 대비 · 해제율 · ㎡당 중위가 · 전년 동월 대비 */

@@ -14,6 +14,7 @@ public record AppProperties(
         Sgis sgis,
         Vworld vworld,
         DataGoKr dataGoKr,
+        Applyhome applyhome,
         Batch batch,
         Security security,
         Notification notification) {
@@ -41,6 +42,12 @@ public record AppProperties(
      */
     public record DataGoKr(String baseUrl, String serviceKey, int dailyCallLimit, long minIntervalMs, int tradeMonths,
                            int stockYears) {}
+
+    /**
+     * 청약홈 분양정보(api.odcloud.kr, ADR-032) — 공공데이터포털 인증키를 그대로 씀(2026-10 스모크로 확인). 일일 상한은 자체 값
+     * (포털 마이페이지의 일일 트래픽보다 낮게). fromYm: 처음 받을 모집공고 월(YYYY-MM)
+     */
+    public record Applyhome(String baseUrl, String serviceKey, int dailyCallLimit, long minIntervalMs, String fromYm) {}
 
     /**
      * 보안 설정 (ADR-013). 비밀번호는 평문(기동 시 BCrypt 로 해시) 또는 {bcrypt}… 인코딩 값.

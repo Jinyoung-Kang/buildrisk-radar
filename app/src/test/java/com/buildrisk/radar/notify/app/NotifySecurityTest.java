@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** ADR-025 — 웹훅 SSRF 방어 · 저장 암호화 · 서명 · Slack 이스케이프 */
 class NotifySecurityTest {
     static AppProperties props(String key) {
-        return new AppProperties(null, null, null, null, null, null, null, null, null, null, null,
+        return new AppProperties(null, null, null, null, null, null, null, null, null, null, null, null,
                 new AppProperties.Notification(key, "https://radar.example", false, 0));
     }
 

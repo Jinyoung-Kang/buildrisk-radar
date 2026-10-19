@@ -82,11 +82,11 @@ public class BacktestService {
                         "규칙 임계값을 지금 정했으므로 과거 구간에 대해 사후 선택 편향이 있음",
                         "재무제표 정정이 반영된 현재 데이터로 과거 경보를 만든 경우가 있음",
                         "표본이 작아(규칙당 수십 건) 통계적 유의성이 낮음 — t 값 참고",
-                        "지역 규칙(R-R*)과 현재 시점만 평가하는 R-X01 은 대상 아님"),
+                        "지역 규칙(R-R*)과 현재 시점만 평가하는 R-X01 · R-X02 는 대상 아님"),
                 Disclaimer.TEXT);
     }
 
-    /** 기업 경보 중 규칙 변경·데이터 정정으로 닫힌 것(RULE_CHANGED · RESOLVED)과 R-X01 을 뺀 전체 */
+    /** 기업 경보 중 규칙 변경·데이터 정정으로 닫힌 것(RULE_CHANGED · RESOLVED)과 현재 시점 교차 규칙(R-X01 · R-X02)을 뺀 전체 */
     List<Alert> alerts() {
         return jdbc.sql("""
                 SELECT a.alert_id, a.rule_code, r.name_ko, a.target_key, c.corp_name, c.stock_code, a.title, a.as_of,
@@ -94,7 +94,7 @@ public class BacktestService {
                   FROM risk.alert a
                   JOIN ref.company c ON c.corp_code = a.target_key AND c.stock_code IS NOT NULL
                   JOIN risk.rule r ON r.rule_code = a.rule_code AND r.version = a.rule_version
-                 WHERE a.target_type = 'COMPANY' AND a.rule_code <> 'R-X01'
+                 WHERE a.target_type = 'COMPANY' AND a.rule_code NOT IN ('R-X01', 'R-X02')
                    AND coalesce(a.close_reason, '') NOT IN ('RULE_CHANGED', 'RESOLVED')""")
                 .query((rs, i) -> {
                     LocalDate d = eventDate(rs.getString("as_of"), rs.getString("sources"));

@@ -4,7 +4,8 @@ import { expect, test } from "@playwright/test";
 test("수주·보증 노출: 기업별 표와 방법 설명", async ({ page }) => {
   await page.goto("/exposure");
   await expect(page.getByRole("heading", { name: /수주·보증 노출/ })).toBeVisible();
-  await expect(page.getByRole("columnheader", { name: "위험 지역 비중" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "위험 지역 비중", exact: true })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "분양 위험 지역 비중" })).toBeVisible();     // 청약홈 (ADR-032)
   await expect(page.locator("tbody tr").first()).toBeVisible();
 });
 
@@ -65,6 +66,24 @@ test("기업 상세: 탭 전환(키보드 포함)과 수주·보증 탭", async 
   await expect(page.getByText("수주 계약 (단일판매ㆍ공급계약)")).toBeVisible();
   await page.getByRole("tab", { name: "수주·보증" }).press("ArrowRight");
   await expect(page.getByRole("tab", { name: "주가·경보" })).toHaveAttribute("aria-selected", "true");
+});
+
+test("분양 탭 · 지역 분양 카드: 청약홈 공고 · 위험 지역 분양 비중 · 입주 예정 (ADR-032)", async ({ page, request }) => {
+  // 분양 공고가 가장 많은 대상 기업 — 노출 API 의 분양 열로 고름
+  const items = (await (await request.get("/api/v1/exposure")).json()).items as { corpCode: string; presaleNotices: number }[];
+  const corp = [...items].sort((a, b) => b.presaleNotices - a.presaleNotices)[0];
+  expect(corp.presaleNotices, "청약홈 공고가 연결된 대상 기업이 있어야 함 — presaleSyncJob").toBeGreaterThan(0);
+  await page.goto(`/companies/${corp.corpCode}?tab=price`);
+  await page.getByRole("tab", { name: "주가·경보" }).press("ArrowRight");                 // 키보드 순서: 주가·경보 → 분양
+  await expect(page.getByRole("tab", { name: "분양" })).toHaveAttribute("aria-selected", "true");
+  await expect(page).toHaveURL(/tab=presales/);
+  await expect(page.getByText("분양 공고 (청약홈)")).toBeVisible();
+  await expect(page.getByText(/이상 지역 분양 비중/)).toBeVisible();
+  await expect(page.getByText("경보 R-X02 와 같은 기준", { exact: false })).toBeVisible();
+  await page.locator("table a[href^='/regions/']").first().click();
+  await expect(page).toHaveURL(/\/regions\/\d{5}/);
+  await expect(page.getByText("분양 공고 (청약홈)")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("앞으로 12개월 입주 예정")).toBeVisible();
 });
 
 test("좁은 화면: 메뉴 버튼으로 이동", async ({ page }) => {

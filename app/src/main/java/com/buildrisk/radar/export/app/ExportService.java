@@ -110,11 +110,13 @@ public class ExportService {
         var e = exposure.exposure(days, unsoldTh);
         w.row("corpCode", "corpName", "contracts", "totalAmount", "mappedAmount", "riskAmount", "riskSharePct", "riskContracts",
                 "latestBalanceToEquityPct", "latestGuaranteeDt", "pfAmount", "openAlerts", "pfPeriod", "pfGuaranteeToEquityPct",
-                "pfDue12mToEquityPct", "since", "unsoldPer1kHh");
+                "pfDue12mToEquityPct", "presaleNotices", "presaleUnits", "presaleRiskUnits", "presaleRiskSharePct", "remainderUnits",
+                "since", "unsoldPer1kHh");
         for (var r : e.items()) {
             w.row(r.corpCode(), r.corpName(), r.contracts(), r.totalAmount(), r.mappedAmount(), r.riskAmount(), r.riskSharePct(),
                     r.riskContracts(), r.latestBalanceToEquityPct(), r.latestGuaranteeDt(), r.pfAmount(), r.openAlerts(), r.pfPeriod(),
-                    r.pfGuaranteeToEquityPct(), r.pfDue12mToEquityPct(), e.asOf(), e.unsoldPer1kHh());
+                    r.pfGuaranteeToEquityPct(), r.pfDue12mToEquityPct(), r.presaleNotices(), r.presaleUnits(), r.presaleRiskUnits(),
+                    r.presaleRiskSharePct(), r.remainderUnits(), e.asOf(), e.unsoldPer1kHh());
         }
     }
 

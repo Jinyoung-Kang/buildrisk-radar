@@ -27,7 +27,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ArchitectureTest {
     static final String BASE = "com.buildrisk.radar.";
     static final Path SRC = Path.of("src/main/java/com/buildrisk/radar");
-    static final Set<String> FEATURES = Set.of("company", "metric", "region", "market", "filing", "alert", "insight", "notify", "export", "ops");
+    static final Set<String> FEATURES = Set.of("company", "metric", "region", "market", "filing", "presale", "alert", "insight", "notify",
+            "export", "ops");
     static final Set<String> LAYERS = Set.of("api", "app", "domain", "data");
     static final Set<String> OUTER = Set.of("adapters", "batch", "common");
     static final Set<String> FRAMEWORK = Set.of("org.springframework.", "jakarta.", "java.sql.", "javax.sql.", "tools.jackson.",

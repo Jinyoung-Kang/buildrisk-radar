@@ -7,7 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AppPropertiesTest {
     private static AppProperties withToken(String token) {
-        return new AppProperties("api", "seed", token, null, null, null, null, null, null, null, null, null);
+        return new AppProperties("api", "seed", token, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test

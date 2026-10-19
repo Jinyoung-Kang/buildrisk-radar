@@ -3,6 +3,7 @@ package com.buildrisk.radar.adapters.seed;
 import com.buildrisk.radar.common.AppProperties;
 import com.buildrisk.radar.filing.domain.EventClassifier;
 import com.buildrisk.radar.insight.domain.CreditEventRule;
+import com.buildrisk.radar.presale.domain.BuilderAlias;
 import com.buildrisk.radar.region.domain.RegionAliases;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -137,6 +138,19 @@ public class SeedCatalog {
                     m.get("note") == null ? null : String.valueOf(m.get("note"))));
         }
         return new RegionAliases(sido, sgis, names, manual);
+    }
+
+    /** seed/builder_aliases.yml — 청약홈 시공사 표기 → 손으로 확인한 corp_code (ADR-032) */
+    @SuppressWarnings("unchecked")
+    public List<BuilderAlias> builderAliases() {
+        List<BuilderAlias> out = new ArrayList<>();
+        for (Map<String, Object> a : (List<Map<String, Object>>) yaml("builder_aliases.yml").getOrDefault("aliases", List.of())) {
+            String corp = String.valueOf(a.get("corpCode"));
+            if (!corp.matches("\\d{8}")) throw new IllegalStateException("builder_aliases.yml: corpCode 는 8자리 — " + corp);
+            out.add(new BuilderAlias(((List<Object>) a.get("names")).stream().map(String::valueOf).toList(), corp,
+                    a.get("note") == null ? null : String.valueOf(a.get("note"))));
+        }
+        return out;
     }
 
     /** corp_code → include(true)/exclude(false) */

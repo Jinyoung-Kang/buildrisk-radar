@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, DownloadLink, Empty, ErrorBox, Loading, PageTitle, Prose, Segmented } from "@/components/ui";
 import { sortExposure, type ExposureSort } from "@/lib/domain/exposure";
-import { eok, num, pk } from "@/lib/domain/format";
+import { eok, int, num, pk } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
 import * as insightApi from "@/lib/api/insight";
 
@@ -41,7 +41,7 @@ export default function ExposurePage() {
       <div className="flex flex-wrap gap-3 mb-4 items-center">
         <Segmented label="기간" value={shownDays} onChange={setDays} options={[{ value: "180", label: "6개월" }, { value: "365", label: "1년" }, { value: "730", label: "2년" }]} />
         <Segmented label="위험 지역 기준 (천 가구당 미분양)" value={shownTh} onChange={setTh} options={[{ value: "3", label: "3호↑" }, { value: "5", label: "5호↑" }, { value: "10", label: "10호↑" }]} />
-        <Segmented label="정렬" value={sort} onChange={setSort} options={[{ value: "risk", label: "위험 지역 비중" }, { value: "guarantee", label: "보증/자기자본" }, { value: "pf", label: "PF/자기자본" }, { value: "amount", label: "수주 금액" }, { value: "name", label: "이름" }]} />
+        <Segmented label="정렬" value={sort} onChange={setSort} options={[{ value: "risk", label: "위험 지역 비중" }, { value: "presale", label: "분양 위험 비중" }, { value: "guarantee", label: "보증/자기자본" }, { value: "pf", label: "PF/자기자본" }, { value: "amount", label: "수주 금액" }, { value: "name", label: "이름" }]} />
         <DownloadLink href={insightApi.exposureCsv(days ?? (data ? String(data.days) : undefined), th ?? (data ? String(data.unsoldPer1kHh) : undefined))}>CSV</DownloadLink>
       </div>
       <ErrorBox error={error} />
@@ -54,7 +54,8 @@ export default function ExposurePage() {
                 <thead><tr><th>기업</th><th className="num">현재 수주</th><th className="num">시군구 매핑</th>
                   <th className="num">위험 지역 비중</th><th className="num">위험 계약</th><th className="num">보증 잔액/자기자본</th>
                   <th className="num">PF 보증 / 자기자본<span className="sub">정기보고서</span></th><th className="num">12개월 내 만기 / 자기자본</th>
-                  <th className="num">PF 보증 공시 (기간 합)</th><th className="num">열린 경보</th></tr></thead>
+                  <th className="num">PF 보증 공시 (기간 합)</th><th className="num">분양 공고<span className="sub">청약홈 · 세대</span></th>
+                  <th className="num">분양 위험 지역 비중</th><th className="num">열린 경보</th></tr></thead>
                 <tbody>{rows.map((r) => (
                   <tr key={r.corpCode}>
                     <td><Link href={`/companies/${r.corpCode}?tab=filings`} className="font-medium hover:underline">{r.corpName}</Link></td>
@@ -71,6 +72,9 @@ export default function ExposurePage() {
                     <td className={`num ${(r.pfDue12mToEquityPct ?? 0) >= 50 ? "text-crit font-medium" : ""}`}>
                       {r.pfDue12mToEquityPct != null ? `${num(r.pfDue12mToEquityPct, 1, true)}%` : "–"}</td>
                     <td className="num whitespace-nowrap">{eok(r.pfAmount)}</td>
+                    <td className="num whitespace-nowrap">{r.presaleNotices ? <Link href={`/companies/${r.corpCode}?tab=presales`} className="hover:underline">
+                      {r.presaleNotices}건<span className="sub">{int(r.presaleUnits)}세대</span></Link> : <span className="text-muted">–</span>}</td>
+                    <td className="num"><ShareBar pct={r.presaleRiskSharePct} warn={50} /></td>
                     <td className="num">{r.openAlerts || "–"}</td>
                   </tr>))}</tbody>
               </table>
@@ -78,7 +82,7 @@ export default function ExposurePage() {
           )}
         </Card>
       )}
-      <p className="text-[11px] text-muted mt-3"><Prose text={`빨강 = 위험 지역 비중 50% 이상(R-X01 기본값) · 보증 잔액이 자기자본 이상(R-C05 기본값) · 정기보고서 PF 보증이 자기자본 이상 또는 12개월 내 만기가 자기자본의 50% 이상(R-C06 기본값). 해외·주소 해석 불가 계약은 비중 계산에서 빠집니다. ${data?.disclaimer ?? ""}`} /></p>
+      <p className="text-[11px] text-muted mt-3"><Prose text={`빨강 = 위험 지역 비중 50% 이상(R-X01 기본값) · 보증 잔액이 자기자본 이상(R-C05 기본값) · 정기보고서 PF 보증이 자기자본 이상 또는 12개월 내 만기가 자기자본의 50% 이상(R-C06 기본값). 해외·주소 해석 불가 계약은 비중 계산에서 빠집니다. 분양 = 청약홈 APT 분양 공고 중 시공사로 대조된 것(컨소시엄은 세대를 나누지 않음), 비중은 미분양 지표가 있는 시군구 공고 세대 기준(R-X02 와 같은 규칙). ${data?.disclaimer ?? ""}`} /></p>
     </Layout>
   );
 }

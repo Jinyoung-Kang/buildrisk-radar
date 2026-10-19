@@ -7,6 +7,7 @@ KOSIS 미분양 · 한국부동산원 가격지수 · SGIS 총가구 · **국토
 
 뻔한 대시보드와 다른 점 — **공시 원문을 구조화해 기업과 지역을 잇습니다.** 건설사의 공급계약 공시 원문에서 공사 지역·금액을,
 채무보증 공시와 **정기보고서의 부동산 PF 종합요약표**에서 회사 전체 PF 보증 · 12개월 내 만기 · 사업장 지역을 뽑아 "미분양이 쌓이는 지역에 앞으로의 매출과 보증이 몰린 건설사"를 재무제표보다 먼저 보고,
+**한국부동산원 청약홈 분양 공고**(시공사 · 공급위치 · 세대 · 입주예정월)로는 "미분양이 많은 지역에 지금 분양을 몰고 있는 건설사"와 "앞으로 입주가 몰리는 시군구"를 미분양보다 먼저 보고,
 그 경보가 실제로 맞았는지 **실제 부실 사건(회생 · 워크아웃 · 부도)에 대한 성적표**와 **주가 반응(point-in-time 백테스트)** 으로 검증해 공개합니다.
 새 경보는 구독한 사람에게 **알림함과 서명된 웹훅(Slack · JSON)** 으로 보냅니다 — 경보와 같은 트랜잭션의 outbox 로 빠짐 · 중복 없이.
 API · worker 를 나눈 **DB 큐 기반 배치 아키텍처**, 세션 + CSRF · 역할 · 감사 로그 · DB 최소 권한 같은 **보안**,
@@ -38,6 +39,9 @@ k6 로 잰 **성능과 메모리 안정성**(50 VU 약 4,000 req/s · API p95 �
 <td><img src="docs/images/batch.png" alt="배치 모니터"><br><sub><b>배치 모니터</b> · 요청 큐 · worker 하트비트 · 실행 이력 · Step · 스킵 · restart 이력</sub></td>
 <td><img src="docs/images/rules.png" alt="규칙 관리"><br><sub><b>규칙</b> · 파라미터를 바꾸면 새 버전(누가 바꿨는지 기록), 이전 경보는 이전 버전 번호 유지</sub></td>
 </tr>
+<tr>
+<td colspan="2"><img src="docs/images/company-presales.png" alt="분양 탭"><br><sub><b>분양</b> · 청약홈 APT 분양 공고 중 이 기업이 시공사인 것(시공사명 → DART 기업 대조, 컨소시엄은 지분 미공개) · 위험 지역 분양 비중(경보 R-X02 와 같은 계산) · 앞으로 12개월 입주 예정 · 잔여세대 공고</sub></td>
+</tr>
 </table>
 
 <sub>2026-09-25 로컬 실데이터(DART 43개사 2021Q1~2026Q2 · 공시 원문 1,313건 · 실거래 110만 건 · 주가 3년 · KOSIS · R-ONE · SGIS · V-World · 카카오 지도)로 찍은 화면입니다. 다시 찍으려면 스택을 띄운 뒤
@@ -49,7 +53,7 @@ k6 로 잰 **성능과 메모리 안정성**(50 VU 약 4,000 req/s · API p95 �
 
 | 주제 | 구현 | 확인 방법 |
 |---|---|---|
-| **재시작 가능한 배치** | 14개 Job 모두 Spring Batch 6. 청크 트랜잭션, STOPPED·FAILED 는 같은 JobInstance 로 restart, 완료된 Step 은 건너뜀 | `FinancialStatementJobIT` — 청크 도중 실패 → restart → 중복 0, 이미 받은 조합 재호출 0 |
+| **재시작 가능한 배치** | 15개 Job 모두 Spring Batch 6. 청크 트랜잭션, STOPPED·FAILED 는 같은 JobInstance 로 restart, 완료된 Step 은 건너뜀 | `FinancialStatementJobIT` — 청크 도중 실패 → restart → 중복 0, 이미 받은 조합 재호출 0 |
 | **외부 API 한도 준수** | DART 020(요청 제한)·일일 상한(기본 15,000) → `setTerminateOnly()` 로 현재 청크 커밋 후 STOPPED, 다음 실행에서 이어감 | 020 모의 응답 테스트 · 일일 상한 테스트 |
 | **재시작 지점 설계** ([ADR-008](docs/adr/008-restart-from-db-state.md)) | 대상 집합이 실행마다 바뀌는 Job 은 ExecutionContext 오프셋 대신 DB 수집 상태에서 '미수집 조합'을 다시 계산 | 재시작 후 WireMock 호출 수 검증 |
 | **회계 데이터 표준화** | 원천 불변(`fs_raw`) → 표준계정 12개(`fs_std`), account_id 우선 · 계정명 정규식 · **재무상태표 부채 구간(유동/비유동) 판별** · 순액/액면 중복 제거 · 대체 규칙, 누적 → 분기 차분(Q2 = 반기누적 − Q1). 43개사 927개 기간 회계 항등식 일치 | `AccountStandardizerTest` · **실제 DART 응답 골든 테스트** · `QuarterAndPeriodTest` |
@@ -60,6 +64,7 @@ k6 로 잰 **성능과 메모리 안정성**(50 VU 약 4,000 req/s · API p95 �
 | **보안** ([ADR-013](docs/adr/013-security.md) · [014](docs/adr/014-db-least-privilege.md)) | 세션(Redis, HttpOnly·SameSite=Strict) + CSRF(`csrf.spa()`), 역할(ANALYST·ADMIN), 스크립트용 서비스 토큰, 로그인 잠금, IP 레이트리밋, **거부된 시도까지 남는 감사 로그**, CSP 등 보안 헤더, 단일 진입점(edge — X-Forwarded-For 덮어쓰기), **DML 전용 DB 계정 · 추가 전용 감사 테이블**, 읽기 전용 컨테이너 · capability 제거 | `SecurityIT` · `LeastPrivilegeIT` · E2E · k6 로 429 확인 · CI 의 gitleaks · Trivy |
 | **공시 원문 구조화** ([ADR-016](docs/adr/016-filing-structuring.md)) | document.xml 원문을 그대로 보관 + 파서 버전 → 서식이 다른 유가·코스닥·자율공시·정정·해지를 '항목 경로'로 파싱. 파서를 고치면 **API 호출 0건으로 1,313건 재파싱(3.8초)** | 실제 원문 7건 `FilingParserTest` · `FilingJobIT` |
 | **기업 × 지역 교차 신호** | 공사 지역 주소 → 시군구(정확 대조만, 추정 없음) → 그 지역 미분양과 결합해 R-X01, 채무보증 잔액으로 R-C05, 실거래 거래량 급감 + 미분양 증가로 R-R03 | `ExposureRulesTest` · `AddressRegionMatcherTest` |
+| **분양 공고 × 지역** ([ADR-032](docs/adr/032-presale-notices.md)) | 청약홈 APT 공고의 시공사명을 DART 12만 기업과 **정확 대조 + 손으로 확인한 별칭(브랜드 근거)** 으로만 잇고(76.8% · 상태 코드 MATCHED · AMBIGUOUS · UNMATCHED), 공급위치를 시군구로(96.5%) — 위험 지역 분양 집중 R-X02, 지역 지표 2개(최근 12개월 분양 · 앞으로 12개월 입주 예정 — 미래 키를 지표 기간으로 만들지 않게 기준월 롤링 시계열). 다 받은 달에서 사라진 공고는 지우지 않고 표시 | `PresaleJobIT` · `PresaleShareIT` · `BuilderNameMatcherTest` |
 | **알림** ([ADR-025](docs/adr/025-notifications.md)) | 경보를 쓰는 **같은 트랜잭션의 outbox** → worker 가 `SKIP LOCKED` 로 구독(심각도 · 규칙 · 대상 · 관심 목록)과 맞춰 알림함 · Slack · 서명된 JSON 웹훅으로. 다음 분기로 이어진 경보 · 규칙 버전 변경은 알리지 않음, 웹훅은 묶어 보내고 백오프 재시도 · 포기. **SSRF 방어**(공인 주소만 · 보낼 때마다 재검사 · 리다이렉트 금지) · 주소 **AES-GCM 저장 암호화** · HMAC 서명 | `NotificationIT` · `NotifySecurityTest` |
 | **사용자별 진입점** | 대시보드에서 질문으로 시작 — 협력업체(거래 건설사의 현금 · 유동성 신호가 겹친 곳), 분양 계약자(시군구 · 시공사 찾기, 12개월 내 만기 PF 가 큰 시공사), 투자 · 분석(성적표 요약: 부실 사건 중 미리 잡은 수 · 선행 기간 · 기준선 대비 정밀도). 새 계산 없이 같은 데이터를 질문별로 모음, `/dashboard` 는 필드만 더함(v1 호환) | `DashboardIT`(신호 선정 · 최신 분기 · LIKE 와일드카드 이스케이프) · E2E |
 | **사업장 카드** ([ADR-026](docs/adr/026-site-location.md)) | 공급계약 주소의 법정동 · 지번을 **실거래 약 123만 건의 법정동 · 지번과 정확히 대조**해(지오코딩 없음 — 브이월드 결과는 저장 금지) 사업장마다 그 동의 아파트 시장(거래 · ㎡당 중위가 · 해제율, 전년 대비)과 같은 지번의 기존 단지를 붙임. 구간 공사 · 거래 없는 동은 고르지 않고 사유 표시 — 현재 공급계약의 48% 가 동 · 지번까지 | `SiteAddressResolverTest`(실제 문장) · `SiteLocationIT` |
@@ -67,7 +72,7 @@ k6 로 잰 **성능과 메모리 안정성**(50 VU 약 4,000 req/s · API p95 �
 | **경보 성적표** ([ADR-023](docs/adr/023-alert-scorecard.md)) | 재무 규칙을 전체 기간에 대해 그 당시 알 수 있던 공시로만 다시 평가해 실제 부실 사건(회생 · 워크아웃 · 부도 · 감사의견 비적정)과 맞춤 — 규칙별 정밀도 · 재현율(Wilson 95% 구간) · 선행 기간 · 기준선 대비 lift, 사건 목록과 빗나간 경보까지 공개 | `ScorecardTest` · `ScorecardIT` · `SeedDictionaryTest` — 실데이터: 사건 5건 모두 사건 전에 경보(중앙값 12개월 전) |
 | **경보의 사후 검증 (주가)** ([ADR-017](docs/adr/017-stock-backtest.md)) | 경보 근거 공시가 공개된 날 다음 거래일부터 20·60·120거래일 업종 대비 초과수익률. 수정주가가 아닌 원천 종가 → 주식수 변동 구간 제외, 겹침 제외, 비교 기준 분포 · t 값 · 한계 표시 | `EventStudyTest` |
 | **성능 · 메모리 · 관측** ([ADR-018](docs/adr/018-observability.md) · [020](docs/adr/020-map-boundaries-cache.md) · [021](docs/adr/021-container-memory.md) · [022](docs/adr/022-read-cache.md)) | 외부 API Step 청크 안 가상 스레드 동시 처리(호출 간격·일일 상한은 스레드 안전하게 유지), 실거래 월 파티션. **조회 캐시**(Redis, 세대 번호로 일괄 무효화 — 모든 Job 이 끝나는 한 곳에서), **지도 경계는 버전 URL + 1년 immutable + 프로세스 안에 미리 압축한 바이트**, **컨테이너 메모리 예산**(서비스별 한도 · 힙 60% · G1 명시). Prometheus 지표 · ECS 로그 · Grafana | k6 50 VU · 90초 3회: **약 4,050 req/s · API p95 약 20 ms · 오류 0**, api 최대 610 MiB / 1 GiB (3차 점검 전 504 req/s · 307 ms, 오래 걸면 OOM 킬) |
-| **실데이터 검증** | 8개 출처 실데이터로 전체 배치를 돌리고 문제 212건을 재현 → 수정 → 회귀 테스트로 고정 (재시작 누락, 좀비 실행, 순액·액면 이중 공시, 공시 오탐, 동시 시작 직렬화 충돌, 자율공시 서식, **부하 중 OOM 킬**, **계정이 바뀐 누적 차분이 만든 오경보**, 종료 순서 때문에 실패하던 캐시 무효화, **코드 리뷰로 찾은 보안 · 데이터 손실 · 경합** …) | [docs/VERIFICATION.md](docs/VERIFICATION.md) |
+| **실데이터 검증** | 8개 출처 실데이터로 전체 배치를 돌리고 문제 214건을 재현 → 수정 → 회귀 테스트로 고정 (재시작 누락, 좀비 실행, 순액·액면 이중 공시, 공시 오탐, 동시 시작 직렬화 충돌, 자율공시 서식, **부하 중 OOM 킬**, **계정이 바뀐 누적 차분이 만든 오경보**, 종료 순서 때문에 실패하던 캐시 무효화, **코드 리뷰로 찾은 보안 · 데이터 손실 · 경합** …) | [docs/VERIFICATION.md](docs/VERIFICATION.md) |
 
 ---
 
@@ -93,7 +98,8 @@ make obs                  # (선택) Prometheus :9490 · Grafana :3401
 | `REB_API_KEY` | 한국부동산원 R-ONE Open API 인증키 | 가격지수 없음 (키 없이 부르면 샘플 5건뿐이라 호출하지 않음) |
 | `SGIS_CONSUMER_KEY` / `SGIS_CONSUMER_SECRET` | SGIS 서비스 ID / 보안 Key | 총가구 없음 (경계도 V-World 가 없으면 SGIS 로 대체하므로 필요) |
 | `VWORLD_API_KEY` · `VWORLD_DOMAIN` | V-World 인증키와 등록한 서비스 URL | 경계를 **SGIS 행정구역 경계로 대체** ([ADR-010](docs/adr/010-boundary-source.md)) |
-| `DATA_GO_KR_KEY` | 공공데이터포털 일반 인증키 — **아파트 매매 실거래가 · 주식시세 두 API 모두 활용신청 승인 필요** | 실거래·주가 Job 이 "키 없음" |
+| `DATA_GO_KR_KEY` | 공공데이터포털 일반 인증키 — **아파트 매매 실거래가 · 주식시세 · 청약홈 분양정보 세 API 모두 활용신청 승인 필요** (청약홈은 `api.odcloud.kr` 이지만 같은 키) | 실거래·주가·분양 공고 Job 이 "키 없음" |
+| `APPLYHOME_DAILY_CALL_LIMIT` · `PRESALE_FROM_YM` | 청약홈 자체 일일 상한(기본 1,000 — 포털 마이페이지의 일일 트래픽보다 낮게) · 처음 받을 모집공고 월(기본 2023-01) | 기본값 |
 | `NEXT_PUBLIC_KAKAO_JS_KEY` | 카카오 JavaScript 키 (플랫폼 Web 도메인에 `http://localhost:3400` 등록) | 지도가 **SVG 단계구분도**로 대체 표시 |
 | `ADMIN_PASSWORD` · `ANALYST_PASSWORD` | 화면 로그인 (12자 이상, `make up` 이 자동 생성) | 로그인 불가 (조회는 가능) |
 | `ADMIN_TOKEN` | 스크립트용 서비스 토큰 `X-Admin-Token` (자동 생성) | 스크립트로 변경 불가 |
@@ -138,12 +144,12 @@ flowchart TB
   subgraph internal["내부망 (포트 미공개)"]
     web["web · Next.js 16 (React 18 · Tailwind · Recharts · 카카오 지도)<br/>CSP"]
     api["api · Spring Boot 4.1 / Java 25 (G1 · 힙 60% · 1 GB 한도)<br/>REST · Spring Security(세션+CSRF · 역할 · 토큰)<br/>레이트리밋 · 감사 로그 · 조회 캐시 · 외부 API 키 없음"]
-    worker["worker · 같은 이미지<br/>요청 큐 소비(SKIP LOCKED) · 스케줄러<br/>Spring Batch Job 14개 · 외부 API 호출<br/>알림 outbox 나누기 · 웹훅 전송(재시도)"]
+    worker["worker · 같은 이미지<br/>요청 큐 소비(SKIP LOCKED) · 스케줄러<br/>Spring Batch Job 15개 · 외부 API 호출<br/>알림 outbox 나누기 · 웹훅 전송(재시도)"]
     pg[("PostgreSQL + PostGIS<br/>ref · dart · mkt · risk · ops · notify + BATCH_*<br/>런타임 계정 buildrisk_app = DML 전용")]
     redis[("Redis 7 (비밀번호)<br/>조회 캐시(세대 키 br:gen) · 세션 · 레이트리밋 · 로그인 잠금")]
     prom["Prometheus · Grafana (obs)"]
   end
-  ext["Open DART · KOSIS · R-ONE · SGIS · V-World<br/>국토부 실거래가 · 금융위 주식시세"]
+  ext["Open DART · KOSIS · R-ONE · SGIS · V-World<br/>국토부 실거래가 · 금융위 주식시세 · 한국부동산원 청약홈"]
   hook["웹훅 수신처 (Slack · 서명 JSON)"]
   kakao["카카오 지도 JS"]
 
@@ -182,7 +188,7 @@ sequenceDiagram
   W->>Q: DONE / FAILED (+ _next 로 다음 Job)
 ```
 
-자세한 설계 결정은 [docs/adr](docs/adr/README.md) (ADR 31건).
+자세한 설계 결정은 [docs/adr](docs/adr/README.md) (ADR 32건).
 
 ### 기술 스택
 
@@ -194,7 +200,7 @@ sequenceDiagram
 | 캐시 · 세션 | Redis 7 · 프로세스 안 캐시 | 목록 · 상세 read-through(세대 키 `br:gen` 일괄 무효화) · 세션 · 레이트리밋 · 로그인 잠금 / 지도 경계는 버전별 gzip 바이트 ([ADR-022](docs/adr/022-read-cache.md)) |
 | 화면 | Next.js 16 (Pages Router, 운영 빌드 webpack — [ADR-028](docs/adr/028-nextjs16-bundler.md)) · React 18 · TypeScript · Tailwind · Recharts 3 · 카카오 지도 | 접근성 탭 · 좁은 화면 메뉴 · 역할에 따른 버튼 · CSP · 차트 지연 로드 · 페이지 넘김 · 1·2·5 눈금 |
 | 관측 | Micrometer → Prometheus · Grafana · ECS 구조화 로그 | 관리 포트 8411 분리, 조회 캐시 적중률 지표 ([ADR-018](docs/adr/018-observability.md)) |
-| 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright · **k6** | 백엔드 344개 · 웹 단위 50개 · E2E 55개 · 부하 · 레이트리밋 |
+| 테스트 | JUnit 6 · Testcontainers 2 (PostGIS · Redis) · WireMock · MockMvc · Playwright · **k6** | 백엔드 372개 · 웹 단위 53개 · E2E 56개 · 부하 · 레이트리밋 |
 | 도구 | Python 3.11 (표준 라이브러리) | 외부 API 키 스모크 · 골든 fixture 캡처 (`tools/smoke.py`) |
 | 운영 · CI | Docker Compose(읽기 전용 · cap_drop · no-new-privileges · **서비스별 메모리 한도** · healthcheck) · nginx(edge) · Makefile · GitHub Actions | 테스트 · gitleaks · **Trivy** · Dependabot ([ADR-021](docs/adr/021-container-memory.md)) |
 | 도입하지 않음 | Kafka/CDC · ClickHouse · Kubernetes | 이유와 도입 조건: [ADR-011](docs/adr/011-out-of-scope-infra.md) |
@@ -219,6 +225,7 @@ sequenceDiagram
 | 12 | `aptTradeJob` | 매주 금 04:30 | (시군구 × 계약월) → 실거래(XML, 1,000건씩) → 월 파티션 교체 → 화면 단위 집계 | 20 · 동시 4 / 수집 원장에서 재시작 · 최근 달부터 | FR-406 · [ADR-015](docs/adr/015-apt-trade.md) |
 | 13 | `stockPriceJob` | 평일 18:30 | 유니버스 종목 → 주식시세(JSON) 마지막 저장일 다음 날부터 | 10 · 동시 4 | FR-601 · [ADR-017](docs/adr/017-stock-backtest.md) |
 | 14 | `pfExposureJob` | 매일 04:00 | 정기보고서(기업 · 분기마다 최신 제출본, `fromPeriod` 기본 2023Q4) → document.xml 에서 **우발부채 구간만 스트리밍** → 보관 + PF 구조화 → 사업장 지역 해석 | 10 · 동시 4 / 파서 버전이 낮으면 **호출 없이 재파싱** | FR-304 · [ADR-024](docs/adr/024-pf-contingent-liabilities.md) |
+| 15 | `presaleSyncJob` | 매일 04:40 | (APT 공고 · 잔여세대, 모집공고 월) → 청약홈(JSON, 500건씩) → 원문 보관 · 사라진 공고 표시 → 주소 → 시군구 · 시공사명 → 기업 · 잔여세대 → 원 공고 → 화면 단위 월 · 롤링 시계열 → 바뀐 공고의 주택형 | 5(월) · 10(공고) · 동시 4 / 수집 원장 + DB 상태에서 재시작 · `maxCalls` 는 실행 합계 · 0건이 된 달 보호 | [ADR-032](docs/adr/032-presale-notices.md) |
 
 실행은 모두 **요청 큐**를 거칩니다 — 화면·API 요청, 스케줄러(`BATCH_SCHEDULING_ENABLED=true`), 체인(`_next`: 지표 → 규칙) 모두 같은 경로로 기록됩니다.
 프로세스가 죽어 STARTED 로 남은 실행은 하트비트(Step `last_updated`)가 10분 넘게 멈추면 다음 실행 요청 때 자동으로 FAILED 정리 후 restart 되고,
@@ -236,7 +243,8 @@ sequenceDiagram
 경보 근거 문장은 사람이 읽는 단위로 씁니다: 2조 1,250억원 · 838호(20,950%) · 영업손실 분기는 음수 배율 대신 '영업손실'(숫자는 관측값에 그대로).
 
 **지역 지표** — 미분양 · 천 가구당 미분양 · 미분양 3개월 증감률 · 매매/전세지수 3개월 변화 · 전세·매매 괴리 ·
-**아파트 매매 거래 · 거래량 전년 동월 대비 · 계약 해제 비율 · ㎡당 중위 매매가 · 전년 동월 대비** (신고가 들어오는 중인 최근 두 달 제외).
+**아파트 매매 거래 · 거래량 전년 동월 대비 · 계약 해제 비율 · ㎡당 중위 매매가 · 전년 동월 대비** (신고가 들어오는 중인 최근 두 달 제외) ·
+**최근 12개월 분양 공고 세대 · 앞으로 12개월 입주 예정 세대(천 가구당, 청약홈 공고 단지 — 조합원분 · 청약 없는 단지가 빠진 하한)** — 기준월(≤ 이번 달)의 롤링 합이라 미래 달이 지표 기간이 되지 않고, 입주 예정은 수집 원장이 공고 → 입주 간격 90% 분위(43개월)를 덮은 기준월부터.
 
 | 규칙 | 대상 | 조건 (파라미터 기본값) | 심각도 |
 |---|---|---|---|
@@ -250,6 +258,7 @@ sequenceDiagram
 | R-C05 | 기업 | 가장 최근 채무보증 결정 공시의 채무보증 총 잔액 / 자기자본 ≥ 100% (원문 주석의 '한도 기준' 여부 · 사용 잔액을 근거에 표시) | HIGH |
 | R-X01 | 기업 × 지역 | 최근 1년 현재 수주 금액 중 천 가구당 미분양 ≥ 5 지역 비중 ≥ 50% (해당 계약 2건 이상) | MEDIUM |
 | R-C06 | 기업 | 정기보고서 PF 보증(단독 + 컨소시엄 회사분) / 자기자본 ≥ 100% 또는 12개월 내 만기 PF 대출 / 자기자본 ≥ 50% — 대조가 어긋나면 근거 문장에 표시 | HIGH |
+| R-X02 | 기업 × 지역 | 최근 1년 청약홈 분양 공고(시공사로 대조) 세대 중 천 가구당 미분양 ≥ 5 지역 비중 ≥ 50% (해당 공고 2건 이상, 미분양 지표 없는 지역은 분모 제외, 컨소시엄은 지분 미공개라 나누지 않음) | MEDIUM |
 
 R-R01 의 `minUnsoldUnits` 는 구현 중 추가한 파라미터입니다 — 미분양 0 → 3호 같은 작은 기저의 증감률 잡음을 거릅니다.
 
@@ -274,8 +283,8 @@ R-R01 의 `minUnsoldUnits` 는 구현 중 추가한 파라미터입니다 — �
 | 13 | `GET /mapping/unmapped` · `POST`/`DELETE /mapping/account-rules` 🔒 · `PUT /mapping/region-codes` 🔒 | 미매핑 계정·지역 · 매핑률 · 계정 규칙 추가·삭제 · 지역 수동 매핑 |
 | 14 | `GET /batch/executions` · `/batch/executions/{id}` · `POST /batch/executions/{id}/recover` 🔒 | Job 실행 이력 · Step · 스킵 · restart 이력 · 멈춘 실행 정리 |
 | 15 | `POST /batch/jobs/{jobName}/launch` 🔒 · `GET /batch/requests` | 실행 요청을 큐에 넣음 (202 + requestId · 예상 호출 수) · 요청 이력 |
-| 16 | `GET /companies/{corpCode}/filings` · `/pf` · `/sites` · `/prices` | 수주 계약 · 채무보증(원문 구조화) · PF 우발채무(분기별 추이 · 만기 구간 · 종합요약표 · 사업장 × 미분양 · 대조) · 일별 종가 + 경보 공개일 |
-| 17 | `GET /regions/{regionCd}/contracts` · `/sites` · `GET /exposure` | 지역에 걸린 수주 · 사업장 카드(법정동 · 지번 × 동 단위 아파트 시장, ADR-026) · 기업별 노출 요약 |
+| 16 | `GET /companies/{corpCode}/filings` · `/pf` · `/sites` · `/prices` · `/presales` | 수주 계약 · 채무보증(원문 구조화) · PF 우발채무(분기별 추이 · 만기 구간 · 종합요약표 · 사업장 × 미분양 · 대조) · 일별 종가 + 경보 공개일 |
+| 17 | `GET /regions/{regionCd}/contracts` · `/sites` · `/presales` · `GET /exposure` | 지역에 걸린 수주 · 사업장 카드(법정동 · 지번 × 동 단위 아파트 시장, ADR-026) · 분양 카드(최근 12개월 청약홈 공고 · 앞으로 12개월 입주 예정 · 잔여세대, ADR-032) · 기업별 노출 요약(분양 공고 · 분양 위험 지역 비중 포함) |
 | 18 | `GET /scorecard?horizonMonths=6·12·24` · `GET /backtest?horizon=20·60·120` | 경보 성적표(부실 사건 대비 정밀도 · 재현율 · 선행 기간 · 사건 · 판정 내역) · 규칙별 경보 뒤 초과수익률 |
 | 19 | `POST /auth/login` · `POST /auth/logout` · `GET /auth/me` · `GET /admin/audit` 🔒 | 세션 로그인 · 현재 사용자 · 감사 로그 |
 | 20 | `GET /me/notifications` · `GET /me/notifications/unread-count` · `POST /me/notifications/read` 🔑 | 받은 알림함 · 읽지 않은 수 · 읽음 표시 (조회도 로그인, 본인 것만) |
@@ -289,27 +298,27 @@ R-R01 의 `minUnsoldUnits` 는 구현 중 추가한 파라미터입니다 — �
 
 ---
 
-## 6. 데이터 모델 (7 스키마 · 41 테이블 + 실거래 파티션 · BATCH_*)
+## 6. 데이터 모델 (7 스키마 · 46 테이블 + 실거래 파티션 · BATCH_*)
 
 | 스키마 | 테이블 |
 |---|---|
 | `ref` | company · universe_override · universe_history · std_account · account_map · region · region_code_map |
 | `dart` | fs_fetch(수집 상태) · fs_raw(원천 불변) · fs_std(표준화 파생) · disclosure · **filing_doc(원문 + 파서 버전) · contract · contract_termination · guarantee** · pf_report · pf_summary · pf_site |
-| `mkt` | stat_series · region_stat · region_metric · **apt_trade(계약월 연 단위 파티션 2015~2030 + DEFAULT) · apt_trade_fetch · stock_daily** |
+| `mkt` | stat_series · region_stat · region_metric · **apt_trade(계약월 연 단위 파티션 2015~2030 + DEFAULT) · apt_trade_fetch · stock_daily** · **presale_notice(원문 · 사라짐 표시) · presale_notice_builder(시공사 대조 상태) · presale_notice_model · presale_remainder · presale_fetch(수집 원장)** |
 | `risk` | company_metric · rule(버전 · created_by) · alert(멱등키 · 근거 CHECK · acked_by) |
 | `ops` | collect_run · calc_run · api_quota(제공기관별 일일 호출) · skip_log · **job_request(실행 요청 큐) · worker(등록부) · audit_log(추가 전용)** · BATCH_* |
 | `notify` | outbox(경보와 같은 트랜잭션) · inbox(알림함) · subscription · watch(관심 목록) · webhook(암호화 저장) · delivery(전송 내역) |
 | `public` | flyway_schema_history (런타임 계정 접근 불가) |
 
-마이그레이션: `V1~V21` + `afterMigrate`(런타임 계정 권한 동기화). seed(`seed/*.csv · *.yml`)는 기동 시 멱등 동기화합니다.
+마이그레이션: `V1~V22` + `afterMigrate`(런타임 계정 권한 동기화). seed(`seed/*.csv · *.yml`)는 기동 시 멱등 동기화합니다.
 
 ---
 
 ## 7. 테스트 · 측정값
 
 ```bash
-make test        # 백엔드 344개 (단위 · 골든 · 구조 + Testcontainers 통합, javac 경고 = 오류) + 웹 타입 검사 · ESLint · 단위 50개
-make e2e         # Playwright 55개 (스택이 떠 있어야 함, 관리자 로그인 · XFF 위조 시나리오 포함) — 실패하면 트레이스 · 스크린샷이 web/e2e-failures/ 에 남음
+make test        # 백엔드 372개 (단위 · 골든 · 구조 + Testcontainers 통합, javac 경고 = 오류) + 웹 타입 검사 · ESLint · 단위 53개
+make e2e         # Playwright 56개 (스택이 떠 있어야 함, 관리자 로그인 · XFF 위조 시나리오 포함) — 실패하면 트레이스 · 스크린샷이 web/e2e-failures/ 에 남음
 make load        # k6 부하 (50 VU · 90초, edge 경유)
 make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 ```
@@ -365,7 +374,7 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 | 공시 원문 1,313건 수집·구조화 | 263 s (DART 호출 간격 200 ms 가 천장) · **파서 개정 후 재파싱 3.8 s · 호출 0** | — |
 | 주가 43종목 × 3년 (31,138행) | 27 s (43 호출) | — |
 
-데이터 품질·적재 결과와 실데이터·정적 분석·부하 시험·코드 리뷰 · 배포 리허설 · 2차 코드 리뷰로 찾은 문제 212건(그중 1건은 검토 뒤 되돌림 — 179)은 [docs/VERIFICATION.md](docs/VERIFICATION.md).
+데이터 품질·적재 결과와 실데이터·정적 분석·부하 시험·코드 리뷰 · 배포 리허설 · 2차 코드 리뷰 · 청약홈 추가로 찾은 문제 214건(그중 1건은 검토 뒤 되돌림 — 179)은 [docs/VERIFICATION.md](docs/VERIFICATION.md).
 부하 수치는 다른 프로젝트의 스택이 함께 도는 개발용 맥에서 잰 값이라 절대값은 흔들립니다 — 비교는 같은 날 연달아 잰 값끼리입니다.
 
 ## 8. 설계서 미결정 사항 → 결과
@@ -393,9 +402,10 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 - 채무보증 '총 잔액'은 회사에 따라 보증 한도(미사용분 포함)입니다(원문 185건 중 91건 주석). 규칙은 공시값 그대로 쓰고, 주석으로 사용 잔액을 계산할 수 있는 34건만 근거에 함께 표시합니다.
 - 백테스트는 표본이 작고(규칙당 수~수십 건) 수정주가가 아니며 임계값을 사후에 정했습니다 — 규칙 점검용이지 투자 신호가 아닙니다.
 - PF 우발채무는 금감원 주석공시 모범사례(2024.1, 2023년도 재무제표부터 권고)의 종합요약표가 있는 보고서만 구조화합니다 — 252 / 472건(26개사). 그 전 보고서와 회사 고유 서식(194건)은 추정하지 않고 '요약표 없음'으로 둡니다. 본문 서술 합계와 어긋난 18건은 대부분 원문 쪽 기준 차이(컨소시엄 전체분 · 대출잔액 · 보증한도)입니다.
-- 사업장 카드는 공시 주소와 실거래 표기가 정확히 같을 때만 동 · 지번을 붙입니다(현재 공급계약의 48%). 같은 지번의 기존 단지는 재건축 · 재개발 전 단지일 수 있습니다. 시군구 단위 입주 예정 물량은 공개 API 가 없어(시도 단위만) 넣지 않았습니다.
+- 사업장 카드는 공시 주소와 실거래 표기가 정확히 같을 때만 동 · 지번을 붙입니다(현재 공급계약의 48%). 같은 지번의 기존 단지는 재건축 · 재개발 전 단지일 수 있습니다. 시군구 단위 입주 예정 물량은 공개 API 가 없어(시도 단위만) 청약홈 공고 단지 기준 **하한**으로만 봅니다(아래).
 - 근거 계보는 지금 저장된 지표 · 표준계정을 보여 줍니다 — 경보 평가 뒤 정정공시가 들어오면 근거 문장의 값과 다를 수 있습니다(평가 시점 스냅샷은 저장하지 않음). 2026-10-08 이전에 받은 공시는 수집 실행 기록이 없습니다.
 - R-C06 임계값(100% · 50%)은 이 프로젝트의 첫 값이고, PF 지표가 2024-03 부터라 성적표에서 평가할 수 있는 사건이 4건뿐입니다.
+- 청약홈 분양 공고는 청약을 거친 APT 단지만이라 '입주 예정 세대'는 전체 입주 물량의 하한입니다(조합원분 · 청약 없이 공급된 단지 · 오피스텔 제외). 2023-01 공고부터 받아 입주 예정 지표는 2026-07 기준월부터 나옵니다. 컨소시엄은 지분이 공고에 없어 세대를 각 시공사에 그대로 셉니다(과대 가능). 시공사명은 76.8% 만 기업으로 대조되고(나머지는 같은 이름 여럿 · 없음으로 남김), 인천 옛 구 이름 등 시도만 풀린 공고(43건)는 지역 지표에서 빠집니다.
 - 경보 성적표의 부실 사건은 5건뿐이고(현재 상장 기업만 — 이미 상장폐지된 부실 기업은 빠진 생존 편향), 공시 제목 키워드로 판정합니다. 비율보다 구간과 사건 목록을 함께 봐야 합니다.
 
 ## 10. 폴더 구조
@@ -404,19 +414,19 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 buildrisk-radar/
 ├─ app/                      Spring Boot 4.1 (Gradle, Java 25 툴체인)
 │  └─ src/main/java/com/buildrisk/radar/
-│     ├─ company · metric · region · market · filing · alert · insight · notify · export · ops
+│     ├─ company · metric · region · market · filing · presale · alert · insight · notify · export · ops
 │     │                      기능 모듈 — 각각 api(컨트롤러) · app(흐름 · 검증 · 화면용 조회) · domain(규칙 · 계산, 프레임워크 무관) · data(저장소) (ADR-029)
-│     ├─ batch/              jobs/ (Job 14개) · queue/ (요청 큐 · worker · 등록부) · support/ (Launcher · QuotaGuard · CLI · 스케줄러)
-│     ├─ adapters/           dart · kosis · rone · sgis · vworld · datagokr(실거래 · 주식시세) · seed(seed 파일 → domain) · common(한도 · 재시도 · 간격 · 지표)
+│     ├─ batch/              jobs/ (Job 15개) · queue/ (요청 큐 · worker · 등록부) · support/ (Launcher · QuotaGuard · CLI · 스케줄러)
+│     ├─ adapters/           dart · kosis · rone · sgis · vworld · datagokr(실거래 · 주식시세) · applyhome(청약홈) · seed(seed 파일 → domain) · common(한도 · 재시도 · 간격 · 지표)
 │     └─ common/             설정 · 역할(api/worker) · security(로그인 · 세션 · CSRF · 토큰 · 레이트리밋 · 감사) · 오류 규약 · web(traceId · 쪽 · 조회 조건 · CSV) · cache(Redis · 프로세스 안)
-├─ app/src/main/resources/db/migration/   V1 … V21 · afterMigrate(런타임 계정 권한)
-├─ app/src/test/             단위 · Testcontainers 통합 · WireMock fixture (DART 재무 · 공시 원문 · 실거래 · 주가 실응답)
+├─ app/src/main/resources/db/migration/   V1 … V22 · afterMigrate(런타임 계정 권한)
+├─ app/src/test/             단위 · Testcontainers 통합 · WireMock fixture (DART 재무 · 공시 원문 · 실거래 · 주가 · 청약홈 실응답)
 ├─ web/                      Next.js 16 — pages · components(그리기) · lib/hooks(상태 · 부수효과) · lib/api(기능별 API 모듈) · lib/domain(순수 함수) · e2e (ADR-030)
 ├─ ops/                      prometheus · grafana(프로비저닝 대시보드) · k6(부하 · 레이트리밋)
-├─ seed/                     표준계정 · 매핑 규칙 · 업종코드 · 이벤트 사전 · 규칙 · 통계 시리즈 · 지역 별칭
+├─ seed/                     표준계정 · 매핑 규칙 · 업종코드 · 이벤트 사전 · 규칙 · 통계 시리즈 · 지역 별칭 · 시공사 별칭
 ├─ tools/smoke.py            외부 API 키 스모크 · 골든 fixture 캡처
-├─ docs/adr/                 설계 결정 기록 31건
-├─ docs/VERIFICATION.md      실데이터 검증 기록 (적재 결과 · 품질 · 찾아서 고친 문제 212건 · 부하 · 보안 확인)
+├─ docs/adr/                 설계 결정 기록 32건
+├─ docs/VERIFICATION.md      실데이터 검증 기록 (적재 결과 · 품질 · 찾아서 고친 문제 214건 · 부하 · 보안 확인)
 ├─ docker-compose.yml · Makefile · .env.example · .github/ (ci · dependabot)
 ├─ CLAUDE.md · .claude/settings.json   AI 코딩 도구(Claude Code) 작업 안내 · 명령 허용/금지 목록 (.env 읽기 금지)
 ```

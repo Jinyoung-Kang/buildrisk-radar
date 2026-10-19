@@ -57,6 +57,10 @@ public class BatchScheduler {
     @Scheduled(cron = "0 20 4 15 1 *", zone = Z)
     void households() { run("sgisHouseholdJob"); }
 
+    /** 청약홈 분양 공고 — 05:00 지표 계산 전에 시군구 시계열까지 (ADR-032) */
+    @Scheduled(cron = "0 40 4 * * *", zone = Z)
+    void presales() { run("presaleSyncJob"); }
+
     /** 금융위 시세는 영업일 다음 날 오후 갱신 → 평일 저녁 (활용가이드 0.2) */
     @Scheduled(cron = "0 30 18 * * MON-FRI", zone = Z)
     void stocks() { run("stockPriceJob"); }

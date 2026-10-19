@@ -71,3 +71,45 @@ series:
     cycle: MM
     agg: MEAN
     params: {}
+  # 청약홈 분양 공고 (ADR-032) — presaleSyncJob 이 공고(시군구로 풀린 것만)를 화면 단위 시군구로 직접 집계해 넣습니다 (agg 미사용).
+  # 세대 = 공급규모(일반 + 특별공급, 조합원분 제외). 원 월별 두 시계열은 화면 추세용, 지표는 as-of 월 기준 롤링 두 시계열만 씀
+  - id: PRESALE_SUPPLY_HH
+    source: PRESALE
+    table: getAPTLttotPblancDetail
+    item: TOT_SUPLY_HSHLDCO
+    statCode: PRESALE_SUPPLY
+    name: 분양 공고 세대 (모집공고 월)
+    unit: 세대
+    cycle: MM
+    agg: SUM
+    params: {}
+  - id: PRESALE_MOVEIN_HH
+    source: PRESALE
+    table: getAPTLttotPblancDetail
+    item: MVN_PREARNGE_YM
+    statCode: PRESALE_MOVEIN
+    name: 입주 예정 세대 (입주예정월 · 청약홈 공고 단지)
+    unit: 세대
+    cycle: MM
+    agg: SUM
+    params: {}
+  - id: PRESALE_SUPPLY_12M_HH
+    source: PRESALE
+    table: getAPTLttotPblancDetail
+    item: TOT_SUPLY_HSHLDCO
+    statCode: PRESALE_SUPPLY_12M
+    name: 최근 12개월 분양 공고 세대 (기준월까지)
+    unit: 세대
+    cycle: MM
+    agg: SUM
+    params: { window: 12 }
+  - id: PRESALE_MOVEIN_12M_AHEAD_HH
+    source: PRESALE
+    table: getAPTLttotPblancDetail
+    item: MVN_PREARNGE_YM
+    statCode: PRESALE_MOVEIN_12M
+    name: 앞으로 12개월 입주 예정 세대 (기준월 다음 달부터 · 청약홈 공고 단지)
+    unit: 세대
+    cycle: MM
+    agg: SUM
+    params: { window: 12, lookbackMonths: 43 }

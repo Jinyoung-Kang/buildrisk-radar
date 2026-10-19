@@ -23,7 +23,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "fixtures" / "smoke"
-KEY_PARAMS = re.compile(r"(crtfc_key|apiKey|KEY|key|consumer_key|consumer_secret|accessToken)=([^&\s\"]+)")
+KEY_PARAMS = re.compile(r"(crtfc_key|apiKey|serviceKey|KEY|key|consumer_key|consumer_secret|accessToken)=([^&\s\"]+)")
 
 
 def load_env() -> dict[str, str]:
@@ -185,6 +185,38 @@ def stock(env, r: Result):
         r.add("주식시세", False, body[:160].decode("utf-8", "replace"))
 
 
+def applyhome(env, r: Result):
+    """청약홈 분양정보(api.odcloud.kr, JSON) — 공공데이터포털 키가 그대로 통하는지 · 날짜 형식 · 주택형 · 잔여세대."""
+    key = env.get("DATA_GO_KR_KEY")
+    if not key:
+        return r.add("청약홈", None, "DATA_GO_KR_KEY 없음 — 건너뜀")
+    base = "https://api.odcloud.kr/api/ApplyhomeInfoDetailSvc/v1"
+    first = (dt.date.today().replace(day=1) - dt.timedelta(days=1)).replace(day=1)
+    nxt = (first + dt.timedelta(days=32)).replace(day=1)
+    window = {"cond[RCRIT_PBLANC_DE::GTE]": first.isoformat(), "cond[RCRIT_PBLANC_DE::LT]": nxt.isoformat()}
+    st, body = get(f"{base}/getAPTLttotPblancDetail", {"serviceKey": key, "page": 1, "perPage": 3, **window})
+    save("applyhome_apt_notice", body, [key])
+    try:
+        d = json.loads(body)
+    except ValueError:
+        return r.add("청약홈", False, f"HTTP {st} {body[:160].decode('utf-8', 'replace')}")
+    rows = d.get("data") or []
+    if st != 200 or not rows:
+        return r.add("청약홈", False, f"HTTP {st} {str(d)[:160]}")
+    one = rows[0]
+    _, mb = get(f"{base}/getAPTLttotPblancMdl", {"serviceKey": key, "page": 1, "perPage": 50,
+                                                 "cond[HOUSE_MANAGE_NO::EQ]": one["HOUSE_MANAGE_NO"],
+                                                 "cond[PBLANC_NO::EQ]": one["PBLANC_NO"]})
+    save("applyhome_apt_model", mb, [key])
+    _, rb = get(f"{base}/getRemndrLttotPblancDetail", {"serviceKey": key, "page": 1, "perPage": 3, **window})
+    save("applyhome_remainder", rb, [key])
+    models = json.loads(mb).get("data") or []
+    rem = json.loads(rb)
+    r.add("청약홈", True, f"{first:%Y-%m} APT 공고 {d.get('matchCount')}건 · 예 {one.get('HOUSE_NM')} "
+          f"시공 {one.get('CNSTRCT_ENTRPS_NM')!r} 공고일 {one.get('RCRIT_PBLANC_DE')!r} · 주택형 {len(models)}개 · "
+          f"잔여세대 {rem.get('matchCount')}건")
+
+
 def kakao(env, r: Result):
     key = env.get("NEXT_PUBLIC_KAKAO_JS_KEY")
     if not key:
@@ -213,7 +245,7 @@ def capture_dart(env, corps: list[str], year: str, reprt: str):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--only", help="쉼표 목록: dart,kosis,rone,sgis,vworld,kakao")
+    ap.add_argument("--only", help="쉼표 목록: dart,kosis,rone,sgis,vworld,rtms,stock,applyhome,kakao")
     ap.add_argument("--capture-dart", help="골든 fixture 로 저장할 corp_code 목록")
     ap.add_argument("--year", default=str(dt.date.today().year - 1))
     ap.add_argument("--reprt", default="11011")
@@ -222,7 +254,7 @@ def main():
     if a.capture_dart:
         return capture_dart(env, a.capture_dart.split(","), a.year, a.reprt)
     checks = {"dart": dart, "kosis": kosis, "rone": rone, "sgis": sgis, "vworld": vworld, "rtms": rtms, "stock": stock,
-              "kakao": kakao}
+              "applyhome": applyhome, "kakao": kakao}
     only = a.only.split(",") if a.only else list(checks)
     print("외부 API 스모크 — 응답은 fixtures/smoke/ 에 키를 가린 채 저장합니다.")
     r = Result()
