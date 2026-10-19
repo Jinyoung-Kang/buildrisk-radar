@@ -51,3 +51,7 @@
 - `GET /api/v1/companies/{c}/filings` 에 `riskShare`(경보 R-X01 과 같은 계산의 위험 지역 수주 비중)를 **더했다**(필드 추가 — 호환).
   `GET /api/v1/exposure` 의 `days` · `unsoldPer1kHh` 를 주지 않으면 **R-X01 의 최신 파라미터**를 쓴다(전에는 365 · 5 고정 — 규칙이 기본값이면 같음).
   노출 CSV(`/api/v1/export/exposure.csv`)도 같고, 노출 화면은 고르기 전에는 비워 보내 서버 기본값을 받는다(VERIFICATION 208 — 처음엔 API 에만 넣었음).
+
+**덧붙임 (2026-10-20, 사용자 결정) — API 안내 화면 `/developers` 를 없앰**
+- 상단 메뉴의 'API' 와 화면을 뺐다(대시보드의 'API · CSV' 링크도). 읽기 API · CSV 내려받기 · 계보는 그대로이고, 엔드포인트 명세는 Swagger UI
+  (`/swagger-ui/index.html`, 지표·출처 화면의 링크), v1 호환 정책은 위 3 이 기준이다. `/developers` 는 404 — E2E 가 메뉴 · 대시보드에 링크가 없음과 함께 확인.

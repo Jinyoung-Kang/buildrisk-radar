@@ -59,7 +59,7 @@ k6 로 잰 **성능과 메모리 안정성**(50 VU 약 4,000 req/s · API p95 �
 | **회계 데이터 표준화** | 원천 불변(`fs_raw`) → 표준계정 12개(`fs_std`), account_id 우선 · 계정명 정규식 · **재무상태표 부채 구간(유동/비유동) 판별** · 순액/액면 중복 제거 · 대체 규칙, 누적 → 분기 차분(Q2 = 반기누적 − Q1). 52개사 1,063개 기간 회계 항등식 일치(±1원 반올림 3건) | `AccountStandardizerTest` · **실제 DART 응답 골든 테스트** · `QuarterAndPeriodTest` |
 | **서로 다른 지역 코드 체계 통합** | KOSIS(시 단위)·SGIS(일반구)·R-ONE(권역 경로)을 기준 시군구로 매핑. 2026-07 광주·전남 통합, 인천 행정체제 개편까지 실측 반영 | 매핑률 KOSIS 98.8% · R-ONE 100% · SGIS 98.8%, 미매핑 6건은 모두 사유 기록 |
 | **설명 가능한 규칙 엔진** | 로직 = Java 클래스, 임계값 = DB 버전. 경보 멱등키(규칙·버전·대상·시점), 근거 JSON, 자동 CLOSED(RESOLVED·SUPERSEDED·RULE_CHANGED·EXPIRED) | `RuleEvaluatorTest` · `RuleEvalJobIT` |
-| **추적성 · 근거 계보** ([ADR-027](docs/adr/027-lineage-export.md)) | 경보 → 규칙 버전 → 지표 → 표준계정 → **원천 재무제표 줄과 그 줄을 고른 매핑 규칙**(같은 보고서를 지금 규칙으로 다시 표준화해 고름 — 저장 값과 다르면 `reproduced = false`) · 분기값은 두 누적값까지 · 통계 행 · 공시 → 수집 · 계산 실행. 화면의 '근거 계보', CSV 내려받기(OWASP 수식 주입 방어 · BOM), API 안내 화면과 v1 호환 정책 | `LineageIT`(실제 배치 3개로 경보를 만든 뒤 원천 줄까지) · 골든 테스트(explain = standardize) · `CsvWriterTest` |
+| **추적성 · 근거 계보** ([ADR-027](docs/adr/027-lineage-export.md)) | 경보 → 규칙 버전 → 지표 → 표준계정 → **원천 재무제표 줄과 그 줄을 고른 매핑 규칙**(같은 보고서를 지금 규칙으로 다시 표준화해 고름 — 저장 값과 다르면 `reproduced = false`) · 분기값은 두 누적값까지 · 통계 행 · 공시 → 수집 · 계산 실행. 화면의 '근거 계보', CSV 내려받기(OWASP 수식 주입 방어 · BOM) · v1 호환 정책(API 명세는 Swagger UI) | `LineageIT`(실제 배치 3개로 경보를 만든 뒤 원천 줄까지) · 골든 테스트(explain = standardize) · `CsvWriterTest` |
 | **API · worker 분리, DB 실행 요청 큐** ([ADR-012](docs/adr/012-api-worker-queue.md)) | API 는 요청만 넣고(202), worker 가 `FOR UPDATE SKIP LOCKED` 로 가져가 실행. 부분 유니크 인덱스로 중복 요청 409, advisory lock 으로 프로세스 간 중복 시작 차단, worker 등록부(하트비트)로 죽은 worker 의 요청만 정리, **종료 신호에 청크 경계에서 멈추고 다시 요청하면 이어감**. API 컨테이너에는 외부 API 키가 없음 | `JobRequestQueueIT` — 동시 claim 정확히 1회 · 요청 체인 · **서로 다른 Job 동시 시작(실데이터에서 발견한 SERIALIZABLE 충돌 재현 → 수정)** · `AptTradeJobIT` 정상 종료 → 이어받기(재호출 0) |
 | **보안** ([ADR-013](docs/adr/013-security.md) · [014](docs/adr/014-db-least-privilege.md)) | 세션(Redis, HttpOnly·SameSite=Strict) + CSRF(`csrf.spa()`), 역할(ANALYST·ADMIN), 스크립트용 서비스 토큰, 로그인 잠금, IP 레이트리밋, **거부된 시도까지 남는 감사 로그**, CSP 등 보안 헤더, 단일 진입점(edge — X-Forwarded-For 덮어쓰기), **DML 전용 DB 계정 · 추가 전용 감사 테이블**, 읽기 전용 컨테이너 · capability 제거 | `SecurityIT` · `LeastPrivilegeIT` · E2E · k6 로 429 확인 · CI 의 gitleaks · Trivy |
 | **공시 원문 구조화** ([ADR-016](docs/adr/016-filing-structuring.md)) | document.xml 원문을 그대로 보관 + 파서 버전 → 서식이 다른 유가·코스닥·자율공시·정정·해지를 '항목 경로'로 파싱. 파서를 고치면 **API 호출 0건으로 1,313건 재파싱(3.8초)** | 실제 원문 7건 `FilingParserTest` · `FilingJobIT` |
@@ -116,7 +116,6 @@ make obs                  # (선택) Prometheus :9490 · Grafana :3401
 |---|---|
 | http://localhost:3400 | edge(nginx) — **유일한 외부 진입점**. 화면은 web, `/api/v1` · Swagger 는 api 로 (둘 다 포트 미공개) |
 | http://localhost:3400/swagger-ui/index.html | API 문서 (springdoc, edge 경유) |
-| http://localhost:3400/developers | API 안내 — 주요 엔드포인트 · curl 예시 · 근거 · 계보 필드 · CSV 규칙 · 호환 정책 |
 | http://localhost:3401 · :9490 | Grafana · Prometheus (`make obs`) |
 
 ### AWS 데모 배포
@@ -341,7 +340,7 @@ make ratelimit   # 한 클라이언트가 분당 한도를 넘으면 429
 | PF 우발채무 | `PfExposureJobIT` · `PfExposureParserTest` · `SectionScannerTest` | Zip 스트리밍 구간 추출(청크 경계 표지) · 정정본만 수집 · 지표 SQL 실제 실행 · 다시 계산하면 갱신 · R-C06 · API 404 / 실제 보고서 19건의 표 모양별 기대값(원문 값과 대조) |
 | 구조 | `ArchitectureTest` · `RuleApiIT` | 기능 모듈 의존 방향(api → app → domain ← data) · domain 이 프레임워크에 기대지 않음 · 모듈 순환 없음 · 쓰기 SQL 은 기능 data 에만 · 검사기 자체가 우회 모양(패키지 이름 통째 · 별칭 · MERGE)을 잡는지 ([ADR-029](docs/adr/029-backend-feature-modules.md)) / 규칙 목록의 버전별 열린 경보 수(OPEN · ACK — 한 번의 조회로 바꾸기 전 동작 고정) |
 | 웹 단위 | node:test (`lib/**/*.test.ts`, `TZ=UTC`) | 순수 함수(표기 · 색 기준 · 눈금 · 변환 · 판정 · 로그인 뒤 이동 주소 · 공개 데모 설정) · 조회 상태 전이(경로에 묶인 응답 · 이전 값 · 오류) ([ADR-030](docs/adr/030-frontend-layers.md)) |
-| E2E | Playwright | 대시보드 고지 · **사용자별 진입점(찾기 → 상세)** · 지도 · 경보 근거 · **근거 계보 · CSV 내려받기 · API 안내** · **경보 페이지 넘김** · **경보 성적표** · **PF 우발채무** · **사업장 카드** · **알림(종 · 구독 · 내부망 웹훅 거부)** · 배치 모니터 · 테마(다른 탭 포함) · 보안 헤더 · 로그인/권한(공개 데모의 조회 전용 안내 포함) · 노출 · 경보 검증 · 탭 키보드 · 좁은 화면 메뉴 · **조회 경합 · 실패 표시**(응답을 붙잡거나 실패시켜 재현 — 옛 숫자에 새 이름표 · 무한 로딩 · 늦은 응답 덮어쓰기) · 카카오 SDK 대역으로 지도 툴팁 |
+| E2E | Playwright | 대시보드 고지 · **사용자별 진입점(찾기 → 상세)** · 지도 · 경보 근거 · **근거 계보 · CSV 내려받기** · **경보 페이지 넘김** · **경보 성적표** · **PF 우발채무** · **사업장 카드** · **알림(종 · 구독 · 내부망 웹훅 거부)** · 배치 모니터 · 테마(다른 탭 포함) · 보안 헤더 · 로그인/권한(공개 데모의 조회 전용 안내 포함) · 노출 · 경보 검증 · 탭 키보드 · 좁은 화면 메뉴 · **조회 경합 · 실패 표시**(응답을 붙잡거나 실패시켜 재현 — 옛 숫자에 새 이름표 · 무한 로딩 · 늦은 응답 덮어쓰기) · 카카오 SDK 대역으로 지도 툴팁 |
 
 | 측정 (NFR-06, 로컬 M 시리즈 맥, 실데이터 2026-09-24) | 결과 | 목표 |
 |---|---|---|

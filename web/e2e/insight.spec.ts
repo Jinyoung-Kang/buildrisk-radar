@@ -107,7 +107,7 @@ test("좁은 화면: 메뉴 버튼으로 이동", async ({ page }) => {
   await expect(page).toHaveURL(/\/backtest/);
 });
 
-// ADR-027 근거 계보 · 내려받기 · API 안내
+// ADR-027 근거 계보 · 내려받기
 test("근거 계보: 경보 상세에서 원천 재무제표 줄 · 매핑 규칙 · 실행까지", async ({ page, request }) => {
   const res = await request.get("/api/v1/alerts?ruleCode=R-C02&status=OPEN,ACK,CLOSED&size=1");
   const id = (await res.json()).items[0].alertId as number;
@@ -129,15 +129,14 @@ test("CSV 내려받기: 경보 목록 버튼이 BOM 으로 시작하는 CSV 를 
   expect(body.toString("utf8", 3, 40)).toContain('"alertId","ruleCode"');
 });
 
-test("API 안내: 상단 메뉴에는 없고 대시보드 링크에서 열어 근거 계보 · CSV 규칙 · 호환 정책", async ({ page }) => {
+test("API 안내 화면은 없음: 메뉴 · 대시보드에 링크가 없고 /developers 는 404 (ADR-027 덧붙임)", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("navigation", { name: "주 메뉴" }).getByRole("link", { name: "지표·출처" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "주 메뉴" }).getByRole("link", { name: "API", exact: true })).toHaveCount(0);
-  await page.getByRole("link", { name: "API · CSV" }).click();
-  await expect(page.getByRole("heading", { name: /API 안내/ })).toBeVisible();
-  await expect(page.getByRole("cell", { name: "GET /alerts/{alertId}/lineage" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "CSV 규칙" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "호환 정책 (v1)" })).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "주 메뉴" });
+  await expect(nav.getByRole("link", { name: "지표·출처" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "API", exact: true })).toHaveCount(0);
+  await expect(page.getByText(/목록은 CSV 로 내려받을 수 있습니다/)).toBeVisible();
+  await expect(page.locator('a[href="/developers"]')).toHaveCount(0);
+  expect((await page.goto("/developers"))?.status()).toBe(404);
 });
 
 // 사용자별 진입점 (대시보드)

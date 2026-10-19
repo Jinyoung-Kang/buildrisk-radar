@@ -61,7 +61,7 @@ export default function PersonaEntry({ p }: { p: Personas }) {
         </Persona>
 
         <Persona who="투자 · 분석" question="이 경보는 실제 부실을 얼마나 먼저 잡았나?"
-          foot={<>모든 경보는 <Link href="/alerts" className="text-accent hover:underline">원천 재무제표 줄까지</Link> 거슬러 오를 수 있고, <Link href="/developers" className="text-accent hover:underline">API · CSV</Link> 로 가져갈 수 있습니다.</>}>
+          foot={<>모든 경보는 <Link href="/alerts" className="text-accent hover:underline">원천 재무제표 줄까지</Link> 거슬러 오를 수 있고, 목록은 CSV 로 내려받을 수 있습니다.</>}>
           {!inv ? <p className="text-xs text-muted">성적표를 계산할 데이터가 아직 없습니다.</p> : (
             <>
               <div className="grid grid-cols-2 gap-3">
