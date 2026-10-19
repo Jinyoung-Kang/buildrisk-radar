@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  * DART 원문은 셀에 비표준 {@code <TE>} 태그를 써서 HTML 파서로 읽으면 표 밖으로 밀려나므로 XML 파서로 읽습니다.
  */
 public final class PfExposureParser {
-    public static final int VERSION = 13;
+    public static final int VERSION = 14;
     private static final Pattern UNIT = Pattern.compile("단위\\s*[:：]?\\s*(?:[^)]*?,\\s*)?(백만원|천원|억원|원)");
     private static final Pattern NUM = Pattern.compile("^\\(?-?[\\d,]+(\\.\\d+)?\\)?%?$");
     /** 소계 줄의 병합 칸: '계' · '소계' · '컨소시엄 사업 계' · '정비사업 계(단독 사업+컨소시엄 사업)' · '컨소시움 계' (회사마다 표기가 다름) */
@@ -57,6 +57,7 @@ public final class PfExposureParser {
     private static final Pattern STATED = Pattern.compile("PF(?:\\(대출\\))?[와과]관련(?:하여|한|된)?[^0-9전없]{0,15}?([\\d,]+)(백만원|천원|억원|원)(?:\\(전기말?[^)]*\\))?의신용(?:보강|을보강)");
     private static final Pattern NONE_TEXT = Pattern.compile("PF.{0,30}(신용보강|보증).{0,15}(없습니다|없음|제공하지않)");
     private static final Pattern COMPLETION_INTRO = Pattern.compile("책임준공(미이행시조건부채무인수)?약정(세부|현황)");
+    private static final Pattern SOC_EXCLUDED = Pattern.compile("제외|미포함|불포함|포함하지않|포함되지않");
 
     private PfExposureParser() {}
 
@@ -123,6 +124,7 @@ public final class PfExposureParser {
         StringBuilder context = new StringBuilder();          // 직전 큰 표 이후의 문단 · 작은 표(단위 줄) 글자
         int summaryIndex = 0;
         java.util.Set<SummaryRow> companyBasisAll = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        boolean unreadDetail = false;                          // 사업장 표 모양인데 열 이름이 달라 읽지 못한 표
         for (Element el : doc.select("P, TABLE, p, table")) {
             if (isTable(el) && el.parents().stream().anyMatch(PfExposureParser::isTable)) continue;   // 중첩 표
             if (!isTable(el)) {
@@ -153,6 +155,8 @@ public final class PfExposureParser {
                 int gc = find(cols, c -> c.startsWith("보증금액"));
                 if (sc == Scope.CONSORTIUM_ALL && gc >= 0 && COMPANY_BASIS.matcher(cols.get(gc)).find()) companyBasisAll.addAll(rows);
                 summary.addAll(rows);
+            } else if (!isDetail(cols) && detailLike(cols)) {
+                unreadDetail = true;
             } else if (isDetail(cols) && !relatedTable(ctx) && !socTable(ctx) && !completionTable(ctx)) {
                 // 특수관계자 표는 위 내역의 일부(이중 계산 방지), SOC 사업은 표준 서식의 PF 범위 밖('중도금대출, SOC 제외')
                 List<Site> rows = siteRows(grid, h, cols, category(ctx), unit, sites.size());
@@ -162,6 +166,9 @@ public final class PfExposureParser {
                 if (!rows.isEmpty() && detailSignatures.add(sig)) sites.addAll(rows);
             }
         }
+        // 요약표 없이 사업장 표 일부만 읽었으면 내지 않음 — 일부만 모은 사업장 목록을 그 회사의 PF 내역처럼 보이지 않게
+        // (동원개발: 기타사업 표가 '대출잔액' 대신 '대출금액' 열이라 정비사업 1건만 남음)
+        if (summary.isEmpty() && unreadDetail) sites.clear();
         if (summary.isEmpty() && sites.isEmpty()) {
             String text = doc.text().replaceAll("\\s+", "");
             // '해당사항 없음' 또는 'PF 관련 신용보강한 사항은 없습니다' · 'PF와 관련한 보증을 제공하지 않고' (까뮤이앤씨 · 범양건영)
@@ -227,8 +234,10 @@ public final class PfExposureParser {
             String c0 = norm(get(row, 0)), c1 = norm(get(row, 1));
             boolean total = c0.contains("합계") || c0.contains("총계");
             if (!total && !c0.isEmpty()) category = c0.replace("소계", "").replace("계", "");
-            // 구분 소계: '정비사업 소계' · '계' · '단독사업계' · '컨소시엄계(*)' 처럼 '…계' 로 끝나는 첫 칸, 또는 둘째 칸이 '계'
-            boolean subtotal = c0.contains("소계") || TOTAL_LABEL.matcher(c0).matches() || c1.equals("계") || c1.equals("소계");
+            // 구분 소계: '정비사업 소계' · '계' · '단독사업계' · '컨소시엄계(*)' 처럼 '…계' 로 끝나는 첫 칸, 또는 둘째 칸이 '계'.
+            // 구분 칸(rowspan)이 덮은 줄의 둘째 칸 '합 계'도 그 구분의 소계 — 합계 줄로 못 알아봐 행 합에 한 번 더 더했음(신세계건설)
+            boolean subtotal = c0.contains("소계") || TOTAL_LABEL.matcher(c0).matches() || c1.equals("계") || c1.equals("소계")
+                    || c1.contains("합계") || c1.contains("총계");
             if (subtotal && !total) continue;                        // 구분 소계는 합계와 중복
             if (total && perRow) continue;                           // 전체분 + 당사분이 섞인 합계 줄은 쓰지 않음
             BigDecimal g = num(get(row, guarantee), unit);
@@ -315,7 +324,11 @@ public final class PfExposureParser {
     // ------------------------------------------------------------------ 세부 내역
 
     private static boolean isDetail(List<String> cols) {
-        return has(cols, "사업지역") && has(cols, "신용보강") && has(cols, "보증금액") && has(cols, "대출잔액");
+        return detailLike(cols) && has(cols, "대출잔액");
+    }
+
+    private static boolean detailLike(List<String> cols) {
+        return has(cols, "사업지역") && has(cols, "신용보강") && has(cols, "보증금액");
     }
 
     private static List<Site> siteRows(List<List<String>> grid, int h, List<String> cols, String category, BigDecimal unit, int seq0) {
@@ -362,14 +375,24 @@ public final class PfExposureParser {
     static boolean relatedTable(String ctx) {
         String t = ctx.replaceAll("\\s+", "");
         t = t.substring(Math.max(0, t.length() - 200));
-        return RELATED_INTRO.matcher(t).find();
+        Matcher m = RELATED_INTRO.matcher(t);
+        while (m.find()) {
+            // '(*) 특수관계자에 대한 보증이 포함되어 있습니다' — 앞 표의 각주(특수관계자 몫이 그 표에 들어 있다는 말)이지 특수관계자 표 소개가 아님.
+            // 이 각주 뒤의 정비사업 세부 표를 통째로 버렸음(비에스한양)
+            int end = t.indexOf('.', m.end());
+            if (!t.substring(m.end(), end < 0 ? t.length() : end).contains("포함")) return true;
+        }
+        return false;
     }
 
-    /** SOC 사업 표인지 — 표준 서식 제목의 '(중도금대출, SOC사업 제외)' 는 SOC 표가 아님 */
+    /**
+     * SOC 사업 표인지 — 표준 서식 제목의 '(중도금대출, SOC사업 제외)' · 세부 표 소개의 '… SOC 관련 사항은 포함하지 않았습니다' 는 SOC 표가 아님
+     * (포스코이앤씨 · 비에스한양: 정비사업 세부 표를 SOC 표로 보고 버려 사업장 합이 요약표의 절반)
+     */
     static boolean socTable(String ctx) {
         String t = ctx.replaceAll("\\s+", "");
         t = t.substring(Math.max(0, t.length() - 150));             // 표 바로 앞 소개 문장만 (앞 문단의 'SOC 는 제외' 설명에 끌리지 않게 — 서희건설)
-        return t.contains("SOC") && !t.contains("제외") && !t.contains("미포함");
+        return t.contains("SOC") && !SOC_EXCLUDED.matcher(t).find();
     }
 
     /** 책임준공 약정 표인지 — 표 바로 앞 소개 문장만 봄 (PF 보증 표 설명의 '책임준공 미이행에 따른 채무인수' 같은 말에 끌리지 않게) */

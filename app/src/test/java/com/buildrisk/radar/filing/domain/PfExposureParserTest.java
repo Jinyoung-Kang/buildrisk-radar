@@ -122,6 +122,55 @@ class PfExposureParserTest {
     }
 
     @Test
+    void 신세계건설_구분_칸이_덮은_줄의_둘째_칸_합계는_소계라_행_합에_다시_더하지_않음() {
+        // 원문 요약표(천원): '기타사업'(rowspan 3) | 본PF 317,400,000 · 브릿지론 - · '합 계' 317,400,000 — v13 은 합계 줄을 사업 줄로 더해 634,800,000
+        var r = parse("shinsegae-2025q2-total-in-second-cell");
+        assertThat(r.totals().guarantee()).isEqualByComparingTo(m(317_400));
+        assertThat(r.totals().balance()).isEqualByComparingTo(m(283_000));
+        assertThat(r.summary().stream().filter(s -> s.total())).hasSize(1);
+        // 세부 3건 30,000,000 + 180,400,000 + 107,000,000천원 = 요약표 합계
+        assertThat(r.sites()).hasSize(3);
+        assertThat(r.totals().reconciled()).isTrue();
+    }
+
+    @Test
+    void 포스코이앤씨_SOC_관련_사항은_포함하지_않았다는_소개_뒤의_세부_표를_SOC_표로_버리지_않음() {
+        // 세부 내역 머리 문단 '… 중도금대출, SOC 관련 신용공여 사항은 포함하지 않았습니다. 1) 정비사업 관련 PF 대출 보증' — v13 은 정비사업 표 13건을 버림
+        var r = parse("posco-2026q2-soc-not-included");
+        assertThat(r.sites().stream().collect(Collectors.groupingBy(Site::category, Collectors.counting())))
+                .isEqualTo(Map.of("정비사업", 13L, "기타사업", 14L));
+        // 요약표(천원) 정비 702,801,647 + 기타 566,924,850 + 354,000,000 = 본문 '총 1,623,726백만원'
+        assertThat(r.totals().guarantee()).isEqualByComparingTo(new BigDecimal("1623726497000"));
+        assertThat(r.totals().sitesGuarantee()).isEqualByComparingTo(new BigDecimal("1623726497000"));
+        assertThat(r.totals().reconciled()).isTrue();
+    }
+
+    @Test
+    void 비에스한양_앞_표의_특수관계자_포함_각주는_특수관계자_표_소개가_아님() {
+        // 非PF 요약표 각주 '(*) 특수관계자에 대한 보증이 포함되어 있습니다.' 바로 뒤가 '3) … 세부 내역 ① 정비사업' — v13 은 정비사업 표(5건)를 버림
+        var r = parse("bshanyang-2025q4-related-footnote");
+        assertThat(r.sites().stream().collect(Collectors.groupingBy(Site::category, Collectors.counting())))
+                .isEqualTo(Map.of("정비사업", 5L, "기타사업", 10L));
+        assertThat(r.totals().guarantee()).isEqualByComparingTo(m(415_895 + 946_652));      // 본문 '총 1,362,547백만원'
+        // 세부 행 합: 정비 22,613 + 12,139 + 945 + 2,608 + 4,444, 기타 379,170 + 944,044 — 원문 '계' 줄(36,725 · 2,608)과 3,422 차이(0.25%)
+        assertThat(r.totals().sitesGuarantee()).isEqualByComparingTo(m(42_749 + 379_170 + 944_044));
+        assertThat(r.totals().reconciled()).isTrue();
+        assertThat(PfExposureParser.relatedTable("(*) 특수관계자에 대한 보증이 포함되어 있습니다. 3) 부동산 PF(대출) 보증 세부 내역 ① 정비사업")).isFalse();
+        // 대우건설 특수관계자 표 소개는 그대로 건너뜀
+        assertThat(PfExposureParser.relatedTable("보고기간말 현재 4건(전기말: 5건)의 기타사업 관련 특수관계자에게 제공한 PF대출보증 내역은 아래와 같습니다.")).isTrue();
+        assertThat(PfExposureParser.socTable("상대적으로 위험이 낮은 중도금대출 및 SOC 관련 사항은 포함하지 않았습니다. (단위 : 백만원)")).isFalse();
+        assertThat(PfExposureParser.socTable("(4) 부동산 PF의 SOC 보증 회사의 SOC법인과 시행사의 차입금 등과 관련하여 자금보충")).isTrue();
+    }
+
+    @Test
+    void 요약표가_없고_사업장_표_일부를_읽지_못하면_일부만_모은_사업장을_내지_않음() {
+        // 동원개발: 요약표에 보증한도 열이 없고, 기타사업 세부 표는 '대출잔액' 대신 '대출금액' — 각주 판정을 고치면 정비사업 1건만 남아 PARSED 가 됐음
+        var r = parse("dongwon-2024q3-unread-detail");
+        assertThat(r.status()).isEqualTo(Status.NO_STANDARD);
+        assertThat(r.sites()).isEmpty();
+    }
+
+    @Test
     void 컨소시엄_참여사업은_없다는_문장은_범위_꼬리표가_아님() {
         // HS화성: '단독사업 외 컨소시엄참여사업은 없습니다.' 뒤의 표를 컨소시엄 전체로 보고 합계에서 뺐던 문제
         assertThat(PfExposureParser.scopeOf("…총 61,100백만원의 신용을 보강하고 있으며, 단독사업 외 컨소시엄참여사업은 없습니다. 기타사업과 관련한 PF 우발부채 내역은 아래와 같습니다", 0))
