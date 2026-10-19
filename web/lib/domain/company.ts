@@ -20,3 +20,15 @@ export function recentPeriods(fin: Financials | null | undefined, n = 8): string
 export function filterDisclosures(items: Disclosure[], filter: "risk" | "all"): Disclosure[] {
   return items.filter((d) => filter === "all" || RISK_EVENTS.has(d.eventType));
 }
+
+/** 종목 표시 — 지금 상장이면 '종목코드 · 유가/코스닥', 아니면 '비상장'(상장폐지로 종목코드가 남은 회사 포함 — 주가 · 백테스트 대상 아님) */
+export function listingLabel(c: { stockCode?: string; corpCls?: string; listed: boolean }): string {
+  if (!c.listed || !c.stockCode) return "비상장";
+  return `${c.stockCode} · ${c.corpCls === "Y" ? "유가" : c.corpCls === "K" ? "코스닥" : c.corpCls ?? ""}`;
+}
+
+/** 대시보드 문장의 유니버스 — 비상장이 있으면 나눠 보임 */
+export function universeLabel(total: number, listed?: number | null): string {
+  if (listed == null || listed >= total) return `건설사 ${total}곳(상장)`;
+  return `건설사 ${total}곳(상장 ${listed} · 비상장 ${total - listed})`;
+}

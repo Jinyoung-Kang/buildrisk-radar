@@ -5,7 +5,8 @@ export type AlertStatus = "OPEN" | "ACK" | "CLOSED";
 export type Page<T> = { items: T[]; total: number; page: number; size: number };
 
 export type CompanyRow = {
-  corpCode: string; corpName: string; stockCode?: string; corpCls?: string; indutyCode?: string;
+  /** listed: 지금 상장(유가 · 코스닥) — 비상장 · 상장폐지는 종목코드가 남아 있어도 false */
+  corpCode: string; corpName: string; stockCode?: string; corpCls?: string; listed: boolean; indutyCode?: string;
   latestPeriod?: string; debtRatio?: number; debtRatioStatus?: string; interestCoverage?: number;
   interestCoverageStatus?: string; borrowingDep?: number; openAlerts: number; maxSeverity?: Severity;
   lastDisclosureDate?: string; lastDisclosure?: string;
@@ -13,7 +14,8 @@ export type CompanyRow = {
 export type MetricBrief = { code: string; nameKo: string; value?: number; unit: string; status: string; yoyPp?: number; formula: string };
 export type AlertBrief = { alertId: number; ruleCode: string; ruleVersion?: number; severity: Severity; asOf: string; title: string; status: AlertStatus };
 export type CompanySummary = {
-  corpCode: string; corpName: string; stockCode?: string; corpCls?: string; indutyCode?: string; address?: string;
+  corpCode: string; corpName: string; stockCode?: string; corpCls?: string; listed: boolean; jurirNo?: string; bizrNo?: string;
+  indutyCode?: string; address?: string;
   ceo?: string; homepage?: string; accMt?: string; target: boolean; targetReason?: string;
   latest?: { periodKey: string; fsDiv?: string; rceptNo?: string; metrics: MetricBrief[] };
   alerts: AlertBrief[]; fetch: { reportsOk: number; reportsNoData: number; lastFetchedAt?: string };

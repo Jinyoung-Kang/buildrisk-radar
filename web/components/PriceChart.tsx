@@ -10,7 +10,7 @@ export default function PriceChart({ corp }: { corp: string }) {
   const { data, error } = useApi(companyApi.prices(corp));
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Loading />;
-  if (!data.stockCode) return <Empty>상장 종목코드가 없습니다.</Empty>;
+  if (!data.stockCode) return <Empty>지금 상장된 종목이 아니라(비상장 · 상장폐지) 주가가 없습니다.</Empty>;
   if (data.bars.length === 0) return <Empty>주가가 아직 없습니다 — stockPriceJob 을 실행하세요.</Empty>;
   const dates = new Set(data.bars.map((b) => b.d));
   const markers = data.alerts.filter((a) => dates.has(a.date) || a.date >= data.bars[0].d);

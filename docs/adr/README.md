@@ -20,7 +20,7 @@
 | [016](016-filing-structuring.md) | 공시 원문 구조화 — 수주 지역 · 채무보증 · PF, 원문 보관 + 파서 버전, R-C05 · R-X01 | 채택 |
 | [017](017-stock-backtest.md) | 경보 백테스트 — point-in-time 사건 연구, 수정주가 아님 대응 | 채택 |
 | [018](018-observability.md) | 관리 포트 분리 · Prometheus 지표 · ECS 로그 · Grafana | 채택 |
-| [019](019-api-selection.md) | 추가 공공 API 중 쓴 것과 쓰지 않은 것 — 청약홈 분양정보(APT 3종) 사용 · 나머지 7개 오퍼레이션은 시공사가 없어 쓰지 않음 | 채택 |
+| [019](019-api-selection.md) | 추가 공공 API 중 쓴 것과 쓰지 않은 것 — 청약홈 분양정보(APT 3종) 사용 · 나머지 7개 오퍼레이션은 시공사가 없어 쓰지 않음 · 금융위 기업재무정보 쓰지 않음 | 채택 |
 | [020](020-map-boundaries-cache.md) | 지도 — 경계(버전 URL · immutable, 프로세스 안 gzip 바이트)와 지표 값 분리 | 채택 |
 | [021](021-container-memory.md) | 컨테이너 메모리 예산 · JVM 힙 60% · G1 명시 (부하 중 OOM 킬에서 발견) | 채택 |
 | [022](022-read-cache.md) | 조회 캐시를 목록까지, 무효화는 모든 Job 이 끝나는 한 곳에서 — 대상 기업만 저장, 규칙 변경도 무효화, 같은 키 계산 하나로 | 채택 |
@@ -34,3 +34,4 @@
 | [030](030-frontend-layers.md) | 프론트엔드를 화면 · Hook · 순수 함수 · 기능별 API 모듈로 — 경계는 ESLint, 조회 응답은 경로에 묶음, 효과 안 setState 없음 — 상대 경로 · window/globalThis.fetch 우회도 막음 | 채택 |
 | [031](031-aws-demo-deployment.md) | AWS 데모 배포 — RDS(비-superuser 소유자, afterMigrate 는 비밀번호만 맞춤) · edge realip(앞단 Caddy) · 조회 전용 공개(화면도 로그인 안내 숨김 — 런타임 설정) · 덤프 복원 — 쿠키 Secure 를 고정하지 않은 이유 · 테스트 DB 를 PG 18.6 으로 | 채택 |
 | [032](032-presale-notices.md) | 청약홈 분양 공고 — 시공사명 → 기업 정확 대조 + 확인한 별칭, 사라진 공고는 표시만, 기준월 롤링 시계열(미래 키를 지표 기간으로 만들지 않음), 입주 예정은 원장이 공고→입주 90% 간격을 덮을 때만, R-X02 | 채택 |
+| [033](033-unlisted-universe.md) | 비상장 건설사를 유니버스에 — DART 로 분기 재무가 오는 9곳만(수동 포함), '상장' = corp_cls 유가 · 코스닥(상장폐지 종목코드는 무시), 금융위 기업재무정보는 쓰지 않음 | 채택 |

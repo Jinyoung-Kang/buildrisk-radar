@@ -6,7 +6,7 @@ import { asOfLabel } from "@/lib/domain/alerts";
 import { changedRows } from "@/lib/domain/batch";
 import { niceAxis } from "@/lib/domain/axis";
 import { DIV_NEG, DIV_POS, makeScale, MISSING, NEUTRAL, SEQ } from "@/lib/domain/colors";
-import { filterDisclosures, metricSeries, recentPeriods } from "@/lib/domain/company";
+import { filterDisclosures, listingLabel, metricSeries, recentPeriods, universeLabel } from "@/lib/domain/company";
 import { sortExposure } from "@/lib/domain/exposure";
 import { contractState, due12, riskShareCard } from "@/lib/domain/filings";
 import { consortiumLabel, currentPresales, moveinLabel, presaleShareCard, remainderLabel, upcomingMovein } from "@/lib/domain/presale";
@@ -225,6 +225,20 @@ describe("수주 비중 카드 (VERIFICATION 187)", () => {
   });
   it("옛 응답(비중 없음)이면 화면 기본 기준만", () => {
     assert.deepEqual(riskShareCard(undefined, 5), { th: 5, title: "미분양 5호/천가구 이상 지역 비중", sharePct: null, sub: "경보 R-X01 기준을 받지 못함" });
+  });
+});
+
+describe("비상장 유니버스 (2026-10 B-2)", () => {
+  it("지금 상장만 종목코드 · 시장, 상장폐지로 종목코드가 남은 회사도 비상장", () => {
+    assert.equal(listingLabel({ stockCode: "047040", corpCls: "Y", listed: true }), "047040 · 유가");
+    assert.equal(listingLabel({ stockCode: "013120", corpCls: "K", listed: true }), "013120 · 코스닥");
+    assert.equal(listingLabel({ stockCode: "011160", corpCls: "E", listed: false }), "비상장");
+    assert.equal(listingLabel({ corpCls: "E", listed: false }), "비상장");
+  });
+  it("대시보드 유니버스 문장", () => {
+    assert.equal(universeLabel(52, 43), "건설사 52곳(상장 43 · 비상장 9)");
+    assert.equal(universeLabel(43, 43), "건설사 43곳(상장)");
+    assert.equal(universeLabel(43, null), "건설사 43곳(상장)");
   });
 });
 

@@ -164,6 +164,8 @@ class AptTradeJobIT extends IntegrationTest {
         jdbc.update("DELETE FROM ops.api_quota");                       // 다음 날 — 한도가 다시 생김
         var next = launcher.runAndWait("aptTradeJob", Map.of("months", 13));   // 기본 = 멈춘 실행 restart
         assertThat(next.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        // restart 는 앞 실행의 Job 컨텍스트를 이어받음 — 끝까지 돈 실행에 '상한에 도달해 멈춥니다'가 남아 요청 결과 · CLI 요약에 보였음 (VERIFICATION 215)
+        assertThat(next.getExecutionContext().containsKey("stopReason")).isFalse();
         assertThat(count("SELECT count(*) FROM mkt.apt_trade_fetch")).isEqualTo(3 * 13);
         WM.verify(3 * 13, getRequestedFor(urlPathEqualTo(PATH)));        // 두 실행을 합쳐 한 번씩만
     }

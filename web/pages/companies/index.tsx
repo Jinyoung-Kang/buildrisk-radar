@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, Empty, ErrorBox, Loading, MetricStatus, PageTitle, Segmented, SeverityBadge, Pager } from "@/components/ui";
+import { listingLabel } from "@/lib/domain/company";
 import { num, pk } from "@/lib/domain/format";
 import { pageOverflow } from "@/lib/domain/nav";
 import { useApi } from "@/lib/hooks/useApi";
@@ -27,7 +28,7 @@ export default function Companies() {
   const overflow = data ? pageOverflow(data.total, PAGE, page, data.items.length) : null;
   return (
     <Layout title="기업">
-      <PageTitle title="건설업 유니버스" sub="DART 기업개황 업종코드 41(종합 건설업)·421(토목 기반조성 전문공사업) 유가·코스닥 상장사 + 수동 포함. 지표는 최신 분기, 연결 우선."
+      <PageTitle title="건설업 유니버스" sub="DART 기업개황 업종코드 41(종합 건설업)·421(토목 기반조성 전문공사업) 유가·코스닥 상장사 + 수동 포함(DART 가 분기 재무제표를 주는 시공능력평가 상위 비상장 포함). 지표는 최신 분기, 연결 우선."
         right={<div className="flex flex-wrap gap-2 items-center">
           <input value={q} onChange={(e) => { setQ(e.target.value); if (page > 0) go({ p: 0 }); }} placeholder="기업명·종목코드"
             aria-label="기업 검색" className="bg-raised border border-line rounded-lg px-3 py-1.5 text-sm w-48 focus-ring" />
@@ -62,7 +63,7 @@ export default function Companies() {
                   <tr key={c.corpCode}>
                     <td className="px-4 py-2.5">
                       <Link href={`/companies/${c.corpCode}`} className="font-medium hover:underline">{c.corpName}</Link>
-                      <div className="text-xs text-muted">{c.stockCode} · {c.corpCls === "Y" ? "유가" : c.corpCls === "K" ? "코스닥" : c.corpCls} · {c.indutyCode}</div>
+                      <div className="text-xs text-muted">{listingLabel(c)} · {c.indutyCode}</div>
                     </td>
                     <td className="px-3 whitespace-nowrap">{c.openAlerts ? <span className="flex items-center gap-1.5"><SeverityBadge s={c.maxSeverity} /><span className="text-xs text-ink2">{c.openAlerts}건</span></span> : <span className="text-muted text-xs">없음</span>}</td>
                     <td className="num">{num(c.debtRatio, 1, true)}{c.debtRatio != null && "%"}<MetricStatus status={c.debtRatioStatus} /></td>

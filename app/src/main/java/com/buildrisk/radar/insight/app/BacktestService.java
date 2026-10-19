@@ -92,7 +92,7 @@ public class BacktestService {
                 SELECT a.alert_id, a.rule_code, r.name_ko, a.target_key, c.corp_name, c.stock_code, a.title, a.as_of,
                        a.evidence->'sources' AS sources
                   FROM risk.alert a
-                  JOIN ref.company c ON c.corp_code = a.target_key AND c.stock_code IS NOT NULL
+                  JOIN ref.company c ON c.corp_code = a.target_key AND c.stock_code IS NOT NULL AND c.corp_cls IN ('Y', 'K')
                   JOIN risk.rule r ON r.rule_code = a.rule_code AND r.version = a.rule_version
                  WHERE a.target_type = 'COMPANY' AND a.rule_code NOT IN ('R-X01', 'R-X02')
                    AND coalesce(a.close_reason, '') NOT IN ('RULE_CHANGED', 'RESOLVED')""")

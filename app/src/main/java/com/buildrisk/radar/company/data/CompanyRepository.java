@@ -41,7 +41,7 @@ public class CompanyRepository {
     public void updateProfiles(List<? extends CompanyProfile> items) {
         jdbcTemplate.batchUpdate("""
                 UPDATE ref.company SET corp_cls = ?, induty_code = ?, adres = ?, acc_mt = ?, ceo_nm = ?, hm_url = ?,
-                  profile_fetched_at = now(), updated_at = now()
+                  jurir_no = ?, bizr_no = ?, profile_fetched_at = now(), updated_at = now()
                 WHERE corp_code = ?""", items, items.size(), (ps, p) -> {
             ps.setString(1, p.corpCls());
             ps.setString(2, p.indutyCode());
@@ -49,7 +49,9 @@ public class CompanyRepository {
             ps.setString(4, p.accMt());
             ps.setString(5, p.ceoNm());
             ps.setString(6, p.hmUrl());
-            ps.setString(7, p.corpCode());
+            ps.setString(7, p.jurirNo());
+            ps.setString(8, p.bizrNo());
+            ps.setString(9, p.corpCode());
         });
     }
 

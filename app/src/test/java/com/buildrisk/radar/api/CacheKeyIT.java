@@ -192,6 +192,12 @@ class CacheKeyIT extends IntegrationTest {
                 VALUES ('00000107', '비상장건설', NULL, 'E', '41221', false, NULL)""");
         mvc.perform(get("/api/v1/companies/00000107/prices")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.bars").isEmpty()).andExpect(jsonPath("$.stockCode").doesNotExist());
+        // 상장폐지 — corpCode.xml 이 종목코드를 남겨 두어도(corp_cls E) 주가 대상이 아님 (2026-10 비상장 9곳 중 3곳)
+        jdbc.update("""
+                INSERT INTO ref.company (corp_code, corp_name, stock_code, corp_cls, induty_code, is_target, target_reason)
+                VALUES ('00000108', '폐지건설', '000108', 'E', '41221', true, 'MANUAL_INCLUDE')""");
+        mvc.perform(get("/api/v1/companies/00000108/prices")).andExpect(status().isOk()).andExpect(jsonPath("$.stockCode").doesNotExist());
+        mvc.perform(get("/api/v1/companies/00000108")).andExpect(status().isOk()).andExpect(jsonPath("$.listed").value(false));
         mvc.perform(get("/api/v1/companies/09999999/prices")).andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("COMPANY_NOT_FOUND"));
     }

@@ -8,7 +8,8 @@ import java.util.Map;
 public final class CompanyViews {
     private CompanyViews() {}
 
-    public record CompanyRow(String corpCode, String corpName, String stockCode, String corpCls, String indutyCode,
+    /** listed: 지금 상장(유가 · 코스닥) — 비상장 · 상장폐지는 종목코드가 있어도 false (주가 · 백테스트 대상 아님) */
+    public record CompanyRow(String corpCode, String corpName, String stockCode, String corpCls, boolean listed, String indutyCode,
                              String latestPeriod, BigDecimal debtRatio, String debtRatioStatus,
                              BigDecimal interestCoverage, String interestCoverageStatus, BigDecimal borrowingDep,
                              int openAlerts, String maxSeverity, LocalDate lastDisclosureDate, String lastDisclosure) {}
@@ -23,7 +24,8 @@ public final class CompanyViews {
 
     public record FetchStatus(int reportsOk, int reportsNoData, String lastFetchedAt) {}
 
-    public record CompanySummary(String corpCode, String corpName, String stockCode, String corpCls, String indutyCode,
+    public record CompanySummary(String corpCode, String corpName, String stockCode, String corpCls, boolean listed, String jurirNo,
+                                 String bizrNo, String indutyCode,
                                  String address, String ceo, String homepage, String accMt, boolean target,
                                  String targetReason, Latest latest, List<AlertBrief> alerts, FetchStatus fetch,
                                  String calcRunId, String disclaimer) {}

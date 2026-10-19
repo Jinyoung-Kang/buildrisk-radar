@@ -230,7 +230,15 @@ public class DartClient {
         if (DartStatus.NO_DATA.equals(Json.text(n, "status"))) return null;
         return new CompanyProfile(Json.text(n, "corp_code"), Json.text(n, "corp_name"), Json.text(n, "corp_name_eng"),
                 Json.text(n, "stock_code"), Json.text(n, "corp_cls"), Json.text(n, "induty_code"),
-                Json.text(n, "adres"), Json.text(n, "acc_mt"), Json.text(n, "ceo_nm"), Json.text(n, "hm_url"));
+                Json.text(n, "adres"), Json.text(n, "acc_mt"), Json.text(n, "ceo_nm"), Json.text(n, "hm_url"),
+                digits(Json.text(n, "jurir_no"), 13), digits(Json.text(n, "bizr_no"), 10));
+    }
+
+    /** 숫자만 남겨 길이가 맞을 때만 — '-' · 빈 값 · 다른 길이는 null */
+    static String digits(String s, int len) {
+        if (s == null) return null;
+        String d = s.replaceAll("\\D", "");
+        return d.length() == len ? d : null;
     }
 
     /** fnlttSinglAcntAll.json — 단일회사 전체 재무제표 (E16). 자본변동표(SCE)는 저장하지 않습니다. */

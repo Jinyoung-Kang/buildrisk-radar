@@ -35,6 +35,7 @@ public class RunRecorder {
             @Override
             public void beforeJob(JobExecution je) {
                 var ctx = je.getExecutionContext();
+                ctx.remove(BatchKeys.STOP_REASON);      // restart 가 이어받은 앞 실행의 멈춤 사유 (VERIFICATION 215)
                 if (!ctx.containsKey(BatchKeys.COLLECT_RUN_ID)) {
                     UUID id = UUID.randomUUID();
                     ctx.putString(BatchKeys.COLLECT_RUN_ID, id.toString());
@@ -68,6 +69,7 @@ public class RunRecorder {
             @Override
             public void beforeJob(JobExecution je) {
                 var ctx = je.getExecutionContext();
+                ctx.remove(BatchKeys.STOP_REASON);      // restart 가 이어받은 앞 실행의 멈춤 사유 (VERIFICATION 215)
                 if (ctx.containsKey(BatchKeys.CALC_RUN_ID)) return;
                 UUID id = UUID.randomUUID();
                 ctx.putString(BatchKeys.CALC_RUN_ID, id.toString());

@@ -233,7 +233,9 @@ public class ExposureService {
 
     public Prices prices(String corpCode, int days) {
         // 행 없음(404)과 종목코드 없음(비상장 — 빈 결과)을 구별: query(String.class).optional() 은 NULL 값도 '없음'으로 봐 비상장 기업이 404 였음 (VERIFICATION 190)
-        String stock = jdbc.sql("SELECT stock_code FROM ref.company WHERE corp_code = :c").param("c", corpCode)
+        // 지금 상장(유가 · 코스닥)만 — corpCode.xml 은 상장폐지된 회사에도 종목코드를 남김(두산건설 · 신세계건설 · 경남기업, corp_cls E)
+        String stock = jdbc.sql("SELECT CASE WHEN corp_cls IN ('Y', 'K') THEN stock_code END FROM ref.company WHERE corp_code = :c")
+                .param("c", corpCode)
                 .query((rs, i) -> Optional.ofNullable(rs.getString(1))).optional()
                 .orElseThrow(() -> ApiException.notFound(ErrorCode.COMPANY_NOT_FOUND, "기업 " + corpCode))
                 .orElse(null);

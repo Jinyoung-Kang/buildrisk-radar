@@ -145,7 +145,8 @@ public class UniverseJobsConfig {
     }
 
     /**
-     * 기업개황이 없거나 30일 지났거나 고유번호 정보가 바뀐 상장사 — corp_code 키셋 페이징.
+     * 기업개황이 없거나 30일 지났거나 고유번호 정보가 바뀐 상장사 · 대상 기업 · 수동 포함 기업(비상장 포함 — 업종 · 주소를 채워야 화면 · 사업장 해석이 됨)
+     * — corp_code 키셋 페이징.
      * WHERE 가 처리한 행을 빼므로 재시작 지점은 DB 상태에서 나옵니다(ADR-008). 오프셋(페이지 안 건수)을 저장하면
      * 재시작 때 아직 처리하지 않은 행을 그만큼 건너뛰므로 saveState=false (실제로 겪은 누락 — CompanyProfileRestartIT).
      */
@@ -155,8 +156,9 @@ public class UniverseJobsConfig {
         PostgresPagingQueryProvider q = new PostgresPagingQueryProvider();
         q.setSelectClause("corp_code");
         q.setFromClause("ref.company");
-        q.setWhereClause("stock_code IS NOT NULL AND (profile_fetched_at IS NULL OR profile_fetched_at < updated_at "
-                + "OR profile_fetched_at < now() - interval '30 days')");
+        q.setWhereClause("(stock_code IS NOT NULL OR is_target "
+                + "OR corp_code IN (SELECT o.corp_code FROM ref.universe_override o WHERE o.include)) "
+                + "AND (profile_fetched_at IS NULL OR profile_fetched_at < updated_at OR profile_fetched_at < now() - interval '30 days')");
         q.setSortKeys(Map.of("corp_code", Order.ASCENDING));
         JdbcPagingItemReader<String> r = new JdbcPagingItemReader<>(ds, q);
         r.setRowMapper((rs, i) -> rs.getString(1));

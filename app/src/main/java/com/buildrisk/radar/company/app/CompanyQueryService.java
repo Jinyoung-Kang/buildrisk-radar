@@ -16,6 +16,7 @@ import com.buildrisk.radar.company.domain.CompanyViews.FinancialSeries;
 import com.buildrisk.radar.company.domain.CompanyViews.Financials;
 import com.buildrisk.radar.company.domain.CompanyViews.Latest;
 import com.buildrisk.radar.company.domain.CompanyViews.MetricBrief;
+import com.buildrisk.radar.company.domain.UniversePolicy;
 import com.buildrisk.radar.company.domain.CompanyViews.MetricPointDto;
 import com.buildrisk.radar.company.domain.CompanyViews.MetricSeries;
 import com.buildrisk.radar.company.domain.CompanyViews.Metrics;
@@ -83,7 +84,7 @@ public class CompanyQueryService {
                         WHERE""" + " " + where + " ORDER BY " + order + " LIMIT :lim OFFSET :off")
                 .param("q", Text.blank(q)).param("like", like).param("lim", size).param("off", (long) page * size)
                 .query((rs, i) -> new CompanyRow(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4),
-                        rs.getString(5), rs.getString(6), rs.getBigDecimal(7), rs.getString(8), rs.getBigDecimal(9),
+                        UniversePolicy.LISTED.contains(rs.getString(4)), rs.getString(5), rs.getString(6), rs.getBigDecimal(7), rs.getString(8), rs.getBigDecimal(9),
                         rs.getString(10), rs.getBigDecimal(11), rs.getInt(12), severity(rs.getInt(13)),
                         rs.getObject(14, LocalDate.class), rs.getString(15)))
                 .list();
@@ -92,13 +93,13 @@ public class CompanyQueryService {
 
     public CompanySummary summary(String corpCode) {
         record C(String code, String name, String stock, String cls, String induty, String adres, String ceo,
-                 String hm, String accMt, boolean target, String reason) {}
+                 String hm, String accMt, boolean target, String reason, String jurir, String bizr) {}
         C c = jdbc.sql("""
                         SELECT corp_code, corp_name, stock_code, corp_cls, induty_code, adres, ceo_nm, hm_url, acc_mt,
-                               is_target, target_reason FROM ref.company WHERE corp_code = :c""")
+                               is_target, target_reason, jurir_no, bizr_no FROM ref.company WHERE corp_code = :c""")
                 .param("c", corpCode).query((rs, i) -> new C(rs.getString(1), rs.getString(2), rs.getString(3),
                         rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), rs.getString(8),
-                        rs.getString(9), rs.getBoolean(10), rs.getString(11)))
+                        rs.getString(9), rs.getBoolean(10), rs.getString(11), rs.getString(12), rs.getString(13)))
                 .optional().orElseThrow(() -> ApiException.notFound(ErrorCode.COMPANY_NOT_FOUND, "기업 " + corpCode));
         String pk = jdbc.sql("SELECT max(period_key) FROM risk.company_metric WHERE corp_code = :c AND metric_code = 'DEBT_RATIO'")
                 .param("c", corpCode).query(String.class).optional().orElse(null);
@@ -142,7 +143,8 @@ public class CompanyQueryService {
                                to_char(max(fetched_at) AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:MI')
                         FROM dart.fs_fetch WHERE corp_code = :c""")
                 .param("c", corpCode).query((rs, i) -> new FetchStatus(rs.getInt(1), rs.getInt(2), rs.getString(3))).single();
-        return new CompanySummary(c.code(), c.name(), c.stock(), c.cls(), c.induty(), c.adres(), c.ceo(), c.hm(), c.accMt(),
+        return new CompanySummary(c.code(), c.name(), c.stock(), c.cls(), UniversePolicy.LISTED.contains(c.cls()), c.jurir(), c.bizr(),
+                c.induty(), c.adres(), c.ceo(), c.hm(), c.accMt(),
                 c.target(), c.reason(), latest, alerts, fetch, calcRun, Disclaimer.TEXT);
     }
 

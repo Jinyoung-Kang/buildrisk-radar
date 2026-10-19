@@ -13,7 +13,7 @@ import Tabs, { TabPanel, useTab } from "@/components/Tabs";
 import { Card, DartLink, DownloadLink, Empty, ErrorBox, Loading, MetricStatus, PageTitle, Segmented, SeverityBadge, StatusPill } from "@/components/ui";
 import { eok, num, pk, withUnit } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
-import { filterDisclosures, metricSeries, recentPeriods, RISK_EVENTS } from "@/lib/domain/company";
+import { filterDisclosures, listingLabel, metricSeries, recentPeriods, RISK_EVENTS } from "@/lib/domain/company";
 import * as alertApi from "@/lib/api/alert";
 import * as companyApi from "@/lib/api/company";
 
@@ -66,7 +66,7 @@ export default function CompanyDetail() {
       {isReady && !corp ? <Empty>기업 코드(8자리 숫자) 형식이 아닙니다 — <Link href="/companies" className="text-accent hover:underline">기업 목록</Link>에서 고르세요.</Empty>
         : summary.error ? null : !s ? <Loading /> : (
         <>
-          <PageTitle title={<>{s.corpName} <span className="text-sm font-normal text-muted">{s.stockCode} · {s.corpCode}</span></>}
+          <PageTitle title={<>{s.corpName} <span className="text-sm font-normal text-muted">{listingLabel(s)} · {s.corpCode}</span></>}
             sub={<>{s.indutyCode} · {s.address ?? ""} {s.homepage && <a className="text-accent ml-1" href={s.homepage.startsWith("http") ? s.homepage : `http://${s.homepage}`} target="_blank" rel="noreferrer">홈페이지</a>} <span className="ml-2 align-middle"><WatchButton type="COMPANY" keyCd={s.corpCode} /></span></>}
             right={<div className="text-xs text-muted text-right">
               기준 {s.latest ? `${pk(s.latest.periodKey)} · ${s.latest.fsDiv === "OFS" ? "별도" : "연결"}` : "–"} · 원천 <DartLink rceptNo={s.latest?.rceptNo} /><br />
@@ -75,7 +75,8 @@ export default function CompanyDetail() {
 
           <Tabs label="기업 정보" value={tab} onChange={setTab} tabs={[
             { id: "overview", label: "개요", badge: s.alerts.length }, { id: "financials", label: "재무·지표" },
-            { id: "filings", label: "수주·보증" }, { id: "price", label: "주가·경보" }, { id: "presales", label: "분양" }, { id: "disclosures", label: "공시" }]} />
+            { id: "filings", label: "수주·보증" }, ...(s.listed ? [{ id: "price" as const, label: "주가·경보" }] : []), { id: "presales", label: "분양" },
+            { id: "disclosures", label: "공시" }]} />
 
           {tab === "overview" && <TabPanel id="overview">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">

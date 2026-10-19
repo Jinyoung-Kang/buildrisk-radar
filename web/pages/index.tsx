@@ -4,6 +4,7 @@ import PersonaEntry from "@/components/PersonaEntry";
 import { Card, Empty, ErrorBox, JobStatus, Loading, PageTitle, SeverityBadge, Stat, StatusPill, TargetLink } from "@/components/ui";
 import { type Personas, type Row } from "@/lib/api";
 import { SEVERITY } from "@/lib/domain/colors";
+import { universeLabel } from "@/lib/domain/company";
 import { dt, int, num, pk, ym } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
 import * as insightApi from "@/lib/api/insight";
@@ -17,7 +18,7 @@ export default function Dashboard() {
   return (
     <Layout title="대시보드">
       <PageTitle title="건설사 재무 × 지역 주택시장 조기경보"
-        sub={<>건설업 상장사 {int(f.universe)}곳의 재무·공시(원문 구조화 포함)와 시군구 {int(f.regions)}곳의 미분양·가격지수·실거래를 규칙으로 점검합니다.</>} />
+        sub={<>{f.universe != null ? universeLabel(Number(f.universe), f.universeListed != null ? Number(f.universeListed) : null) : "건설사"}의 재무·공시(원문 구조화 포함)와 시군구 {int(f.regions)}곳의 미분양·가격지수·실거래를 규칙으로 점검합니다.</>} />
       <ErrorBox error={error} />
       {loading && !data && <Loading />}
       {data && (

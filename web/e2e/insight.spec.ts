@@ -57,9 +57,10 @@ test("경보 검증 · 주가 반응: 규칙별 표 · 비교 기준 · 한계",
   await expect(page.getByText("한계 (결과를 읽기 전에)").first()).toBeVisible();
 });
 
-test("기업 상세: 탭 전환(키보드 포함)과 수주·보증 탭", async ({ page }) => {
-  await page.goto("/companies");
-  await page.locator("tbody tr a").first().click();
+test("기업 상세: 탭 전환(키보드 포함)과 수주·보증 탭", async ({ page, request }) => {
+  // 상장사 — 비상장(2026-10 수동 포함 9곳)은 주가·경보 탭이 없음
+  const items = (await (await request.get("/api/v1/companies?size=100")).json()).items as { corpCode: string; listed: boolean }[];
+  await page.goto(`/companies/${items.find((c) => c.listed)!.corpCode}`);
   await expect(page.getByRole("tablist", { name: "기업 정보" })).toBeVisible();
   await page.getByRole("tab", { name: "수주·보증" }).click();
   await expect(page).toHaveURL(/tab=filings/);
@@ -70,8 +71,10 @@ test("기업 상세: 탭 전환(키보드 포함)과 수주·보증 탭", async 
 
 test("분양 탭 · 지역 분양 카드: 청약홈 공고 · 위험 지역 분양 비중 · 입주 예정 (ADR-032)", async ({ page, request }) => {
   // 분양 공고가 가장 많은 대상 기업 — 노출 API 의 분양 열로 고름
+  const listed = new Set(((await (await request.get("/api/v1/companies?size=100")).json()).items as { corpCode: string; listed: boolean }[])
+    .filter((c) => c.listed).map((c) => c.corpCode));
   const items = (await (await request.get("/api/v1/exposure")).json()).items as { corpCode: string; presaleNotices: number }[];
-  const corp = [...items].sort((a, b) => b.presaleNotices - a.presaleNotices)[0];
+  const corp = [...items].filter((x) => listed.has(x.corpCode)).sort((a, b) => b.presaleNotices - a.presaleNotices)[0];
   expect(corp.presaleNotices, "청약홈 공고가 연결된 대상 기업이 있어야 함 — presaleSyncJob").toBeGreaterThan(0);
   await page.goto(`/companies/${corp.corpCode}?tab=price`);
   await page.getByRole("tab", { name: "주가·경보" }).press("ArrowRight");                 // 키보드 순서: 주가·경보 → 분양
@@ -84,6 +87,16 @@ test("분양 탭 · 지역 분양 카드: 청약홈 공고 · 위험 지역 분�
   await expect(page).toHaveURL(/\/regions\/\d{5}/);
   await expect(page.getByText("분양 공고 (청약홈)")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("앞으로 12개월 입주 예정")).toBeVisible();
+});
+
+test("비상장 기업: 종목 대신 '비상장', 주가·경보 탭 없이 재무 · 분양 탭 (2026-10 수동 포함)", async ({ page, request }) => {
+  const items = (await (await request.get("/api/v1/companies?size=100")).json()).items as { corpCode: string; listed: boolean }[];
+  const unlisted = items.find((c) => !c.listed);
+  test.skip(!unlisted, "비상장 대상 기업이 없음 — companyProfileJob 뒤");
+  await page.goto(`/companies/${unlisted!.corpCode}`);
+  await expect(page.getByText(/비상장 · \d{8}/)).toBeVisible();
+  await expect(page.getByRole("tab", { name: "주가·경보" })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "분양" })).toBeVisible();
 });
 
 test("좁은 화면: 메뉴 버튼으로 이동", async ({ page }) => {

@@ -9,7 +9,7 @@ public final class JobCatalog {
 
     public static final List<Def> JOBS = List.of(
             new Def("corpCodeSyncJob", "DART 고유번호 동기화", "DART", "매주 월 02:00", "FR-101", "DART_API_KEY"),
-            new Def("companyProfileJob", "상장사 기업개황 · 유니버스", "DART", "매주 월 02:30", "FR-102~103", "DART_API_KEY"),
+            new Def("companyProfileJob", "기업개황 · 유니버스 (상장 + 수동 포함)", "DART", "매주 월 02:30", "FR-102~103", "DART_API_KEY"),
             new Def("financialStatementJob", "재무제표 수집 (미수집분)", "DART", "매일 03:00", "FR-201~203", "DART_API_KEY"),
             new Def("disclosureSyncJob", "공시 수집 · 이벤트 분류", "DART", "매일 03:30", "FR-301~302", "DART_API_KEY"),
             new Def("filingParseJob", "수주·보증 공시 원문 구조화", "DART", "매일 03:45", "FR-303", "DART_API_KEY"),

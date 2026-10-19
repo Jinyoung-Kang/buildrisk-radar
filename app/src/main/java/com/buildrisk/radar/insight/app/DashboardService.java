@@ -74,6 +74,7 @@ public class DashboardService {
         out.put("jobTitles", titles);
         out.put("freshness", jdbc.sql("""
                 SELECT (SELECT count(*) FROM ref.company WHERE is_target) AS "universe",
+                       (SELECT count(*) FROM ref.company WHERE is_target AND corp_cls IN ('Y', 'K')) AS "universeListed",
                        (SELECT max(period_key) FROM risk.company_metric WHERE value IS NOT NULL) AS "latestFsPeriod",
                        (SELECT max(rcept_dt)::text FROM dart.disclosure) AS "latestDisclosure",
                        (SELECT max(period) FROM mkt.region_metric WHERE metric_code = 'UNSOLD_UNITS' AND value IS NOT NULL) AS "latestUnsold",

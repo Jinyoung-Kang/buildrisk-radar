@@ -29,7 +29,7 @@ public class StockRepository {
         return jdbc.sql("""
                 SELECT c.stock_code, max(s.bas_dt) AS last
                   FROM ref.company c LEFT JOIN mkt.stock_daily s ON s.stock_code = c.stock_code
-                 WHERE c.is_target AND c.stock_code IS NOT NULL
+                 WHERE c.is_target AND c.stock_code IS NOT NULL AND c.corp_cls IN ('Y', 'K')
                  GROUP BY c.stock_code ORDER BY c.stock_code""")
                 .query((rs, i) -> {
                     LocalDate last = rs.getObject(2, LocalDate.class);
