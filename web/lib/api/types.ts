@@ -192,6 +192,8 @@ export type Scorecard = {
 export type Personas = {
   supplier: { corpCode: string; corpName: string; rules: string[]; sevRank: number }[];
   buyer: { corpCode: string; corpName: string; periodKey: string; due12mToEquityPct?: number; guaranteeToEquityPct?: number }[];
+  /** 가장 최근 정기보고서가 자본잠식이라 비율을 셀 수 없는 시공사 */
+  buyerNegEquity?: { corpCode: string; corpName: string; periodKey: string }[];
   investor?: { horizonMonths: number; observedFrom: string; observedTo: string; events: number; caught: number; medianLeadDays?: number; precision?: number; baseRate?: number; lift?: number };
 };
 export type SearchHit = { key: string; name: string; sub?: string };

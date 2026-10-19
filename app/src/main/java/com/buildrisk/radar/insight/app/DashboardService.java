@@ -95,11 +95,28 @@ public class DashboardService {
     public record ScoreSummary(int horizonMonths, String observedFrom, String observedTo, int events, int caught,
                                Integer medianLeadDays, Double precision, Double baseRate, Double lift) {}
 
-    public record Personas(List<SupplierSignal> supplier, List<BuilderPf> buyer, ScoreSummary investor) {}
+    /** 가장 최근 정기보고서가 자본잠식이라 12개월 내 만기 PF / 자기자본을 셀 수 없는 시공사 */
+    public record BuilderNegEquity(String corpCode, String corpName, String periodKey) {}
+
+    public record Personas(List<SupplierSignal> supplier, List<BuilderPf> buyer, List<BuilderNegEquity> buyerNegEquity,
+                           ScoreSummary investor) {}
+
+    /**
+     * 기업마다 가장 최근 정기보고서(PF 를 읽은 보고서 — 상태와 관계없이)의 12개월 내 만기 PF / 자기자본. 그 분기가 OK 가 아니면
+     * (자본잠식 · 표준 서식 아님 · 만기 구간 모름) 옛 분기 값으로 메우지 않음 — 전에는 OK 만 남긴 뒤 최신을 골라 자본잠식 기업의
+     * 옛 분기 비율이 맨 위에 보였음 (VERIFICATION 221)
+     */
+    static final String LATEST_PF_DUE = """
+            WITH r AS (SELECT corp_code, max(period_key) AS period_key FROM dart.pf_report GROUP BY corp_code),
+            d AS (SELECT m.corp_code, m.period_key, m.value, m.status
+                    FROM r JOIN risk.company_metric m ON m.corp_code = r.corp_code AND m.period_key = r.period_key
+                   WHERE m.metric_code = 'PF_DUE_12M_TO_EQUITY')
+            """;
 
     /**
      * 사용자별 진입점 — 같은 데이터를 질문별로 모음 (새 계산 없음).
-     *   협력업체: 현금 · 유동성 규칙의 열린 경보가 겹치는 기업 · 분양 계약자: 시공사의 12개월 내 만기 PF / 자기자본(가장 최근 정기보고서)
+     *   협력업체: 현금 · 유동성 규칙의 열린 경보가 겹치는 기업 · 분양 계약자: 시공사의 12개월 내 만기 PF / 자기자본(가장 최근 정기보고서),
+     *   그 보고서가 자본잠식이라 비율이 없는 시공사는 순위 밖에 따로
      *   투자 · 분석: 경보 성적표 12개월의 '재무 규칙 중 하나라도' 요약 (성적표 API 와 같은 캐시)
      */
     Personas personas() {
@@ -113,21 +130,24 @@ public class DashboardService {
                 .param("rules", SUPPLIER_RULES)
                 .query((rs, i) -> new SupplierSignal(rs.getString(1), rs.getString(2),
                         Arrays.asList((String[]) rs.getArray(3).getArray()), rs.getInt(4))).list();
-        List<BuilderPf> buyer = jdbc.sql("""
-                WITH d AS (SELECT DISTINCT ON (corp_code) corp_code, period_key, value FROM risk.company_metric
-                            WHERE metric_code = 'PF_DUE_12M_TO_EQUITY' AND status = 'OK' ORDER BY corp_code, period_key DESC)
+        List<BuilderPf> buyer = jdbc.sql(LATEST_PF_DUE + """
                 SELECT d.corp_code, c.corp_name, d.period_key, d.value, g.value
                   FROM d JOIN ref.company c ON c.corp_code = d.corp_code
                   LEFT JOIN risk.company_metric g ON g.corp_code = d.corp_code AND g.period_key = d.period_key
                        AND g.metric_code = 'PF_GUARANTEE_TO_EQUITY' AND g.status = 'OK'
-                 WHERE c.is_target ORDER BY d.value DESC, c.corp_name LIMIT 5""")
+                 WHERE c.is_target AND d.status = 'OK' ORDER BY d.value DESC, c.corp_name LIMIT 5""")
                 .query((rs, i) -> new BuilderPf(rs.getString(1), rs.getString(2), rs.getString(3), rs.getBigDecimal(4),
                         rs.getBigDecimal(5))).list();
+        List<BuilderNegEquity> buyerNegEquity = jdbc.sql(LATEST_PF_DUE + """
+                SELECT d.corp_code, c.corp_name, d.period_key
+                  FROM d JOIN ref.company c ON c.corp_code = d.corp_code
+                 WHERE c.is_target AND d.status = 'NEG_EQUITY' ORDER BY c.corp_name""")
+                .query((rs, i) -> new BuilderNegEquity(rs.getString(1), rs.getString(2), rs.getString(3))).list();
         var sc = cache.get(ScorecardService.cacheKey(12), Duration.ofMinutes(30), ScorecardService.Response.class, () -> scorecard.run(12));
         ScoreSummary investor = sc.rules().stream().filter(r -> Scorecard.ANY.equals(r.ruleCode())).findFirst()
                 .map(r -> new ScoreSummary(sc.horizonMonths(), sc.observedFrom(), sc.observedTo(), r.events(), r.caught(),
                         r.medianLeadDays(), r.precision(), sc.baseRate(), r.lift()))
                 .orElse(null);
-        return new Personas(supplier, buyer, investor);
+        return new Personas(supplier, buyer, buyerNegEquity, investor);
     }
 }

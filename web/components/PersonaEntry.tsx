@@ -57,6 +57,12 @@ export default function PersonaEntry({ p }: { p: Personas }) {
                     <span className="block text-[11px] text-muted">자기자본 대비 · {pk(b.periodKey)}</span></span>
                 </li>))}</ul>
             )}
+            {(p.buyerNegEquity ?? []).length > 0 && (
+              <p className="mt-1.5 text-xs text-ink2">자본잠식이라 비율을 셀 수 없는 곳:{" "}
+                <PhraseList items={(p.buyerNegEquity ?? []).map((n) => (
+                  <span key={n.corpCode}><Link href={`/companies/${n.corpCode}?tab=filings`} className="font-medium hover:underline">{n.corpName}</Link> ({pk(n.periodKey)})</span>
+                ))} /></p>
+            )}
           </div>
         </Persona>
 

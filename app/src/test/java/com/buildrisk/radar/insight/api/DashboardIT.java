@@ -40,6 +40,9 @@ class DashboardIT extends IntegrationTest {
         alert("R-C01", "00000963", "MEDIUM");                  // 현금 · 유동성 규칙이 아님 → 협력업체 목록에서 빠짐
         run = UUID.randomUUID();
         jdbc.update("INSERT INTO ops.calc_run (calc_run_id, kind) VALUES (?, 'METRIC')", run);
+        report("00000961", "2025Q4", "PARSED");
+        report("00000961", "2026Q2", "PARSED");
+        report("00000962", "2026Q2", "PARSED");
         metric("00000961", "2025Q4", "PF_DUE_12M_TO_EQUITY", "120");   // 옛 분기 — 가장 최근 분기만 씀
         metric("00000961", "2026Q2", "PF_DUE_12M_TO_EQUITY", "85");
         metric("00000961", "2026Q2", "PF_GUARANTEE_TO_EQUITY", "70");
@@ -57,10 +60,19 @@ class DashboardIT extends IntegrationTest {
                 VALUES (?, 1, 'COMPANY', ?, '2026Q2', ?, '제목', '내용', '{"condition":"…"}')""", rule, corp, severity);
     }
 
-    private void metric(String corp, String pk, String code, String value) {
+    private void metric(String corp, String pk, String code, String value) { metric(corp, pk, code, value, "OK"); }
+
+    private void metric(String corp, String pk, String code, String value, String status) {
         jdbc.update("""
                 INSERT INTO risk.company_metric (corp_code, period_key, metric_code, value, status, calc_run_id)
-                VALUES (?, ?, ?, ?, 'OK', ?)""", corp, pk, code, new BigDecimal(value), run);
+                VALUES (?, ?, ?, ?, ?, ?)""", corp, pk, code, value == null ? null : new BigDecimal(value), status, run);
+    }
+
+    /** PF 를 읽은 정기보고서 — 접수번호는 기업 + 분기로 만듦(14자) */
+    private void report(String corp, String pk, String status) {
+        jdbc.update("""
+                INSERT INTO dart.pf_report (rcept_no, corp_code, period_key, rcept_dt, report_nm, status, parser_version)
+                VALUES (?, ?, ?, '2026-08-14', '반기보고서', ?, 15)""", corp + pk, corp, pk, status);
     }
 
     @Test
@@ -77,6 +89,30 @@ class DashboardIT extends IntegrationTest {
                 .andExpect(jsonPath("$.personas.buyer[0].guaranteeToEquityPct").value(70))
                 .andExpect(jsonPath("$.personas.buyer[1].due12mToEquityPct").value(40))
                 .andExpect(jsonPath("$.personas.investor.horizonMonths").value(12));
+    }
+
+    @Test
+    void 분양_계약자_카드는_가장_최근_정기보고서의_값만_쓴다() throws Exception {
+        // 최신 분기가 자본잠식(NEG_EQUITY) — 전에는 OK 만 남긴 뒤 최신을 골라 옛 분기 1,412% 가 맨 위에 보였음 (VERIFICATION 221)
+        company("00000964", "잠식건설");
+        report("00000964", "2025Q1", "PARSED");
+        report("00000964", "2026Q2", "PARSED");
+        metric("00000964", "2025Q1", "PF_DUE_12M_TO_EQUITY", "1412");
+        metric("00000964", "2026Q2", "PF_DUE_12M_TO_EQUITY", null, "NEG_EQUITY");
+        // 최신 정기보고서의 PF 표가 표준 서식이 아님(NO_STANDARD) — 그 분기 지표 행이 없어도 옛 분기 값을 끌어오지 않음
+        company("00000965", "서식건설");
+        report("00000965", "2025Q3", "PARSED");
+        report("00000965", "2026Q2", "NO_STANDARD");
+        metric("00000965", "2025Q3", "PF_DUE_12M_TO_EQUITY", "300");
+        cache.invalidateAll();
+        mvc.perform(get("/api/v1/dashboard")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.personas.buyer", hasSize(2)))
+                .andExpect(jsonPath("$.personas.buyer[*].corpName", contains("유동건설", "보증건설")))
+                .andExpect(jsonPath("$.personas.buyer[*].periodKey", contains("2026Q2", "2026Q2")))
+                // 자본잠식은 순위 밖에 따로 (사용자 결정) — 표준 서식이 아닌 곳은 비율도 상태도 모르므로 어디에도 없음
+                .andExpect(jsonPath("$.personas.buyerNegEquity", hasSize(1)))
+                .andExpect(jsonPath("$.personas.buyerNegEquity[0].corpName").value("잠식건설"))
+                .andExpect(jsonPath("$.personas.buyerNegEquity[0].periodKey").value("2026Q2"));
     }
 
     @Test
