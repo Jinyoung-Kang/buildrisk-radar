@@ -2,6 +2,7 @@ package com.buildrisk.radar.insight.app;
 
 import com.buildrisk.radar.common.Disclaimer;
 import com.buildrisk.radar.common.cache.JsonCache;
+import com.buildrisk.radar.filing.data.PfExposureRepository;
 import com.buildrisk.radar.insight.domain.Scorecard;
 import com.buildrisk.radar.ops.domain.JobCatalog;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -106,8 +107,7 @@ public class DashboardService {
      * (자본잠식 · 표준 서식 아님 · 만기 구간 모름) 옛 분기 값으로 메우지 않음 — 전에는 OK 만 남긴 뒤 최신을 골라 자본잠식 기업의
      * 옛 분기 비율이 맨 위에 보였음 (VERIFICATION 221)
      */
-    static final String LATEST_PF_DUE = """
-            WITH r AS (SELECT corp_code, max(period_key) AS period_key FROM dart.pf_report GROUP BY corp_code),
+    static final String LATEST_PF_DUE = "WITH r AS (" + PfExposureRepository.LATEST_REPORT_PERIOD + "), " + """
             d AS (SELECT m.corp_code, m.period_key, m.value, m.status
                     FROM r JOIN risk.company_metric m ON m.corp_code = r.corp_code AND m.period_key = r.period_key
                    WHERE m.metric_code = 'PF_DUE_12M_TO_EQUITY')

@@ -16,6 +16,12 @@ import java.util.List;
 /** PF 우발채무 (ADR-024) — 정기보고서 우발부채 구간 보관 · 구조화 결과 */
 @Repository
 public class PfExposureRepository {
+    /**
+     * 기업마다 PF 를 읽은 가장 최근 정기보고서의 분기(보고서 상태와 관계없이) — 화면 조회(대시보드 카드 · 노출 표)가 같은 기준을 씀.
+     * 그 분기 지표가 OK 가 아니면(자본잠식 · 표준 서식 아님 · 만기 모름) 옛 분기 값으로 메우지 않음 (VERIFICATION 221 · 222)
+     */
+    public static final String LATEST_REPORT_PERIOD = "SELECT corp_code, max(period_key) AS period_key FROM dart.pf_report GROUP BY corp_code";
+
     private final JdbcClient jdbc;
 
     public PfExposureRepository(JdbcClient jdbc) { this.jdbc = jdbc; }

@@ -120,6 +120,8 @@ export type ExposureRow = {
   pfPeriod?: string; pfGuaranteeToEquityPct?: number; pfDue12mToEquityPct?: number;
   /** 청약홈 분양 공고 (ADR-032) — 같은 기간 · 기준, 세대 = 공급규모 */
   presaleNotices: number; presaleUnits?: number; presaleRiskUnits?: number; presaleRiskSharePct?: number; remainderUnits?: number;
+  /** pfPeriod 분기 PF 지표의 상태 — OK 가 아니면 비율은 비어 있음(NEG_EQUITY = 자본잠식) */
+  pfStatus?: string;
 };
 /** 청약홈 분양 공고 (ADR-032) — 시공사 한 곳. matchStatus: 기업 대조 결과 */
 export type PresaleBuilder = { name: string; corpCode?: string; corpName?: string; matchStatus: "MATCHED" | "AMBIGUOUS" | "UNMATCHED"; target: boolean };

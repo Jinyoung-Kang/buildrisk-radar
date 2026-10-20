@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, DownloadLink, Empty, ErrorBox, Loading, PageTitle, Prose, Segmented } from "@/components/ui";
 import { sortExposure, type ExposureSort } from "@/lib/domain/exposure";
-import { eok, int, num, pk } from "@/lib/domain/format";
+import { STATUS_LABEL, eok, int, num, pk } from "@/lib/domain/format";
 import { useApi } from "@/lib/hooks/useApi";
 import * as insightApi from "@/lib/api/insight";
 
@@ -67,10 +67,10 @@ export default function ExposurePage() {
                       {r.latestBalanceToEquityPct != null ? `${num(r.latestBalanceToEquityPct, 1, true)}%` : "–"}
                       {r.latestGuaranteeDt && <span className="sub">{r.latestGuaranteeDt}</span>}</td>
                     <td className={`num ${(r.pfGuaranteeToEquityPct ?? 0) >= 100 ? "text-crit font-medium" : ""}`}>
-                      {r.pfGuaranteeToEquityPct != null ? `${num(r.pfGuaranteeToEquityPct, 1, true)}%` : "–"}
+                      {r.pfGuaranteeToEquityPct != null ? `${num(r.pfGuaranteeToEquityPct, 1, true)}%` : r.pfStatus === "NEG_EQUITY" ? STATUS_LABEL.NEG_EQUITY : "–"}
                       {r.pfPeriod && <span className="sub">{pk(r.pfPeriod)}</span>}</td>
                     <td className={`num ${(r.pfDue12mToEquityPct ?? 0) >= 50 ? "text-crit font-medium" : ""}`}>
-                      {r.pfDue12mToEquityPct != null ? `${num(r.pfDue12mToEquityPct, 1, true)}%` : "–"}</td>
+                      {r.pfDue12mToEquityPct != null ? `${num(r.pfDue12mToEquityPct, 1, true)}%` : r.pfStatus === "NEG_EQUITY" ? STATUS_LABEL.NEG_EQUITY : "–"}</td>
                     <td className="num whitespace-nowrap">{eok(r.pfAmount)}</td>
                     <td className="num whitespace-nowrap">{r.presaleNotices ? <Link href={`/companies/${r.corpCode}?tab=presales`} className="hover:underline">
                       {r.presaleNotices}건<span className="sub">{int(r.presaleUnits)}세대</span></Link> : <span className="text-muted">–</span>}</td>

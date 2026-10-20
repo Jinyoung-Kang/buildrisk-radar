@@ -28,7 +28,7 @@
 | [024](024-pf-contingent-liabilities.md) | PF 우발채무 — 정기보고서 부동산 PF 종합요약표 구조화(구간 스트리밍 · 두 가지 대조), R-C06 | 채택 |
 | [025](025-notifications.md) | 알림 — 경보와 같은 트랜잭션의 outbox, 알림함 · 서명된 웹훅(SSRF 방어 · 저장 암호화 · 재시도) | 채택 |
 | [026](026-site-location.md) | 사업장 카드 — 지오코딩 없이 공시 주소의 법정동 · 지번을 실거래와 정확히 대조, 동 단위 시장 — 입주 예정 물량은 청약홈 공고 단지 기준 하한으로 부분 해소(ADR-032) | 채택 |
-| [027](027-lineage-export.md) | 근거 계보(경보 → 원천 재무제표 줄 · 매핑 규칙 · 실행) · CSV 내려받기(수식 주입 방어) · v1 호환 정책 — v1 안의 두 변경(D1 수동 정리 409 · D2 riskShare 필드 추가) 기록 · API 안내 화면은 없앰(덧붙임) | 채택 |
+| [027](027-lineage-export.md) | 근거 계보(경보 → 원천 재무제표 줄 · 매핑 규칙 · 실행) · CSV 내려받기(수식 주입 방어) · v1 호환 정책 — v1 안의 두 변경(D1 수동 정리 409 · D2 riskShare 필드 추가) 기록 · API 안내 화면은 없앰 · PF 비율 사유 필드(buyerNegEquity · pfStatus) 추가(덧붙임) | 채택 |
 | [028](028-nextjs16-bundler.md) | Next.js 16 으로(15 지원 종료) — 운영 빌드는 webpack(첫 로드 JS 104 KB, Turbopack 은 116 KB) | 채택 |
 | [029](029-backend-feature-modules.md) | 백엔드를 기능 모듈 11개(presale 추가) × 계층(api · app · domain · data)으로 — 의존 방향 · domain 순수성 · 쓰기 SQL 위치를 테스트로 고정, 경보 전이는 순수 규칙 — 바깥 계층은 ops.* 에만 씀 | 채택 |
 | [030](030-frontend-layers.md) | 프론트엔드를 화면 · Hook · 순수 함수 · 기능별 API 모듈로 — 경계는 ESLint, 조회 응답은 경로에 묶음, 효과 안 setState 없음 — 상대 경로 · window/globalThis.fetch 우회도 막음 | 채택 |

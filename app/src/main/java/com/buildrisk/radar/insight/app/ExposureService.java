@@ -10,6 +10,7 @@ import com.buildrisk.radar.common.Kst;
 import com.buildrisk.radar.common.error.ApiException;
 import com.buildrisk.radar.common.error.ErrorCode;
 import com.buildrisk.radar.filing.data.ExposureRepository;
+import com.buildrisk.radar.filing.data.PfExposureRepository;
 import com.buildrisk.radar.market.data.StockRepository;
 import com.buildrisk.radar.metric.data.MetricRepository;
 import com.buildrisk.radar.presale.app.PresaleQueryService;
@@ -89,7 +90,7 @@ public class ExposureService {
                               String latestGuaranteeDt, BigDecimal pfAmount, int openAlerts,
                               String pfPeriod, BigDecimal pfGuaranteeToEquityPct, BigDecimal pfDue12mToEquityPct,
                               int presaleNotices, Long presaleUnits, Long presaleRiskUnits, BigDecimal presaleRiskSharePct,
-                              Long remainderUnits) {}
+                              Long remainderUnits, String pfStatus) {}
 
     public record Exposure(int days, BigDecimal unsoldPer1kHh, String asOf, List<ExposureRow> items, String method,
                            String disclaimer) {}
@@ -164,8 +165,13 @@ public class ExposureService {
                         WHERE superseded_by IS NULL AND rcept_dt >= :since GROUP BY corp_code),
                 al AS (SELECT target_key, count(*) AS n FROM risk.alert
                         WHERE target_type = 'COMPANY' AND status IN ('OPEN', 'ACK') GROUP BY target_key),
-                pg AS (SELECT DISTINCT ON (corp_code) corp_code, period_key, value FROM risk.company_metric
-                        WHERE metric_code = 'PF_GUARANTEE_TO_EQUITY' AND status = 'OK' ORDER BY corp_code, period_key DESC),
+                -- PF 비율 = 가장 최근 정기보고서의 분기 값만. 그 분기가 OK 가 아니면 값은 비우고 상태를 내림 — 전에는 OK 만 남긴 뒤 최신을 골라
+                -- 자본잠식 기업의 옛 분기 비율이 보였음 (VERIFICATION 222)
+                pr AS (""" + PfExposureRepository.LATEST_REPORT_PERIOD + """
+                ),
+                pg AS (SELECT m.corp_code, m.period_key, m.status, CASE WHEN m.status = 'OK' THEN m.value END AS value
+                         FROM pr JOIN risk.company_metric m ON m.corp_code = pr.corp_code AND m.period_key = pr.period_key
+                        WHERE m.metric_code = 'PF_GUARANTEE_TO_EQUITY'),
                 pd AS (SELECT corp_code, period_key, value FROM risk.company_metric
                         WHERE metric_code = 'PF_DUE_12M_TO_EQUITY' AND status = 'OK'),
                 -- 분양 공고 (ADR-032): 이 기업이 시공사(MATCHED)인 사라지지 않은 공고. 위험 비중 = 미분양 지표가 있는 시군구 공고 세대 중
@@ -189,7 +195,7 @@ public class ExposureService {
                        coalesce(agg.risky_n, 0), g.ratio, g.rcept_dt::text, pf.pf, coalesce(al.n, 0),
                        pg.period_key, pg.value, pd.value,
                        coalesce(pagg.n, 0), pagg.units, pagg.risky,
-                       CASE WHEN pagg.judged > 0 THEN round(coalesce(pagg.risky, 0) * 100.0 / pagg.judged, 2) END, prem.hh
+                       CASE WHEN pagg.judged > 0 THEN round(coalesce(pagg.risky, 0) * 100.0 / pagg.judged, 2) END, prem.hh, pg.status
                   FROM ref.company co
                   LEFT JOIN agg ON agg.corp_code = co.corp_code LEFT JOIN g ON g.corp_code = co.corp_code
                   LEFT JOIN pf ON pf.corp_code = co.corp_code LEFT JOIN al ON al.target_key = co.corp_code
@@ -203,11 +209,12 @@ public class ExposureService {
                         rs.getBigDecimal(5), rs.getBigDecimal(6), rs.getBigDecimal(7), rs.getInt(8), rs.getBigDecimal(9),
                         rs.getString(10), rs.getBigDecimal(11), rs.getInt(12), rs.getString(13), rs.getBigDecimal(14),
                         rs.getBigDecimal(15), rs.getInt(16), (Long) rs.getObject(17), (Long) rs.getObject(18), rs.getBigDecimal(19),
-                        (Long) rs.getObject(20))).list();
+                        (Long) rs.getObject(20), rs.getString(21))).list();
         return new Exposure(days, unsoldTh, since.toString(), rows,
                 "현재 수주 = 정정으로 대체되지 않고 해지되지 않은 공급계약 공시. 위험 지역 비중 = 시군구로 매핑된 수주 금액 중 "
                         + "최신 '천 가구당 미분양' ≥ 기준인 지역의 비중. 보증 비율 = 가장 최근 채무보증 결정 공시의 채무보증 총 잔액 / 자기자본. "
-                        + "PF 비율 = 가장 최근 정기보고서의 부동산 PF 보증금액(단독 + 컨소시엄 회사분)과 12개월 내 만기 PF 대출잔액을 각각 같은 분기 자본총계로 나눈 값. "
+                        + "PF 비율 = 가장 최근 정기보고서의 부동산 PF 보증금액(단독 + 컨소시엄 회사분)과 12개월 내 만기 PF 대출잔액을 각각 같은 분기 자본총계로 나눈 값"
+                        + "(그 분기가 자본잠식이거나 표준 서식이 아니면 옛 분기 값으로 메우지 않음). "
                         + "분양 = 같은 기간 청약홈 APT 분양 공고 중 이 기업이 시공사인 것(세대 = 공급규모, 컨소시엄은 나누지 않음), 위험 지역 비중은 "
                         + "미분양 지표가 있는 시군구 공고 세대 중 기준 이상 지역 비중.",
                 Disclaimer.TEXT);
