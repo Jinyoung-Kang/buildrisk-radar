@@ -111,6 +111,9 @@ class FilingJobIT extends IntegrationTest {
         WM.verify(0, getRequestedFor(urlPathEqualTo(DOC)));
         assertThat(count("SELECT count(*) FROM dart.contract")).isEqualTo(2);
         assertThat(count("SELECT count(*) FROM dart.filing_doc WHERE parser_version = 0 AND raw_html IS NOT NULL")).isZero();   // 원문 없는 NO_DOC 은 제외
+        // 다시 넣은 계약은 사업장 위치가 비므로 같은 단계에서 다시 해석 — 지표 Job 전까지 화면이 모두 '대조 못함'이던 것 (VERIFICATION 226)
+        assertThat(count("SELECT count(*) FROM dart.contract WHERE region_match = 'SIGUNGU'")).isPositive();
+        assertThat(count("SELECT count(*) FROM dart.contract WHERE region_match = 'SIGUNGU' AND site_version IS NULL")).isZero();
     }
 
     @Test

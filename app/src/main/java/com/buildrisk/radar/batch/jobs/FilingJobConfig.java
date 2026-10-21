@@ -11,6 +11,7 @@ import com.buildrisk.radar.filing.data.FilingRepository.Target;
 import com.buildrisk.radar.filing.data.FilingRepository;
 import com.buildrisk.radar.filing.domain.FilingParser;
 import com.buildrisk.radar.region.data.RegionRepository;
+import com.buildrisk.radar.region.data.SiteLocationRepository;
 import com.buildrisk.radar.region.domain.AddressRegionMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +38,7 @@ import java.util.List;
 /**
  * filingParseJob — 수주·보증 공시 원문 구조화 (ADR-016)
  *   step1 fetch  : 아직 받지 않은 공시의 document.xml → 원문 저장 + 파싱 (항목 하나 = 공시 하나, 청크 안 동시 호출)
- *   step2 reparse: 파서 버전이 낮은 원문을 호출 없이 다시 파싱
+ *   step2 reparse: 파서 버전이 낮은 원문을 호출 없이 다시 파싱 → 다시 넣은 계약의 사업장 위치도 같은 단계에서 다시 해석(226)
  *   step3 link   : 정정 → 원 공시 대체, 해지 → 계약 연결 (현재 수주 잔고 계산의 기준)
  */
 @Configuration
@@ -88,13 +89,15 @@ public class FilingJobConfig {
 
     @Bean
     Step filingReparseStep(JobRepository repo, PlatformTransactionManager tm, FilingRepository filings,
-                           RegionRepository regions, SeedCatalog seed) {
+                           RegionRepository regions, SeedCatalog seed, SiteLocationRepository sites) {
         return new StepBuilder("filingReparseStep", repo).tasklet((contribution, ctx) -> {
             var stale = filings.stale(FilingParser.VERSION);
             if (!stale.isEmpty()) {
                 AddressRegionMatcher matcher = new AddressRegionMatcher(regions.refs(), seed.regionAliases());
                 stale.forEach(s -> filings.save(s.target(), s.html(), matcher));
                 log.info("파서 v{} 로 원문 {}건 다시 파싱 (API 호출 없음)", FilingParser.VERSION, stale.size());
+                // 계약을 지우고 다시 넣으면 사업장 위치(site_*)가 비어 지표 Job 전까지 모든 사업장이 '대조 못함'으로 보였음 — 같은 단계에서 다시 해석 (226)
+                log.info("다시 파싱한 계약의 사업장 위치 해석 {}", sites.relocateAll());
             }
             contribution.incrementWriteCount(stale.size());
             return RepeatStatus.FINISHED;

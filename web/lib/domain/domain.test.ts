@@ -149,16 +149,22 @@ describe("exposure · company · scorecard", () => {
     assert.equal(filterDisclosures(d, "risk").length, 1);
     assert.equal(filterDisclosures(d, "all").length, 2);
   });
-  it("성적표: ANY 는 합계라 빼고, 가장 나은 규칙은 향상도 순", () => {
+  it("성적표: ANY 는 합계라 빼고, 가장 정밀한 규칙은 구간 하한 순(같으면 향상도)", () => {
+    // R-C01 은 향상도가 가장 크지만 경보 기업 3곳 중 1곳(구간 6–79%) — 점추정으로 고르면 뽑혔음 (VERIFICATION 225)
     const sc = { rules: [
-      { ruleCode: "ANY", precision: 0.9, hits: 9, lift: 9 }, { ruleCode: "R-C01", precision: 0.5, hits: 2, lift: 2 },
-      { ruleCode: "R-C02", precision: 0.6, hits: 3, lift: 3 }, { ruleCode: "R-C03", hits: 0, lift: 5 },
+      { ruleCode: "ANY", precision: 0.9, hits: 9, lift: 9, precisionCi: { low: 0.8, high: 0.95 } },
+      { ruleCode: "R-C01", precision: 0.33, hits: 1, lift: 17, precisionCi: { low: 0.06, high: 0.79 } },
+      { ruleCode: "R-C02", precision: 0.29, hits: 4, lift: 15, precisionCi: { low: 0.12, high: 0.55 } },
+      { ruleCode: "R-C03", hits: 0, lift: 5 },
     ], episodes: [
       { ruleCode: "R-C01", start: "2025-01-01", outcome: "MISS" }, { ruleCode: "ANY", start: "2026-01-01", outcome: "MISS" },
       { ruleCode: "R-C02", start: "2025-06-01", outcome: "MISS" }, { ruleCode: "R-C02", start: "2025-07-01", outcome: "HIT" },
     ] } as unknown as Scorecard;
     assert.deepEqual(ruleCodesOf(sc), ["R-C01", "R-C02", "R-C03"]);
     assert.equal(bestRule(sc)?.ruleCode, "R-C02");
+    const tie = { rules: [{ ruleCode: "R-C05", precision: 0.2, hits: 2, lift: 3, precisionCi: { low: 0.1, high: 0.5 } },
+      { ruleCode: "R-C06", precision: 0.25, hits: 2, lift: 4, precisionCi: { low: 0.1, high: 0.6 } }] } as unknown as Scorecard;
+    assert.equal(bestRule(tie)?.ruleCode, "R-C06");
     assert.deepEqual(episodesOf(sc, "MISS").map((e) => e.start), ["2025-06-01", "2025-01-01"]);
     assert.equal(episodesOf(sc, "").length, 3);
   });

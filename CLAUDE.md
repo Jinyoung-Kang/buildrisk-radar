@@ -62,6 +62,7 @@ cd web && CAPTURE=1 E2E_CHANNEL=chrome npx playwright test capture   # README �
 - **도커 VM 공유**: 이 맥에서는 다른 프로젝트 스택이 함께 돌아 부하 수치가 흔들린다. 비교는 같은 날 연달아 잰 값끼리, 결과에 조건을 적는다.
 - **캐시**: 목록 · 상세는 Redis read-through, 세대 키 `br:gen` 으로 일괄 무효화 — 모든 Job 이 끝나는 `BatchLauncher.awaitFinished` 와 경보 ACK 에서(worker 에서 실패하면 뒤에서 다시 시도 — VERIFICATION 154). DB 를 직접 고치면 최대 10분 옛 값 (ADR-022).
 - **worker 종료**: drain 은 `ContextClosedEvent` 에서 (`@PreDestroy` 는 Redis 가 닫힌 뒤라 캐시 무효화가 실패했음).
+  뒤에서 도는 Redis 작업을 종료 전에 마치게 하려면 Lettuce(phase 0)보다 큰 SmartLifecycle phase 의 `stop()` 에서 기다린다 — `JsonCache` 처럼 (VERIFICATION 223).
 - **Job 멈춤**: Spring Batch 6 의 `JobOperator.stop` 은 Job · Step 을 곧바로 STOPPED 로 적는다(스레드는 청크 끝까지 돎) — 멈춤은 `BatchLauncher.stop`(STOPPING 신호)으로만. 상태만 보고 '끝났다'고 판단하면 재시작이 겹친다(VERIFICATION 102).
 - **레이트리밋**: IP 당 분당 1,200, CSV 내려받기(`/api/v1/export/`)는 따로 분당 30(`br:rl:x:*`). API 를 전수 호출하는 스크립트를 연달아 돌리면 429 — Redis 의 `br:rl:*` 를 비우거나 1분 기다린다. E2E 로그인 잠금은 `br:login:*`.
 - **SQL**: 텍스트 블록과 문자열을 이을 때 공백 누락(`WHEREc` · `NULLORDER`)을 조심. `char(n)` 열과 `text` 를 비교하면 인덱스를 못 쓴다 — 계산한 키는 cast.

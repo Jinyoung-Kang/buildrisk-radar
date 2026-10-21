@@ -74,6 +74,9 @@ class ApplyhomeParseTest {
         assertThatThrownBy(() -> ApplyhomeClient.parseNotices(M, fixture("empty_dataset.json"))).isInstanceOf(QuotaExceededException.class)
                 .hasMessageContaining("totalCount");
         assertThatThrownBy(() -> ApplyhomeClient.parseModels(M, fixture("empty_dataset.json"))).isInstanceOf(QuotaExceededException.class);
+        // 잔여세대 단계만 이 하위 타입을 잡아 그 달을 건너뜀 — 나머지는 한도처럼 STOPPED (VERIFICATION 224)
+        assertThatThrownBy(() -> ApplyhomeClient.parseRemainders(M, fixture("empty_dataset.json")))
+                .isInstanceOf(ApplyhomeDatasetEmptyException.class).isInstanceOf(QuotaExceededException.class);
         // 조건에 맞는 것만 0건(데이터셋은 있음)은 정상
         assertThat(ApplyhomeClient.parseModels(M, "{\"currentCount\":0,\"data\":[],\"matchCount\":0,\"totalCount\":14869}").items()).isEmpty();
     }

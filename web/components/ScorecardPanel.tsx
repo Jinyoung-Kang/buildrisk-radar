@@ -85,7 +85,7 @@ export default function ScorecardPanel() {
               <div className="text-xs text-ink2">가장 정밀한 규칙{best ? ` · ${best.ruleCode}` : ""}</div>
               <div className="text-2xl font-semibold tabular mt-0.5">{best ? pct0(best.precision) : "–"}
                 {best?.lift != null && <span className="text-sm font-normal text-ink2"> · 기준선의 {num(best.lift, 1)}배</span>}</div>
-              <div className="text-[11px] text-muted">{best ? `경보가 울린 기업 ${best.hits + best.misses}곳 중 ${best.hits}곳이 ${shown}개월 안에 부실 (기준선 ${num((data.baseRate ?? 0) * 100, 1)}%)` : "판정 가능한 경보 없음"}</div>
+              <div className="text-[11px] text-muted">{best ? `경보가 울린 기업 ${best.hits + best.misses}곳 중 ${best.hits}곳이 ${shown}개월 안에 부실 (95% 구간 ${pct0(best.precisionCi?.low)}~${pct0(best.precisionCi?.high)} · 기준선 ${num((data.baseRate ?? 0) * 100, 1)}% — 구간 하한이 가장 큰 규칙)` : "판정 가능한 경보 없음"}</div>
             </div>
           </div>
 

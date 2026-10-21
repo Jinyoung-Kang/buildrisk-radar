@@ -31,8 +31,9 @@ public final class FilingParser {
     /**
      * 2: 자율공시 서식(세부내용 · 세부물건 · 계약(수주)일) · 해지의 관련공시에서 '공급계약 체결' 날짜를 골라 읽음
      * 3: 채무보증 주석 — '총 잔액은 한도이며 미사용잔액 포함' 표기 · 한도별 미사용액
+     * 4: 파서는 그대로, 공사 지역 → 시군구 매처를 고친 것(VERIFICATION 214 — '…지구' · 괄호 안 정식 주소)을 저장된 계약에 반영하려고 다시 파싱
      */
-    public static final int VERSION = 3;
+    public static final int VERSION = 4;
     private static final Pattern LIMIT_NOTE = Pattern.compile("총\\s*잔액[^.。]{0,40}한도[^.。]{0,20}미사용");
     private static final Pattern LIMIT_LINE = Pattern.compile(
             "보증\\s*한도\\s*(?:는|은)?\\s*[:：]?\\s*([\\d,]+)\\s*(백만원|억원|억)\\s*\\(\\s*미사용\\s*한도\\s*([\\d,]+)\\s*(백만원|억원|억)");

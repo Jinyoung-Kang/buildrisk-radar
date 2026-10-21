@@ -1,6 +1,7 @@
 package com.buildrisk.radar.batch.jobs;
 
 import com.buildrisk.radar.adapters.applyhome.ApplyhomeClient;
+import com.buildrisk.radar.adapters.applyhome.ApplyhomeDatasetEmptyException;
 import com.buildrisk.radar.adapters.common.UpstreamException;
 import com.buildrisk.radar.adapters.seed.SeedCatalog;
 import com.buildrisk.radar.batch.support.BatchKeys;
@@ -18,6 +19,7 @@ import com.buildrisk.radar.presale.data.PresaleRepository.RemainderMonth;
 import com.buildrisk.radar.presale.domain.BuilderNameMatcher;
 import com.buildrisk.radar.presale.domain.PresaleModels;
 import com.buildrisk.radar.presale.domain.PresaleModels.Dataset;
+import com.buildrisk.radar.presale.domain.PresaleModels.Remainder;
 import com.buildrisk.radar.region.data.RegionRepository;
 import com.buildrisk.radar.region.domain.AddressRegionMatcher;
 import org.slf4j.Logger;
@@ -43,11 +45,12 @@ import org.springframework.transaction.PlatformTransactionManager;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * presaleSyncJob — 청약홈 분양 공고 (ADR-032)
  *   1 notice    : (APT 공고, 모집공고 월) 하나 = 항목 하나. 원장에 없는 달 + 최근 3개월(이번 달 포함, 오늘 안 받은 달)
- *   2 remainder : 잔여세대 공고, 같은 월 창
+ *   2 remainder : 잔여세대 공고, 같은 월 창. 데이터셋 전체가 빈 응답이면 그 달만 건너뜀 — 화면 표시용이라 뒤 단계를 막지 않음(224)
  *   3 link      : 모든 공고의 주소 → 시군구, 시공사 → 기업, 잔여세대 → 원 공고 (호출 없음, 매번 전체 — 멱등)
  *   4 aggregate : 화면 단위 시군구 × 월 시계열 4개 → region_stat (지표 Job 이 천 가구당으로 나눔)
  *   5 model     : 공고가 바뀌었거나 새 공고의 주택형 (공고당 호출 1건 — 처음 수집이 가장 많아 마지막에 둠: 한도에 걸려도 지표는 오늘 것)
@@ -63,7 +66,7 @@ public class PresaleJobConfig {
 
     /**
      * 이번 실행에서 남은 항목 수 — maxCalls 에서 앞서 끝난 API 단계의 읽은 항목 수를 뺌. 앞 단계가 상한으로 멈췄으면 Job 이 멈춰
-     * 뒤 단계는 돌지 않으므로 끝난 단계의 읽은 수 = 처리한 항목 수. (@JobScope 빈은 청크 안 동시 처리 스레드에서 범위가 없어 쓰지 않음)
+     * 뒤 단계는 돌지 않고, 잔여세대의 빈 데이터셋은 달마다 한 번씩 부르며 건너뛰므로 끝난 단계의 읽은 수 = 부른 항목 수. (@JobScope 빈은 청크 안 동시 처리 스레드에서 범위가 없어 쓰지 않음)
      */
     static long remaining(StepExecution se, Long maxCalls) {
         if (maxCalls == null) return Long.MAX_VALUE;
@@ -157,9 +160,20 @@ public class PresaleJobConfig {
                                                                          @Value("#{stepExecution}") StepExecution se,
                                                                          @Value("#{jobParameters['maxCalls']}") Long maxCalls) {
         QuotaGuard guard = new QuotaGuard(se, skips, remaining(se, maxCalls));
+        AtomicBoolean warned = new AtomicBoolean();
         return t -> guard.call(t.dataset() + ":" + t.ym(), () -> {
             YearMonth m = PresaleModels.parseYm(t.ym());
-            var got = client.remainders(m.atDay(1), m.plusMonths(1).atDay(1));
+            List<Remainder> got;
+            try {
+                got = client.remainders(m.atDay(1), m.plusMonths(1).atDay(1));
+            } catch (ApplyhomeDatasetEmptyException e) {
+                // 잔여세대는 화면 표시와 원 공고 연결에만 씀 — 집계 · 지표 · R-X02 · 주택형의 입력이 아니라 그 달만 건너뛰고 뒤 단계는 계속(224).
+                // null 이면 writer 에 가지 않아 원장 · 사라짐 표시가 없음(216) → 다음 실행의 pendingMonths 가 다시 부름. 공고 · 주택형의 빈 응답,
+                // 429 · 자체 상한 · maxCalls 는 그대로 STOPPED. 남은 달도 하나씩 부름 — 읽은 항목 수 = 부른 수라 remaining() 이 맞음
+                guard.skip(t.dataset() + ":" + t.ym(), "EMPTY_DATASET", e.getMessage());
+                if (warned.compareAndSet(false, true)) log.warn("청약홈 잔여세대 데이터셋이 비어(totalCount 0) 그 달은 건너뜀 — 다음 실행에서 다시 받음: {}", t.ym());
+                return null;
+            }
             guardEmpty(t, got.size());
             return new RemainderMonth(t.ym(), got);
         });

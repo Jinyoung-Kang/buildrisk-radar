@@ -170,6 +170,76 @@ class PresaleJobIT extends IntegrationTest {
         assertThat(count("SELECT count(*) FROM mkt.presale_fetch")).isZero();
     }
 
+    /** 200 OK · totalCount 0 · data [] — 데이터셋 전체가 빈 응답(216). 같은 우선순위면 나중 stub 이 이기므로 stubMonth 도 가려짐 */
+    private static final String EMPTY_DATASET = "{\"currentCount\":0,\"data\":[],\"matchCount\":0,\"page\":1,\"perPage\":500,\"totalCount\":0}";
+
+    @Test
+    void 잔여세대_데이터셋만_비면_그_달은_원장에_쓰지_않고_연결_집계_주택형은_돈다() {
+        // AWS 00:50 — 잔여세대만 약 18분 비었는데 Job 이 통째로 멈춰 연결 · 집계 · 주택형이 막혔음 (VERIFICATION 224)
+        var empty = WM.stubFor(get(urlPathEqualTo(REMAINDER)).atPriority(1).willReturn(json(EMPTY_DATASET)));
+        var je = launcher.runAndWait("presaleSyncJob", run(2));
+        assertThat(je.getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        assertThat(je.getExecutionContext().containsKey("stopReason")).isFalse();
+        WM.verify(3, getRequestedFor(urlPathEqualTo(REMAINDER)));             // 첫 빈 응답 뒤에도 달마다 한 번 — 읽은 수 = 부른 수(maxCalls)
+        assertThat(count("SELECT count(*) FROM ops.skip_log WHERE job_execution_id = ? AND step_name = 'presaleRemainderStep' "
+                + "AND reason_code = 'EMPTY_DATASET'", je.getId())).isEqualTo(3);
+        // 216 보호: 빈 달을 '0건'으로 저장하지 않음 → 다음 실행이 다시 부름
+        assertThat(count("SELECT count(*) FROM mkt.presale_fetch WHERE dataset = 'REMAINDER'")).isZero();
+        assertThat(count("SELECT count(*) FROM mkt.presale_remainder")).isZero();
+        // 뒤 단계: 연결 · 집계 · 주택형
+        assertThat(count("SELECT count(*) FROM mkt.presale_fetch WHERE dataset = 'APT_NOTICE'")).isEqualTo(3);
+        assertThat(jdbc.queryForObject("SELECT region_cd || ':' || region_match FROM mkt.presale_notice WHERE house_manage_no = 'H1'", String.class))
+                .isEqualTo("26380:SIGUNGU");
+        assertThat(stat("PRESALE_SUPPLY_HH", "26380", m0)).isEqualTo("300");
+        WM.verify(3, getRequestedFor(urlPathEqualTo(MODEL)));
+        assertThat(count("SELECT count(*) FROM mkt.presale_notice WHERE model_sha256 = raw_sha256")).isEqualTo(3);
+
+        // 돌아오면 잔여세대 달만 다시 받음
+        WM.removeStub(empty);
+        WM.resetRequests();
+        assertThat(launcher.runAndWait("presaleSyncJob", run(2)).getStatus()).isEqualTo(BatchStatus.COMPLETED);
+        WM.verify(0, getRequestedFor(urlPathEqualTo(NOTICE)));
+        WM.verify(3, getRequestedFor(urlPathEqualTo(REMAINDER)));
+        WM.verify(0, getRequestedFor(urlPathEqualTo(MODEL)));
+        assertThat(count("SELECT count(*) FROM mkt.presale_fetch WHERE dataset = 'REMAINDER'")).isEqualTo(3);
+        assertThat(jdbc.queryForObject("SELECT notice_house_manage_no || ':' || link_method FROM mkt.presale_remainder WHERE house_manage_no = 'R1'",
+                String.class)).isEqualTo("H1:NAME_ZIP");
+    }
+
+    @Test
+    void 잔여세대를_건너뛰어도_maxCalls_는_부른_수만큼만_뺀다() {
+        WM.stubFor(get(urlPathEqualTo(REMAINDER)).atPriority(1).willReturn(json(EMPTY_DATASET)));
+        var je = launcher.runAndWait("presaleSyncJob", run(2, "maxCalls", 8));
+        assertThat(je.getStatus()).isEqualTo(BatchStatus.STOPPED);
+        assertThat(je.getExecutionContext().getString("stopReason")).contains("maxCalls=2");   // 8 − 공고 3 − 건너뛴 잔여세대 3
+        WM.verify(2, getRequestedFor(urlPathEqualTo(MODEL)));
+    }
+
+    @Test
+    void 공고_데이터셋이_비면_예전처럼_STOPPED() {
+        WM.stubFor(get(urlPathEqualTo(NOTICE)).atPriority(1).willReturn(json(EMPTY_DATASET)));
+        var je = launcher.runAndWait("presaleSyncJob", run(2));
+        assertThat(je.getStatus()).isEqualTo(BatchStatus.STOPPED);
+        assertThat(je.getExecutionContext().getString("stopReason")).contains("totalCount");
+        assertThat(count("SELECT count(*) FROM mkt.presale_fetch")).isZero();
+        WM.verify(0, getRequestedFor(urlPathEqualTo(REMAINDER)));
+        WM.verify(0, getRequestedFor(urlPathEqualTo(MODEL)));
+    }
+
+    @Test
+    void 잔여세대와_주택형이_모두_비면_연결_집계까지_하고_주택형에서_STOPPED() {
+        // 216 처럼 모든 데이터셋이 빈 한도라면: 공고 단계 뒤에 시작됐을 때 연결 · 집계는 살리고 주택형에서 멈춤
+        WM.stubFor(get(urlPathEqualTo(REMAINDER)).atPriority(1).willReturn(json(EMPTY_DATASET)));
+        WM.stubFor(get(urlPathEqualTo(MODEL)).atPriority(1).willReturn(json(EMPTY_DATASET)));
+        var je = launcher.runAndWait("presaleSyncJob", run(2));
+        assertThat(je.getStatus()).isEqualTo(BatchStatus.STOPPED);
+        assertThat(je.getExecutionContext().getString("stopReason")).contains("totalCount");
+        assertThat(stat("PRESALE_SUPPLY_HH", "26380", m0)).isEqualTo("300");
+        assertThat(count("SELECT count(*) FROM mkt.presale_notice_model")).isZero();
+        assertThat(count("SELECT count(*) FROM mkt.presale_notice WHERE model_sha256 IS NOT NULL")).isZero();   // '주택형 0개'로 끝내지 않음
+        assertThat(count("SELECT count(*) FROM mkt.presale_fetch WHERE dataset = 'REMAINDER'")).isZero();
+    }
+
     @Test
     void 롤링_시계열은_원장이_창을_모두_덮은_기준월만() {
         assertThat(launcher.runAndWait("presaleSyncJob", run(42)).getStatus()).isEqualTo(BatchStatus.COMPLETED);   // 43개월

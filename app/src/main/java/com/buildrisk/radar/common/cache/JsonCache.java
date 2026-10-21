@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.SmartLifecycle;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.ScanOptions;
@@ -18,9 +19,13 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -28,11 +33,22 @@ import java.util.function.Supplier;
 /**
  * Redis 조회 캐시. 키 앞에 '세대(generation)' 번호를 붙여 계산 run 이 끝날 때 INCR 한 번으로
  * 전체를 무효화합니다 (calc_run 단위 무효화). Redis 가 없으면 캐시 없이 동작합니다.
+ *
+ * <p>SmartLifecycle phase {@value #PHASE}: 종료 때 Lettuce 연결 팩토리(phase 0)보다 먼저 멈추며 뒤에서 돌던 지난 세대 정리를 기다립니다.
+ * Spring 은 ContextClosedEvent 리스너(worker drain)를 모두 마친 뒤 phase 가 큰 것부터 멈추므로, drain · 처리 중 요청이 시작한 정리까지
+ * 기다린 다음 연결이 닫힙니다 — batch-only CLI 는 무효화 직후 종료해 정리가 매번 'Redis exception' 으로 끊겼음 (VERIFICATION 223)
  */
 @Component
-public class JsonCache {
+public class JsonCache implements SmartLifecycle {
     private static final Logger log = LoggerFactory.getLogger(JsonCache.class);
     private static final String GEN_KEY = "br:gen";
+    /** LettuceConnectionFactory 의 기본 phase(0)보다 크고, 웹 서버 정지(DEFAULT_PHASE − 2048)보다 작음 */
+    static final int PHASE = 1;
+    /** 종료 때 정리를 기다리는 상한 — SCAN 이 키 공간 전체를 훑으므로 대기는 지난 세대가 아니라 Redis 전체 키 수에 비례 */
+    static final Duration PURGE_WAIT = Duration.ofSeconds(5);
+    /** 돌고 있는 지난 세대 정리 — 스레드가 아니라 끝남 표시를 둠: 넣은 뒤 시작 전인 스레드를 join 하면 예외가 나 나머지를 기다리지 못함 */
+    private final Set<CompletableFuture<Void>> purging = ConcurrentHashMap.newKeySet();
+    private volatile boolean running;
 
     private final StringRedisTemplate redis;
     private final ObjectMapper mapper;
@@ -162,12 +178,59 @@ public class JsonCache {
         try {
             Long gen = redis.opsForValue().increment(GEN_KEY);
             invalidatePending = false;
-            if (gen != null && gen > 1) Thread.ofVirtual().name("cache-purge").start(() -> purge(gen - 1));
+            if (gen != null && gen > 1) purgeInBackground(gen - 1);
             return true;
         } catch (RuntimeException e) {
             invalidatePending = true;
             warn(e);
             return false;
+        }
+    }
+
+    /** 지난 세대 정리는 뒤에서 — 응답 · Job 스레드를 막지 않음. 종료 때는 stop() 이 이 스레드들을 기다림 */
+    private void purgeInBackground(long gen) {
+        CompletableFuture<Void> done = new CompletableFuture<>();
+        purging.add(done);
+        try {
+            Thread.ofVirtual().name("cache-purge").start(() -> {
+                try {
+                    purge(gen);
+                } finally {
+                    purging.remove(done);
+                    done.complete(null);
+                }
+            });
+        } catch (RuntimeException | Error e) {
+            purging.remove(done);
+            throw e;
+        }
+    }
+
+    @Override
+    public void start() { running = true; }
+
+    @Override
+    public boolean isRunning() { return running; }
+
+    @Override
+    public int getPhase() { return PHASE; }
+
+    /**
+     * 연결이 닫히기 전에 — 실패해 표시해 둔 무효화를 한 번 더 올리고(곧 끝나는 CLI 에서는 뒤에서 다시 하는 스레드가 JVM 과 함께 사라짐, 154),
+     * 돌고 있는 정리를 {@link #PURGE_WAIT} 까지 기다림. 멈춘 뒤에도 정리는 계속 뒤에서 시작됨(stop → start 뒤에도 그대로)
+     */
+    @Override
+    public void stop() {
+        running = false;
+        if (invalidatePending) tryInvalidate();
+        try {
+            CompletableFuture.allOf(List.copyOf(purging).toArray(new CompletableFuture<?>[0])).get(PURGE_WAIT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            log.warn("지난 세대 캐시 정리를 {}초 안에 끝내지 못함 — 남은 키는 TTL 로 사라집니다", PURGE_WAIT.toSeconds());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            log.warn("지난 세대 캐시 정리를 기다리지 못함: {}", e.getMessage());   // 정리는 실패해도 끝남 표시를 정상으로 남기므로 오지 않음
         }
     }
 

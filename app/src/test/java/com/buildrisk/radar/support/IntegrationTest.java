@@ -77,6 +77,9 @@ public abstract class IntegrationTest {
 
     protected static String jdbcUrl() { return PG.getJdbcUrl(); }
 
+    /** 공유 Redis 컨테이너 주소 — 닫을 수 있는 작은 컨텍스트를 따로 띄우는 시험용(JsonCacheShutdownIT) */
+    public static String redisUrl() { return "redis://" + REDIS.getHost() + ":" + REDIS.getMappedPort(6379); }
+
     /** 같은 컨테이너의 다른 데이터베이스 주소 */
     protected static String jdbcUrl(String database) {
         return PG.getJdbcUrl().replaceFirst("/[^/?]+(\\?|$)", "/" + database + "$1");
